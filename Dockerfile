@@ -38,7 +38,7 @@ USER node
 # OPTIMISATION RAM
 ENV NODE_OPTIONS="--max-old-space-size=400"
 
-EXPOSE 4000
+EXPOSE 4001
 
 # On lance directement le fichier compilé
 CMD ["node", "dist/index.js"]
