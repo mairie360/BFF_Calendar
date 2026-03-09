@@ -8,7 +8,7 @@ networks:
 
 x-common-env: &common-env
   HOST: "0.0.0.0"
-  PORT: 4001 #change port
+  PORT: 4001
   REDIS_URL: redis://redis:6379
   DB_TYPE: postgres
   DB_NAME: mairie_360_database
@@ -23,22 +23,22 @@ x-depends-on: &depends-on
   redis:
     condition: service_healthy
 
-x-healthcheck: &healthcheck
-  test: ["CMD", "curl", "-f", "http://localhost:4001"] #change port
-  interval: 10s
-  timeout: 5s
-  retries: 5
+# x-healthcheck: &healthcheck
+#   test: ["CMD", "curl", "-f", "http://localhost:4001"]
+#   interval: 10s
+#   timeout: 5s
+#   retries: 5
 
 x-service: &service-template
   image: ghcr.io/mairie360/service_name:latest
   pull_policy: always
   restart: always
   expose:
-    - "4001" #change port
+    - "4001"
   networks:
     - backend
-  healthcheck:
-    <<: *healthcheck
+  # healthcheck:
+  #   <<: *healthcheck
 
 services:
   postgres:
@@ -106,7 +106,15 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      <<: *common-env
+      HOST: "0.0.0.0"
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+      DB_TYPE: postgres
+      DB_NAME: mairie_360_database
+      DB_USER: postgres
+      DB_HOST: postgres
+      DB_PASSWORD: password
+      DB_PORT: 5432
       PUBLIC_URL: http://core.development.mairie360.fr
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
@@ -115,43 +123,34 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"] # <--- Doit être 3000
-      interval: 5s
-      timeout: 2s
-      retries: 3
-      start_period: 10s
-
-  #add other apis if needed
-
-  bff-calendar: # change bff name
-    container_name: calendar-bff-developpement #change bff name
-    build:
-      context: .
-      dockerfile: development.Dockerfile
-    develop:
-      watch:
-        - action: sync
-          path: ./src
-          target: /usr/src/calendar/src #change bff name
-        - action: sync
-          path: ./Cargo.toml
-          target: /usr/src/calendar/Cargo.toml #change bff name
-        - action: sync
-          path: ./Cargo.lock
-          target: /usr/src/calendar/Cargo.lock #change bff name
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3000/health"] # <--- Doit être 3000
+    #   interval: 5s
+    #   timeout: 2s
+    #   retries: 3
+    #   start_period: 10s
+      
+  calendar-api:
+    container_name: calendar-api-bff-calendar-developpement
+    image: ghcr.io/mairie360/calendar-api:dev-latest
     ports:
-      - "4001:4001" #change port
-    volumes:
-      - calendar-target:/usr/src/calendar/target #change bff name
+      - "3002:3002"
     networks:
       - backend
     dns:
       - 8.8.8.8
       - 1.1.1.1
     environment:
-      <<: *common-env
-      PUBLIC_URL: http://calendar.development.mairie360.fr #change bff name
+      HOST: "0.0.0.0"
+      PORT: 3002
+      REDIS_URL: redis://redis:6379
+      DB_TYPE: postgres
+      DB_NAME: mairie_360_database
+      DB_USER: postgres
+      DB_HOST: postgres
+      DB_PASSWORD: password
+      DB_PORT: 5432
+      PUBLIC_URL: http://calendar.development.mairie360.fr
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
     depends_on:
@@ -159,24 +158,61 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://calendar:4001/health"] #change bff name #change port
-      interval: 5s
-      timeout: 2s
-      retries: 3
-      start_period: 10s
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3002/health"] # <--- Doit être 3002
+    #   interval: 5s
+    #   timeout: 2s
+    #   retries: 3
+    #   start_period: 10s
+  
+  #add other apis if needed
 
-  nginx:
-    image: nginx:1.27.4-bookworm
-    restart: always
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
+  bff-calendar:
+    container_name: bff-calendar-developpement
+    build:
+      context: .
+      dockerfile: development.Dockerfile
+    # Mode synchronisation en temps réel (Docker Compose V2)
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: rebuild
+          path: package.json
     ports:
-      - "80:80"
+      - "4001:4001"
     networks:
       - backend
-    depends_on:
-      bff-calendar: #change bff name
-        condition: service_healthy
-    extra_hosts:
-      - "calendar.development.mairie360.fr:127.0.0.1" #change bff name
+    environment:
+      <<: *common-env
+      # IMPORTANT : On utilise le nom du service Docker pour communiquer
+      CORE_API_URL: "core" 
+      CORE_API_PORT: 3000
+      CALENDAR_API_URL: "calendar-api" 
+      CALENDAR_API_PORT: 3002
+    volumes:
+      - /app/node_modules # Isolation des modules pour éviter les conflits OS (Mac/Windows vs Linux)
+    # depends_on:
+      # core:
+      #   condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # nginx:
+  #   image: nginx:1.27.4-bookworm
+  #   restart: always
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #   ports:
+  #     - "80:80"
+  #   networks:
+  #     - backend
+  #   depends_on:
+  #     bff-calendar: #change bff name
+  #       condition: service_healthy
+  #   extra_hosts:
+  #         - "bff-calendar.development.mairie360.fr:127.0.0.1" #change bff name
