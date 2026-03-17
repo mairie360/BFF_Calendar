@@ -2,7 +2,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# On monte le secret .npmrc uniquement pour cette commande
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci
 COPY . .
 RUN npm run build
 # On ne garde que les dépendances de prod pour le runtime
