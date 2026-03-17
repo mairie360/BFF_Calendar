@@ -11,9 +11,7 @@ function importAll(r: string[]) {
 }
 
 const routeFiles = fs.readdirSync(path.join(__dirname, '../src/routes')).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
-routeFiles.forEach(file => {
-  require(path.resolve(__dirname, '../src/routes', file));
-});
+importAll(routeFiles);
 
 const generator = new OpenApiGeneratorV3(registry.definitions);
 
