@@ -9,7 +9,8 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 
 # Installation complète (avec devDependencies pour ts-node-dev)
-RUN npm install
+# On monte le secret .npmrc uniquement pour cette commande
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci
 
 # On copie le reste du code source
 COPY . .
