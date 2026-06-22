@@ -121,3 +121,5 @@ export const CalendarStatisticsSchema = z.object({
   todayCount: z.number().int().min(0)
     .openapi({ description: 'Nombre d\'événements aujourd\'hui' }),
 }).openapi('CalendarStatistics');
+
+registry.register('CalendarStatistics', CalendarStatisticsSchema);

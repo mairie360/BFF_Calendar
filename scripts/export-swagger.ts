@@ -15,7 +15,7 @@ function importAll(r: string[]) {
         require(fullPath);
       }
     } catch (e) {
-      // Ignorer les erreurs pour les fichiers qui ne sont pas trouvés
+        console.error(`Erreur lors de l'importation du fichier ${fullPath}:`, e);
     }
   });
 }
