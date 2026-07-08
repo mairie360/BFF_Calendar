@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { registry, CalendarCategorySchema } from '../../openapi-registry';
-import { getCalendarCategories } from './calendar_helpers';
+import { registry, CalendarServiceSchema } from '../../openapi-registry';
+import { getCalendarServices } from './calendar_helpers';
 
 const router = Router();
 
@@ -10,18 +10,18 @@ const router = Router();
 
 registry.registerPath({
   method: 'get',
-  path: '/calendar/categories',
+  path: '/calendar/services',
   tags: ['Calendar'],
-  summary: 'Récupère le référentiel des catégories',
-  description: 'Charge la liste des catégories d\'événements disponibles',
+  summary: 'Récupère le référentiel des services calendrier',
+  description: 'Charge la liste des services municipaux utilisables pour qualifier les événements',
   responses: {
     200: {
-      description: 'Liste des catégories',
+      description: 'Liste des services calendrier',
       content: {
         'application/json': {
           schema: {
             type: 'array',
-            items: { $ref: '#/components/schemas/CalendarCategory' },
+            items: { $ref: '#/components/schemas/CalendarService' },
           },
         },
       },
@@ -37,7 +37,7 @@ registry.registerPath({
 // ========================================
 
 router.get('/', (req: Request, res: Response) => {
-  return res.status(200).json(getCalendarCategories());
+  return res.status(200).json(getCalendarServices());
 });
 
 export default router;

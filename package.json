@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "8.5.0",
-    "@mairie360/calendar-api-openapi": "0.3.0",
+    "@mairie360/calendar-api-openapi": "0.0.0-dev.c2dc1b9f4bf5b2351210bf57aa87584b056fcf9a",
     "@mairie360/core-api-openapi": "0.4.0",
     "axios": "1.18.1",
     "dotenv": "17.4.2",

@@ -1,5 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { registry, CalendarBootstrapResponseSchema } from '../../openapi-registry';
+import {
+  defaultDateRange,
+  fetchCalendarEvents,
+  fetchKnownAssignees,
+  getCalendarCategories,
+  getCalendarServices,
+  handleUnknownError,
+} from './calendar_helpers';
 
 const router = Router();
 
@@ -32,9 +40,26 @@ registry.registerPath({
 // Implémentation
 // ========================================
 
-router.get('/', (req: Request, res: Response) => {
-  // TODO: Implémenter la logique
-  res.status(501).json({ error: 'Not implemented' });
+router.get('/', async (req: Request, res: Response) => {
+  const defaults = defaultDateRange();
+  const from = typeof req.query.from === 'string' ? req.query.from : defaults.from;
+  const to = typeof req.query.to === 'string' ? req.query.to : defaults.to;
+
+  try {
+    const [events, assignees] = await Promise.all([
+      fetchCalendarEvents(from, to),
+      fetchKnownAssignees(from, to),
+    ]);
+
+    return res.status(200).json({
+      events,
+      assignees,
+      categories: getCalendarCategories(),
+      services: getCalendarServices(),
+    });
+  } catch (error) {
+    return handleUnknownError(res, error);
+  }
 });
 
 export default router;

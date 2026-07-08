@@ -53,6 +53,7 @@ export const CalendarEventSchema = z.object({
     .openapi({ description: 'Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)' }),
   category: z.enum(['meeting', 'activity', 'ceremony', 'other']).optional()
     .openapi({ description: 'Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)' }),
+  service: z.string().optional().openapi({ description: 'Service ou département organisateur' }),
   startTime: z.string().regex(/^\d{2}:\d{2}$/).optional()
     .openapi({ description: 'Heure de début au format HH:mm' }),
   endTime: z.string().regex(/^\d{2}:\d{2}$/).optional()
@@ -67,6 +68,11 @@ export const CalendarEventSchema = z.object({
     .openapi({ description: 'Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)' }),
   recurrence: CalendarRecurrenceSchema.optional()
     .openapi({ description: 'Règle de récurrence de l\'événement' }),
+  approvalStatus: z.enum(['pending', 'approved', 'rejected']).optional().openapi({ description: 'Statut d\'approbation de l\'événement' }),
+  createdById: z.string().or(z.number()).optional()
+    .openapi({ description: 'Identifiant de l\'utilisateur ayant créé l\'événement' }),
+  visibleToRoles: z.array(z.enum(['user', 'responsable', 'mayor'])).optional()
+    .openapi({ description: 'Liste des rôles pouvant voir l\'événement' }),
 }).openapi('CalendarEvent');
 
 // ========================================
@@ -81,6 +87,17 @@ export const CalendarCategorySchema = z.object({
 }).openapi('CalendarCategory');
 
 // ========================================
+// Schémas - Service calendrier
+// ========================================
+
+export const CalendarServiceSchema = z.object({
+  label: z.string()
+    .openapi({ description: 'Libellé affiché (ex: Direction générale)' }),
+  value: z.string()
+    .openapi({ description: 'Valeur interne (ex: direction)' }),
+}).openapi('CalendarService');
+
+// ========================================
 // Schémas - Bootstrap Response
 // ========================================
 
@@ -91,6 +108,8 @@ export const CalendarBootstrapResponseSchema = z.object({
     .openapi({ description: 'Référentiel des personnes assignables' }),
   categories: z.array(CalendarCategorySchema)
     .openapi({ description: 'Référentiel des catégories' }),
+  services: z.array(CalendarServiceSchema)
+    .openapi({ description: 'Référentiel des services calendrier' }),
   currentUser: z.object({
     name: z.string(),
     email: z.string().email(),
@@ -107,6 +126,7 @@ registry.register('CalendarRecurrence', CalendarRecurrenceSchema);
 registry.register('CalendarAssignee', CalendarAssigneeSchema);
 registry.register('CalendarEvent', CalendarEventSchema);
 registry.register('CalendarCategory', CalendarCategorySchema);
+registry.register('CalendarService', CalendarServiceSchema);
 registry.register('CalendarBootstrapResponse', CalendarBootstrapResponseSchema);
 
 // ========================================
@@ -123,3 +143,94 @@ export const CalendarStatisticsSchema = z.object({
 }).openapi('CalendarStatistics');
 
 registry.register('CalendarStatistics', CalendarStatisticsSchema);
+
+// ========================================
+// Schémas - Params
+// ========================================
+
+export const CalendarEventParamsSchema = z.object({
+  eventId: z.string().or(z.number())
+    .openapi({
+      description: "Identifiant de l'événement",
+      example: "123",
+    }),
+}).openapi('CalendarEventParams');
+
+registry.register('CalendarEventParams', CalendarEventParamsSchema);
+
+// ========================================
+// Schémas - Query
+// ========================================
+
+export const CalendarEventsQuerySchema = z.object({
+  startDate: z.string().optional().openapi({
+    description: 'Date de début (YYYY-MM-DD)',
+  }),
+
+  endDate: z.string().optional().openapi({
+    description: 'Date de fin (YYYY-MM-DD)',
+  }),
+
+  assigneeId: z.string().optional().openapi({
+    description: 'Filtre sur une personne assignée',
+  }),
+
+  category: z.string().optional().openapi({
+    description: 'Filtre sur une catégorie',
+  }),
+}).openapi('CalendarEventsQuery');
+
+registry.register('CalendarEventsQuery', CalendarEventsQuerySchema);
+
+// ========================================
+// Schémas - Création d'événement
+// ========================================
+
+export const CreateCalendarEventBodySchema = CalendarEventSchema.omit({
+  id: true,
+}).openapi('CreateCalendarEventBody');
+
+registry.register(
+  'CreateCalendarEventBody',
+  CreateCalendarEventBodySchema,
+);
+
+// ========================================
+// Schémas - Modification d'événement
+// ========================================
+
+export const UpdateCalendarEventBodySchema =
+  CreateCalendarEventBodySchema.partial().openapi(
+    'UpdateCalendarEventBody',
+  );
+
+registry.register(
+  'UpdateCalendarEventBody',
+  UpdateCalendarEventBodySchema,
+);
+
+// ========================================
+// Schémas - Approbation d'événement
+// ========================================
+
+export const UpdateCalendarEventApprovalBodySchema = z.object({
+  approvalStatus: z.enum(['pending', 'approved', 'rejected'])
+    .openapi({ description: 'Nouveau statut d\'approbation de l\'événement' }),
+}).openapi('UpdateCalendarEventApprovalBody');
+
+registry.register(
+  'UpdateCalendarEventApprovalBody',
+  UpdateCalendarEventApprovalBodySchema,
+);
+
+// ========================================
+// Schémas - Erreur API
+// ========================================
+
+export const ApiErrorSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  details: z.unknown().optional(),
+}).openapi('ApiError');
+
+registry.register('ApiError', ApiErrorSchema);
