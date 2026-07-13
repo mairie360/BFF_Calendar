@@ -2,7 +2,7 @@
   "name": "bff-calendar",
   "version": "1.0.0",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "TS_NODE_SKIP_IGNORE=true TS_NODE_TRANSPILE_ONLY=true ts-node src/index.ts",
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "8.5.0",
-    "@mairie360/calendar-api-openapi": "0.0.0-dev.c2dc1b9f4bf5b2351210bf57aa87584b056fcf9a",
+    "@mairie360/calendar-api-openapi": "0.0.0-dev-d6d05a0",
     "@mairie360/core-api-openapi": "0.4.0",
     "axios": "1.18.1",
     "dotenv": "17.4.2",
@@ -21,6 +21,8 @@
     "swagger-jsdoc": "6.3.0",
     "swagger-ui-express": "5.0.1",
     "swagger-ui-react": "5.32.8",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -36,8 +38,6 @@
     "openapi-typescript-codegen": "0.31.0",
     "supertest": "7.2.2",
     "ts-jest": "29.4.11",
-    "ts-node": "10.9.2",
-    "typescript": "5.9.3",
     "typescript-eslint": "8.63.0"
   }
 }

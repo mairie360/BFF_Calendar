@@ -47,8 +47,8 @@ router.get('/', async (req: Request, res: Response) => {
 
   try {
     const [events, assignees] = await Promise.all([
-      fetchCalendarEvents(from, to),
-      fetchKnownAssignees(from, to),
+      fetchCalendarEvents(from, to, req.headers.authorization),
+      fetchKnownAssignees(from, to, req.headers.authorization),
     ]);
 
     return res.status(200).json({

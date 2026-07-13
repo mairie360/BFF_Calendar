@@ -42,7 +42,7 @@ router.get('/', async (req: Request, res: Response) => {
   const to = typeof req.query.to === 'string' ? req.query.to : defaults.to;
 
   try {
-    const assignees = await fetchKnownAssignees(from, to);
+    const assignees = await fetchKnownAssignees(from, to, req.headers.authorization);
     return res.status(200).json(assignees);
   } catch (error) {
     return handleUnknownError(res, error);

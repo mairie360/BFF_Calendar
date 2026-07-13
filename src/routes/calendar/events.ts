@@ -228,13 +228,14 @@ registry.registerPath({
 router.get('/', async (req: Request, res: Response) => {
   const from = typeof req.query.from === 'string' ? req.query.from : undefined;
   const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+  const token = req.headers.authorization;
   
   if (!from || !to) {
     return res.status(400).json({ error: 'Les paramètres from et to sont obligatoires' });
   }
   
   try {
-    const events = await fetchCalendarEvents(from, to);
+    const events = await fetchCalendarEvents(from, to, token);
     return res.status(200).json(events);
   } catch (error) {
     return handleUnknownError(res, error);
@@ -250,7 +251,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const event = await createCalendarEvent(bodyResult.data);
+    const event = await createCalendarEvent(bodyResult.data, req.headers.authorization);
     return res.status(201).json(event);
   } catch (error) {
     return handleUnknownError(res, error);
@@ -273,7 +274,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const event = await patchCalendarEvent(eventId, bodyResult.data);
+    const event = await patchCalendarEvent(eventId, bodyResult.data, req.headers.authorization);
     return res.status(200).json(event);
   } catch (error) {
     return handleUnknownError(res, error);
@@ -296,7 +297,7 @@ router.patch('/:id/approval', async (req: Request, res: Response) => {
   }
 
   try {
-    const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus);
+    const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus, req.headers.authorization);
     return res.status(200).json(event);
   } catch (error) {
     return handleUnknownError(res, error);
@@ -313,7 +314,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
   
   try {
-    await deleteCalendarEvent(eventId);
+    await deleteCalendarEvent(eventId, req.headers.authorization);
     return res.status(204).send();
   } catch (error) {
     return handleUnknownError(res, error);

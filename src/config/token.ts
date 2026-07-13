@@ -5,4 +5,23 @@
  * Laisse une chaîne vide par défaut.
  */
 export const DEFAULT_JWT_TOKEN: string =
-  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgzNjgzMjQ2LCJleHAiOjE3ODM2ODY4NDZ9.fy2E_8M41X0itEbsqt6HSWY_5ccg-Zbr575Ga6CIeWQ";
+  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgzOTQ5NjU1LCJleHAiOjE3ODM5NTMyNTV9.0PViMh4AsxMrUVUS6h8diNOUbIqI3_MCLCDU-DaV7SU";
+
+function isUsableToken(value?: string): value is string {
+  if (!value) {
+    return false;
+  }
+
+  const token = value.trim();
+  return !['undefined', 'null', 'Bearer', 'Bearer undefined', 'Bearer null'].includes(token);
+}
+
+export function getAuthorizationHeader(incomingRequestToken?: string): string | undefined {
+  const token = isUsableToken(incomingRequestToken) ? incomingRequestToken.trim() : DEFAULT_JWT_TOKEN.trim();
+
+  if (!isUsableToken(token)) {
+    return undefined;
+  }
+
+  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+}

@@ -1,10 +1,14 @@
 volumes:
-  postgres-data:
+  postgres-data-v18:
   redis-data:
   bff-calendar-target:
 
 networks:
   backend:
+
+secrets:
+  npmrc:
+    file: .npmrc
 
 x-common-env: &common-env
   HOST: "0.0.0.0"
@@ -52,7 +56,7 @@ services:
     expose:
       - "5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-v18:/var/lib/postgresql
     networks:
       - backend
     healthcheck:
@@ -72,7 +76,7 @@ services:
       LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/mairie_360_database
       LIQUIBASE_COMMAND_USERNAME: ${DB_USER:-postgres}
       LIQUIBASE_COMMAND_PASSWORD: ${DB_PASSWORD:-password}
-      LIQUIBASE_SEARCH_PATH: /liquibase/changelog
+      LIQUIBASE_SEARCH_PATH: /migrations
     command: >
       --changelog-file=changelog.xml
       update
@@ -172,6 +176,10 @@ services:
     build:
       context: .
       dockerfile: development.Dockerfile
+      args:
+        - NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN}
+      secrets:
+        - npmrc
     # Mode synchronisation en temps réel (Docker Compose V2)
     develop:
       watch:
@@ -191,6 +199,9 @@ services:
       CORE_API_PORT: 3000
       CALENDAR_API_URL: "calendar-api" 
       CALENDAR_API_PORT: 3002
+      CALENDAR_API_BASE_PATH: "http://host.docker.internal:3002/api"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /app/node_modules # Isolation des modules pour éviter les conflits OS (Mac/Windows vs Linux)
     # depends_on:

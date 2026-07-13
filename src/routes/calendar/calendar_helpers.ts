@@ -1,7 +1,9 @@
 import axios, { AxiosError } from 'axios';
+import type { AxiosRequestConfig } from 'axios';
 import type { Response } from 'express';
 import { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
+import { getAuthorizationHeader } from '../../config/token';
 import {
   CalendarAssigneeSchema,
   CalendarCategorySchema,
@@ -19,8 +21,8 @@ export type BffCalendarEventPatch = Partial<BffCalendarEvent>;
 
 type CalendarMember = {
   id: number;
-  member_type: 'Group' | 'User' | 'Error';
-  regular: boolean;
+  member_type?: 'Group' | 'User' | 'Error';
+  regular?: boolean;
 };
 
 type ApiEventListItem = {
@@ -37,12 +39,8 @@ type ApiEventDetails = {
   events_start_time: string;
   events_end_time: string;
   members: CalendarMember[];
-  owner?: CalendarMember;
+  owner?: CalendarMember | number;
   recurrence_id?: number | null;
-};
-
-type ApiCreateEventResult = {
-  event_id: number;
 };
 
 type ApiRecurrence = {
@@ -101,6 +99,14 @@ function combineDateTime(date: string, time?: string): string {
   return time ? `${date}T${time}:00` : date;
 }
 
+function toApiDateTime(value: string, boundary: 'start' | 'end'): string {
+  if (value.includes('T')) {
+    return value;
+  }
+
+  return boundary === 'start' ? `${value}T00:00:00Z` : `${value}T23:59:59Z`;
+}
+
 function parseNumericId(value: string | number | undefined): number | null {
   if (value === undefined) {
     return null;
@@ -117,12 +123,13 @@ function parseNumericId(value: string | number | undefined): number | null {
 }
 
 function mapMemberToAssignee(member: CalendarMember): BffCalendarAssignee {
-  const prefix = member.member_type === 'Group' ? 'group' : 'user';
+  const memberType = member.member_type ?? 'User';
+  const prefix = memberType === 'Group' ? 'group' : 'user';
 
   return {
     id: `${prefix}-${member.id}`,
-    name: member.member_type === 'Group' ? `Groupe ${member.id}` : `Utilisateur ${member.id}`,
-    role: member.member_type,
+    name: memberType === 'Group' ? `Groupe ${member.id}` : `Utilisateur ${member.id}`,
+    role: memberType,
   };
 }
 
@@ -215,6 +222,20 @@ function mapAssigneeIdToMember(assigneeId: string | number): CalendarMember | nu
   return { id, member_type: memberType, regular: true };
 }
 
+function authOptions(incomingRequestToken?: string): AxiosRequestConfig {
+  const authHeader = getAuthorizationHeader(incomingRequestToken);
+
+  if (!authHeader) {
+    return {};
+  }
+
+  return {
+    headers: {
+      Authorization: authHeader,
+    },
+  };
+}
+
 export function sendValidationError(res: Response, details: unknown): Response {
   return res.status(400).json({
     code: 'BAD_REQUEST',
@@ -240,52 +261,74 @@ export function handleUnknownError(res: Response, error: unknown): Response {
   });
 }
 
-export async function fetchCalendarEvents(from: string, to: string): Promise<BffCalendarEvent[]> {
-  const response = await calendarApi.get<{ events: ApiEventListItem[] }>('/v1/calendar', {
-    params: { start: from, end: to },
-  });
+export async function fetchCalendarEvents(
+  from: string,
+  to: string,
+  incomingRequestToken?: string,
+): Promise<BffCalendarEvent[]> {
+  const response = await calendarApi.getCalendar(
+    { start: toApiDateTime(from, 'start'), end: toApiDateTime(to, 'end') } as never,
+    authOptions(incomingRequestToken),
+  );
 
-  return response.data.events.map(mapEventListItemToBff);
+  return (response.data.events as ApiEventListItem[]).map(mapEventListItemToBff);
 }
 
-export async function fetchCalendarEvent(eventId: number): Promise<BffCalendarEvent> {
-  const response = await calendarApi.get<ApiEventDetails>(`/v1/events/${eventId}/`);
-  return mapEventDetailsToBff(response.data);
+export async function fetchCalendarEvent(
+  eventId: number,
+  incomingRequestToken?: string,
+): Promise<BffCalendarEvent> {
+  const response = await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
+  return mapEventDetailsToBff(response.data as ApiEventDetails);
 }
 
-export async function createCalendarEvent(event: BffCalendarEvent): Promise<BffCalendarEvent> {
-  const response = await calendarApi.post<ApiCreateEventResult>('/v1/events/', mapEventToCreateBody(event));
+export async function createCalendarEvent(
+  event: BffCalendarEvent,
+  incomingRequestToken?: string,
+): Promise<BffCalendarEvent> {
+  const response = await calendarApi.createEvent(
+    mapEventToCreateBody(event) as never,
+    authOptions(incomingRequestToken),
+  );
   const eventId = response.data.event_id;
 
-  await syncEventMembers(eventId, [], event.assigneeIds ?? []);
+  await syncEventMembers(eventId, [], event.assigneeIds ?? [], incomingRequestToken);
 
-  return fetchCalendarEvent(eventId);
+  return fetchCalendarEvent(eventId, incomingRequestToken);
 }
 
-export async function patchCalendarEvent(eventId: number, event: BffCalendarEventPatch): Promise<BffCalendarEvent> {
-  const current = await calendarApi.get<ApiEventDetails>(`/v1/events/${eventId}/`);
+export async function patchCalendarEvent(
+  eventId: number,
+  event: BffCalendarEventPatch,
+  incomingRequestToken?: string,
+): Promise<BffCalendarEvent> {
+  const current = await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
   const mergedEvent = {
-    ...mapEventDetailsToBff(current.data),
+    ...mapEventDetailsToBff(current.data as ApiEventDetails),
     ...event,
   };
 
-  await calendarApi.patch(`/v1/events/${eventId}/`, mapEventToPatchBody(mergedEvent), {
-    params: { reccurent: mergedEvent.recurrence?.frequency !== undefined && mergedEvent.recurrence.frequency !== 'none' },
-  });
+  await calendarApi.patchEvent(
+    eventId,
+    mapEventToPatchBody(mergedEvent) as never,
+    { reccurent: mergedEvent.recurrence?.frequency !== undefined && mergedEvent.recurrence.frequency !== 'none' },
+    authOptions(incomingRequestToken),
+  );
 
   if (event.assigneeIds) {
     await syncEventMembers(
       eventId,
-      current.data.members.map((member) => `${member.member_type === 'Group' ? 'group' : 'user'}-${member.id}`),
+      (current.data as ApiEventDetails).members.map((member) => `${member.member_type === 'Group' ? 'group' : 'user'}-${member.id}`),
       event.assigneeIds,
+      incomingRequestToken,
     );
   }
 
-  return fetchCalendarEvent(eventId);
+  return fetchCalendarEvent(eventId, incomingRequestToken);
 }
 
-export async function deleteCalendarEvent(eventId: number): Promise<void> {
-  await calendarApi.delete(`/v1/events/${eventId}/`);
+export async function deleteCalendarEvent(eventId: number, incomingRequestToken?: string): Promise<void> {
+  await calendarApi.deleteEvent(eventId, authOptions(incomingRequestToken));
 }
 
 export function getCalendarCategories(): BffCalendarCategory[] {
@@ -299,17 +342,22 @@ export function getCalendarServices(): BffCalendarService[] {
 export async function updateCalendarEventApproval(
   eventId: number,
   approvalStatus: NonNullable<BffCalendarEvent['approvalStatus']>,
+  incomingRequestToken?: string,
 ): Promise<BffCalendarEvent> {
-  const event = await fetchCalendarEvent(eventId);
+  const event = await fetchCalendarEvent(eventId, incomingRequestToken);
   return {
     ...event,
     approvalStatus,
   };
 }
 
-export async function fetchKnownAssignees(from: string, to: string): Promise<BffCalendarAssignee[]> {
-  const events = await fetchCalendarEvents(from, to);
-  const detailedEvents = await Promise.all(events.map((event) => fetchCalendarEvent(Number(event.id))));
+export async function fetchKnownAssignees(
+  from: string,
+  to: string,
+  incomingRequestToken?: string,
+): Promise<BffCalendarAssignee[]> {
+  const events = await fetchCalendarEvents(from, to, incomingRequestToken);
+  const detailedEvents = await Promise.all(events.map((event) => fetchCalendarEvent(Number(event.id), incomingRequestToken)));
   const assigneesById = new Map<string | number, BffCalendarAssignee>();
 
   for (const event of detailedEvents) {
@@ -336,6 +384,7 @@ async function syncEventMembers(
   eventId: number,
   currentAssigneeIds: Array<string | number>,
   nextAssigneeIds: Array<string | number>,
+  incomingRequestToken?: string,
 ): Promise<void> {
   const current = new Set(currentAssigneeIds.map(String));
   const next = new Set(nextAssigneeIds.map(String));
@@ -343,7 +392,7 @@ async function syncEventMembers(
   await Promise.all(
     [...current]
       .filter((assigneeId) => !next.has(assigneeId))
-      .map((assigneeId) => calendarApi.delete(`/v1/events/${eventId}/members/${parseNumericId(assigneeId)}/`)),
+      .map((assigneeId) => calendarApi.removeEventMember(String(eventId), String(parseNumericId(assigneeId)), authOptions(incomingRequestToken))),
   );
 
   await Promise.all(
@@ -351,6 +400,6 @@ async function syncEventMembers(
       .filter((assigneeId) => !current.has(assigneeId))
       .map(mapAssigneeIdToMember)
       .filter((member): member is CalendarMember => member !== null)
-      .map((member) => calendarApi.post(`/v1/events/${eventId}/members/`, { member })),
+      .map((member) => calendarApi.addEventMember(eventId, { user_id: member.id }, authOptions(incomingRequestToken))),
   );
 }
