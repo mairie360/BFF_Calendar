@@ -5,7 +5,7 @@
  * Laisse une chaîne vide par défaut.
  */
 export const DEFAULT_JWT_TOKEN: string =
-  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaWF0IjoxNzgzOTQ5NjU1LCJleHAiOjE3ODM5NTMyNTV9.0PViMh4AsxMrUVUS6h8diNOUbIqI3_MCLCDU-DaV7SU";
+  "";
 
 function isUsableToken(value?: string): value is string {
   if (!value) {
