@@ -199,7 +199,7 @@ services:
       CORE_API_PORT: 3000
       CALENDAR_API_URL: "calendar-api" 
       CALENDAR_API_PORT: 3002
-      CALENDAR_API_BASE_PATH: "http://host.docker.internal:3002/api"
+      CALENDAR_API_BASE_PATH: "http://calendar-api:3002/api"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

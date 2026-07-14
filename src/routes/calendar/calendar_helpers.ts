@@ -95,8 +95,27 @@ function splitDateTime(value: string): { date: string; time?: string } {
   return { date, time: timeMatch?.[1] };
 }
 
+function normalizeCalendarDate(date: string): string {
+  const normalizedDate = date.trim();
+  const frenchDateMatch = normalizedDate.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+
+  if (frenchDateMatch) {
+    const [, day, month, year] = frenchDateMatch;
+    return `${year}-${month}-${day}`;
+  }
+
+  return normalizedDate.slice(0, 10);
+}
+
 function combineDateTime(date: string, time?: string): string {
-  return time ? `${date}T${time}:00` : date;
+  const normalizedDate = normalizeCalendarDate(date);
+
+  if (!time) {
+    return `${normalizedDate}T00:00:00Z`;
+  }
+
+  const normalizedTime = time.length === 5 ? `${time}:00` : time;
+  return `${normalizedDate}T${normalizedTime.replace(/Z$/, '')}Z`;
 }
 
 function toApiDateTime(value: string, boundary: 'start' | 'end'): string {
@@ -182,7 +201,7 @@ function mapRecurrenceToApi(event: BffCalendarEvent): ApiRecurrence | null {
     description: event.description ?? null,
     intervalle: event.recurrence.interval ?? 1,
     name: event.title,
-    recurrence_end_date: event.recurrence.endsOn ?? event.endDate ?? event.date,
+    recurrence_end_date: combineDateTime(event.recurrence.endsOn ?? event.endDate ?? event.date),
     type_recurrence: typeMap[event.recurrence.frequency],
     visibility: 'Public',
   };
@@ -207,7 +226,7 @@ function mapEventToPatchBody(event: BffCalendarEvent): ApiPatchEventBody {
     event_end_time: combineDateTime(event.endDate ?? event.date, event.endTime),
     intervalle: event.recurrence?.interval ?? null,
     name: event.title,
-    reccurence_end_date: event.recurrence?.endsOn ?? event.endDate ?? event.date,
+    reccurence_end_date: combineDateTime(event.recurrence?.endsOn ?? event.endDate ?? event.date),
     visibility: 'Public',
   };
 }
