@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { registry, CalendarCategorySchema } from '../../openapi-registry';
+import { registry } from '../../openapi-registry';
 import { getCalendarCategories } from './calendar_helpers';
 
 const router = Router();

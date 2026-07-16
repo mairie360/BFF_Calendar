@@ -76,7 +76,7 @@ registry.registerPath({
     body: {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/CalendarEvent' },
+          schema: { $ref: '#/components/schemas/CreateCalendarEventBody' },
         },
       },
     },
@@ -86,7 +86,7 @@ registry.registerPath({
       description: 'Événement créé avec succès',
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/CalendarEvent' },
+          schema: { $ref: '#/components/schemas/UpdateCalendarEventBody' },
         },
       },
     },

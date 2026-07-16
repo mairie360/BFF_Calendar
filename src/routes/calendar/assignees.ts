@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { registry, CalendarAssigneeSchema } from '../../openapi-registry';
+import { registry } from '../../openapi-registry';
 import { defaultDateRange, fetchKnownAssignees, handleUnknownError } from './calendar_helpers';
 
 const router = Router();

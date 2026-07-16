@@ -71,6 +71,12 @@ export const CalendarEventSchema = z.object({
   approvalStatus: z.enum(['pending', 'approved', 'rejected']).optional().openapi({ description: 'Statut d\'approbation de l\'événement' }),
   createdById: z.string().or(z.number()).optional()
     .openapi({ description: 'Identifiant de l\'utilisateur ayant créé l\'événement' }),
+  canValidate: z.boolean().optional()
+    .openapi({ description: 'Indique si l’utilisateur courant peut valider ou refuser cet événement' }),
+  canEdit: z.boolean().optional()
+    .openapi({ description: 'Indique si l’utilisateur courant peut modifier cet événement' }),
+  canDelete: z.boolean().optional()
+    .openapi({ description: 'Indique si l’utilisateur courant peut supprimer cet événement' }),
   visibleToRoles: z.array(z.enum(['user', 'responsable', 'mayor'])).optional()
     .openapi({ description: 'Liste des rôles pouvant voir l\'événement' }),
 }).openapi('CalendarEvent');
@@ -111,11 +117,15 @@ export const CalendarBootstrapResponseSchema = z.object({
   services: z.array(CalendarServiceSchema)
     .openapi({ description: 'Référentiel des services calendrier' }),
   currentUser: z.object({
+    id: z.string().or(z.number()),
     name: z.string(),
     email: z.string().email(),
     role: z.string().optional(),
+    groupIds: z.array(z.number().int()),
   }).optional()
     .openapi({ description: 'Utilisateur actuellement authentifié (optionnel)' }),
+  assigneeScope: z.enum(['all', 'groups', 'self']).optional()
+    .openapi({ description: 'Périmètre du référentiel des personnes assignables' }),
 }).openapi('CalendarBootstrapResponse');
 
 // ========================================

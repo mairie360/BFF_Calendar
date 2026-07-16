@@ -34,7 +34,7 @@ const { getCalendarApi } = require("@mairie360/calendar-api-openapi/endpoints/ca
 
 // 1. Créer l'instance Axios dédiée au service distant
 const apiClientInstance = axios.create({
-  baseURL: process.env.CALENDAR_API_BASE_PATH || "http://localhost:3002",
+  baseURL: process.env.CALENDAR_API_BASE_PATH || "http://localhost:3002/api",
   timeout: 5000,
   headers: {
     "Content-Type": "application/json",
