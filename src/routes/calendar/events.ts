@@ -1,5 +1,19 @@
 import { Router, Request, Response } from 'express';
-import { registry, CalendarEventSchema } from '../../openapi-registry';
+import {
+  registry,
+  CreateCalendarEventBodySchema,
+  UpdateCalendarEventApprovalBodySchema,
+  UpdateCalendarEventBodySchema,
+} from '../../openapi-registry';
+import {
+  createCalendarEvent,
+  deleteCalendarEvent,
+  fetchCalendarEvents,
+  handleUnknownError,
+  patchCalendarEvent,
+  sendValidationError,
+  updateCalendarEventApproval,
+} from './calendar_helpers';
 
 const router = Router();
 
@@ -62,7 +76,7 @@ registry.registerPath({
     body: {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/CalendarEvent' },
+          schema: { $ref: '#/components/schemas/CreateCalendarEventBody' },
         },
       },
     },
@@ -72,7 +86,7 @@ registry.registerPath({
       description: 'Événement créé avec succès',
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/CalendarEvent' },
+          schema: { $ref: '#/components/schemas/UpdateCalendarEventBody' },
         },
       },
     },
@@ -160,50 +174,151 @@ registry.registerPath({
   },
 });
 
+// PATCH /calendar/events/{id}/approval
+registry.registerPath({
+  method: 'patch',
+  path: '/calendar/events/{id}/approval',
+  tags: ['Calendar'],
+  summary: 'Met à jour le statut d’approbation d’un événement',
+  description: 'Valide, refuse ou remet en attente un événement identifié par son ID',
+  parameters: [
+    {
+      name: 'id',
+      in: 'path',
+      required: true,
+      schema: { type: 'string' },
+      description: 'Identifiant unique de l\'événement',
+    },
+  ],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/UpdateCalendarEventApprovalBody' },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Statut d’approbation mis à jour',
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/CalendarEvent' },
+        },
+      },
+    },
+    400: {
+      description: 'Données invalides',
+    },
+    404: {
+      description: 'Événement non trouvé',
+    },
+    500: {
+      description: 'Erreur serveur',
+    },
+  },
+});
+
 // ========================================
 // Implémentation
 // ========================================
 
 // GET /calendar/events
-router.get('/', (req: Request, res: Response) => {
-  const { from, to } = req.query;
+router.get('/', async (req: Request, res: Response) => {
+  const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+  const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+  const token = req.headers.authorization;
   
   if (!from || !to) {
     return res.status(400).json({ error: 'Les paramètres from et to sont obligatoires' });
   }
   
-  // TODO: Implémenter la logique
-  res.status(501).json({ error: 'Not implemented' });
+  try {
+    const events = await fetchCalendarEvents(from, to, token);
+    return res.status(200).json(events);
+  } catch (error) {
+    return handleUnknownError(res, error);
+  }
 });
 
 // POST /calendar/events
-router.post('/', (req: Request, res: Response) => {
-  // TODO: Implémenter la logique
-  res.status(501).json({ error: 'Not implemented' });
+router.post('/', async (req: Request, res: Response) => {
+  const bodyResult = CreateCalendarEventBodySchema.safeParse(req.body);
+
+  if (!bodyResult.success) {
+    return sendValidationError(res, bodyResult.error.issues);
+  }
+
+  try {
+    const event = await createCalendarEvent(bodyResult.data, req.headers.authorization);
+    return res.status(201).json(event);
+  } catch (error) {
+    return handleUnknownError(res, error);
+  }
 });
 
 // PATCH /calendar/events/:id
-router.patch('/:id', (req: Request, res: Response) => {
+router.patch('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
+  const eventId = Number(id);
   
-  if (!id) {
+  if (!id || Number.isNaN(eventId)) {
     return res.status(400).json({ error: 'L\'ID est obligatoire' });
   }
+
+  const bodyResult = UpdateCalendarEventBodySchema.safeParse(req.body);
   
-  // TODO: Implémenter la logique
-  res.status(501).json({ error: 'Not implemented' });
+  if (!bodyResult.success) {
+    return sendValidationError(res, bodyResult.error.issues);
+  }
+
+  try {
+    const event = await patchCalendarEvent(eventId, bodyResult.data, req.headers.authorization);
+    return res.status(200).json(event);
+  } catch (error) {
+    return handleUnknownError(res, error);
+  }
+});
+
+// PATCH /calendar/events/:id/approval
+router.patch('/:id/approval', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const eventId = Number(id);
+
+  if (!id || Number.isNaN(eventId)) {
+    return res.status(400).json({ error: 'L\'ID est obligatoire' });
+  }
+
+  const bodyResult = UpdateCalendarEventApprovalBodySchema.safeParse(req.body);
+
+  if (!bodyResult.success) {
+    return sendValidationError(res, bodyResult.error.issues);
+  }
+
+  try {
+    const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus, req.headers.authorization);
+    return res.status(200).json(event);
+  } catch (error) {
+    return handleUnknownError(res, error);
+  }
 });
 
 // DELETE /calendar/events/:id
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
+  const eventId = Number(id);
   
-  if (!id) {
+  if (!id || Number.isNaN(eventId)) {
     return res.status(400).json({ error: 'L\'ID est obligatoire' });
   }
   
-  // TODO: Implémenter la logique
-  res.status(501).json({ error: 'Not implemented' });
+  try {
+    await deleteCalendarEvent(eventId, req.headers.authorization);
+    return res.status(204).send();
+  } catch (error) {
+    return handleUnknownError(res, error);
+  }
 });
 
 export default router;

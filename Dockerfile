@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # [MODIFICATION] On monte le secret npmrc au moment du npm ci
-RUN npm config set @mairie360:registry https://npm.pkg.github.coma
+RUN npm config set @mairie360:registry https://npm.pkg.github.com
 RUN --mount=type=secret,id=npmrc,target=/app/.npmrc \
     npm ci
 
@@ -28,7 +28,9 @@ COPY --from=builder /app/package.json ./
 USER node
 
 # OPTIMISATION : On bride la heap à 180Mo pour tenir dans un limit K8s de 256Mo
-ENV NODE_OPTIONS="--max-old-space-size=180"
+ENV NODE_OPTIONS="--max-old-space-size=180 -r ts-node/register/transpile-only"
+ENV TS_NODE_SKIP_IGNORE=true
+ENV TS_NODE_TRANSPILE_ONLY=true
 
 EXPOSE 4002
 CMD ["node", "dist/index.js"]

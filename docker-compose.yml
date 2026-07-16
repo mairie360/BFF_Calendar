@@ -1,30 +1,34 @@
 volumes:
-  postgres-data:
   redis-data:
   bff-calendar-target:
 
 networks:
   backend:
+  user_backend:
+    external: true
+    name: ${USER_BACKEND_NETWORK:-bff_user_backend}
+
+secrets:
+  npmrc:
+    file: .npmrc
 
 x-common-env: &common-env
   HOST: "0.0.0.0"
-  PORT: 4001
+  PORT: 4002
   REDIS_URL: redis://redis:6379
   DB_TYPE: postgres
   DB_NAME: mairie_360_database
   DB_USER: postgres
-  DB_HOST: postgres
+  DB_HOST: ${SHARED_DB_HOST:-mairie360-db-bff-user}
   DB_PASSWORD: password
   DB_PORT: 5432
 
 x-depends-on: &depends-on
-  postgres:
-    condition: service_healthy
   redis:
     condition: service_healthy
 
 # x-healthcheck: &healthcheck
-#   test: ["CMD", "curl", "-f", "http://localhost:4001"]
+#   test: ["CMD", "curl", "-f", "http://localhost:4002"]
 #   interval: 10s
 #   timeout: 5s
 #   retries: 5
@@ -34,51 +38,13 @@ x-service: &service-template
   pull_policy: always
   restart: always
   expose:
-    - "4001"
+    - "4002"
   networks:
     - backend
   # healthcheck:
   #   <<: *healthcheck
 
 services:
-  postgres:
-    image: ghcr.io/mairie360/database:dev-latest
-    restart: always
-    container_name: mairie360-db-calendar-bff #change bff name
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
-      POSTGRES_DB: mairie_360_database
-    expose:
-      - "5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  liquibase:
-    image: ghcr.io/mairie360/liquibase-migrations:dev-latest
-    container_name: mairie360-liquibase-calendar-bff #change bff name
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      <<: *common-env
-      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/mairie_360_database
-      LIQUIBASE_COMMAND_USERNAME: ${DB_USER:-postgres}
-      LIQUIBASE_COMMAND_PASSWORD: ${DB_PASSWORD:-password}
-      LIQUIBASE_SEARCH_PATH: /liquibase/changelog
-    command: >
-      --changelog-file=changelog.xml
-      update
-    networks:
-      - backend
-
   redis:
     image: redis:8.4.0-bookworm
     container_name: mairie360-redis-calendar-bff #change bff name
@@ -95,34 +61,34 @@ services:
       timeout: 5s
       retries: 5
 
-  core:
-    container_name: core-calendar-bff-developpement
-    image: ghcr.io/mairie360/core-api:dev-latest
-    ports:
-      - "3000:3000"
-    networks:
-      - backend
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    environment:
-      HOST: "0.0.0.0"
-      PORT: 3000
-      REDIS_URL: redis://redis:6379
-      DB_TYPE: postgres
-      DB_NAME: mairie_360_database
-      DB_USER: postgres
-      DB_HOST: postgres
-      DB_PASSWORD: password
-      DB_PORT: 5432
-      PUBLIC_URL: http://core.development.mairie360.fr
-      JWT_SECRET: b"secret"
-      JWT_TIMEOUT: 3600
-    depends_on:
-      liquibase:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+  # core:
+  #   container_name: core-calendar-bff-developpement
+  #   image: ghcr.io/mairie360/core-api:dev-latest
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - backend
+  #   dns:
+  #     - 8.8.8.8
+  #     - 1.1.1.1
+  #   environment:
+  #     HOST: "0.0.0.0"
+  #     PORT: 3000
+  #     REDIS_URL: redis://redis:6379
+  #     DB_TYPE: postgres
+  #     DB_NAME: mairie_360_database
+  #     DB_USER: postgres
+  #     DB_HOST: postgres
+  #     DB_PASSWORD: password
+  #     DB_PORT: 5432
+  #     PUBLIC_URL: http://core.development.mairie360.fr
+  #     JWT_SECRET: b"secret"
+  #     JWT_TIMEOUT: 3600
+  #   depends_on:
+  #     liquibase:
+  #       condition: service_completed_successfully
+  #     redis:
+  #       condition: service_healthy
     # healthcheck:
     #   test: ["CMD", "curl", "-f", "http://localhost:3000/health"] # <--- Doit être 3000
     #   interval: 5s
@@ -132,11 +98,12 @@ services:
       
   calendar-api:
     container_name: calendar-api-bff-calendar-developpement
-    image: ghcr.io/mairie360/calendar-api:dev-latest
+    image: ghcr.io/mairie360/calendar-api:dev-d6d05a0
     ports:
       - "3002:3002"
     networks:
       - backend
+      - user_backend
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -147,15 +114,13 @@ services:
       DB_TYPE: postgres
       DB_NAME: mairie_360_database
       DB_USER: postgres
-      DB_HOST: postgres
+      DB_HOST: ${SHARED_DB_HOST:-mairie360-db-bff-user}
       DB_PASSWORD: password
       DB_PORT: 5432
       PUBLIC_URL: http://calendar.development.mairie360.fr
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
     depends_on:
-      liquibase:
-        condition: service_completed_successfully
       redis:
         condition: service_healthy
     # healthcheck:
@@ -172,6 +137,10 @@ services:
     build:
       context: .
       dockerfile: development.Dockerfile
+      args:
+        - NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN}
+      secrets:
+        - npmrc
     # Mode synchronisation en temps réel (Docker Compose V2)
     develop:
       watch:
@@ -181,9 +150,10 @@ services:
         - action: rebuild
           path: package.json
     ports:
-      - "4001:4001"
+      - "4002:4002"
     networks:
       - backend
+      - user_backend
     environment:
       <<: *common-env
       # IMPORTANT : On utilise le nom du service Docker pour communiquer
@@ -191,13 +161,16 @@ services:
       CORE_API_PORT: 3000
       CALENDAR_API_URL: "calendar-api" 
       CALENDAR_API_PORT: 3002
+      CALENDAR_API_BASE_PATH: "http://calendar-api:3002/api"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /app/node_modules # Isolation des modules pour éviter les conflits OS (Mac/Windows vs Linux)
     # depends_on:
       # core:
       #   condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:4002/health"]
       interval: 10s
       timeout: 5s
       retries: 3

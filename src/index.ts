@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
@@ -5,13 +6,10 @@ import { registry } from './openapi-registry';
 import healthRouter from './routes/health';
 import checkApis from './routes/check_apis';
 import calendarRouter from './routes/calendar-routes';
-import dotenv from 'dotenv';
 
-dotenv.config();
+export const app = express();
 
-const app = express();
-
-const PORT = process.env.PORT;
+export const PORT = Number(process.env.PORT ?? 4002);
 
 // Middleware pour parser les JSON
 app.use(express.json());
@@ -57,11 +55,6 @@ app.get('/swagger.json', (req, res) => {
   res.send(openApiSpec);
 });
 
-if (!PORT) {
-  console.error('Error: PORT environment variable is not set.');
-  process.exit(1);
-}
-
 // ========================================
 // Routes métier
 // ========================================
@@ -74,12 +67,10 @@ app.use('/calendar', calendarRouter);
 // Démarrage du serveur
 // ========================================
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-  console.log(`📚 Documentation OpenAPI disponible à http://localhost:${PORT}/docs`);
-  console.log(`📋 Spec OpenAPI JSON disponible à http://localhost:${PORT}/openapi.json`);
-});
-
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server listening on port ${PORT}`);
+    console.log(`📚 Documentation OpenAPI disponible à http://localhost:${PORT}/docs`);
+    console.log(`📋 Spec OpenAPI JSON disponible à http://localhost:${PORT}/openapi.json`);
+  });
+}
