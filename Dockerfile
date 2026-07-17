@@ -28,9 +28,7 @@ COPY --from=builder /app/package.json ./
 USER node
 
 # OPTIMISATION : On bride la heap à 180Mo pour tenir dans un limit K8s de 256Mo
-ENV NODE_OPTIONS="--max-old-space-size=180 -r ts-node/register/transpile-only"
-ENV TS_NODE_SKIP_IGNORE=true
-ENV TS_NODE_TRANSPILE_ONLY=true
+ENV NODE_OPTIONS="--max-old-space-size=180 --import tsx"
 
 EXPOSE 4002
 CMD ["node", "dist/index.js"]
