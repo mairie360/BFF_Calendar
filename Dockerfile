@@ -21,9 +21,9 @@ ENV NODE_ENV=production
 RUN apk add --no-cache curl
 
 WORKDIR /app
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
+COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/package.json ./
 
 USER node
 
@@ -31,4 +31,4 @@ USER node
 ENV NODE_OPTIONS="--max-old-space-size=180"
 
 EXPOSE 4002
-CMD ["node", "--import", "tsx", "dist/index.js"]
+CMD ["npx", "tsx", "dist/index.js"]
