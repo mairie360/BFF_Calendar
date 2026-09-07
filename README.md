@@ -1,46 +1,25 @@
-# Bff_Template_Repo
+# BFF_Calendar
 
-Contrat des routes et données, synchronisation BFF/web et limites de disponibilité : [CONTRACT.md](CONTRACT.md).
+Provide the events, reference lists and access rules required by the municipal calendar. The BFF combines Calendar API data with assignment and approval information used by the web service.
 
-## 🏗️ Dépôt Modèle pour Backend for Frontend (BFF)
+Fournir les événements, référentiels et règles d’accès nécessaires au calendrier municipal. Le BFF regroupe les données de Calendar API et les informations d’affectation et de validation utilisées par le web service.
 
-Ce dépôt sert de point de départ pour créer une application BFF (Backend for Frontend) destinée à interagir avec différents microservices.
+## Documentation
 
----
+| Language / Langue | Module | Technical / Technique |
+| --- | --- | --- |
+| English | [Module overview](docs/en/module.md) | [Technical documentation](docs/en/technical.md) |
+| Français | [Présentation du module](docs/fr/module.md) | [Documentation technique](docs/fr/technical.md) |
 
-## ✨ Fonctionnalités
+The guides describe the implemented module, its current limitations, local setup, routes, data, verification and CI/CD.
 
-- Serveur basé sur **Express.js**
-- Développement en **TypeScript** pour une meilleure sécurité et expérience
-- Gestion des variables d’environnement avec **dotenv**
-- Route de vérification de santé (health check) intégrée
-- Support **Docker** pour la conteneurisation
-- Gestion basique des erreurs
+Les guides décrivent le module implémenté, ses limites actuelles, le démarrage local, les routes, les données, les vérifications et la CI/CD.
 
----
+## Contracts and background / Contrats et compléments
 
-## ⚠️ Important
+- [CONTRACT.md](CONTRACT.md)
+- [contracts/openapi.json](contracts/openapi.json)
 
-Le BFF écoute sur le port `4002`. En développement Docker, `Calendar_API`
-utilise la même base PostgreSQL que `BFF_user` afin que les identifiants du
-JWT correspondent aux utilisateurs connus du calendrier.
+`BACKEND.md`, when present, includes proposed backend requirements; use the guides and versioned OpenAPI contract to identify current behavior.
 
-Lancez donc le stack `BFF_user` avant celui-ci. Par défaut, le réseau partagé
-attendu est `bff_user_backend` et la base est joignable sous le nom
-`mairie360-db-bff-user`. Ces valeurs peuvent être adaptées avec
-`USER_BACKEND_NETWORK` et `SHARED_DB_HOST`.
-
-Le BFF initialise également la table `calendar_event_metadata` dans cette
-base. Elle complète le contrat actuel de Calendar API avec les champs du
-front qui ne sont pas encore stockés par ce service : catégorie, service,
-lieu et configuration de récurrence. La ligne de métadonnées référence
-`events.id` et est supprimée automatiquement avec l'événement.
-
-## 🚀 Démarrage Rapide
-
-```bash
-# Construire l'image Docker
-docker build -t bff-template .
-
-# Lancer le stack après BFF_user
-docker compose up -d --build
+`BACKEND.md`, lorsqu’il est présent, contient des besoins backend proposés; consulter les guides et le contrat OpenAPI versionné pour identifier le comportement actuel.
