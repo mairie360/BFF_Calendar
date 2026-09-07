@@ -1,8 +1,7 @@
+import { openApiDocument as openApiSpec } from './openapi';
 import 'dotenv/config';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
-import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
-import { registry } from './openapi-registry';
 import healthRouter from './routes/health';
 import checkApis from './routes/check_apis';
 import calendarRouter from './routes/calendar-routes';
@@ -19,22 +18,7 @@ app.use(express.json());
 // ========================================
 
 // Générer la spec OpenAPI à partir de la registry
-const generator = new OpenApiGeneratorV31(registry.definitions);
 
-const openApiSpec = generator.generateDocument({
-  openapi: '3.1.0',
-  info: {
-    title: 'BFF Calendar API',
-    version: '1.0.0',
-    description: 'API du Backend for Frontend (BFF) pour la gestion du calendrier municipal. Fournit les données et opérations pour le module calendrier du front.',
-  },
-  servers: [
-    {
-      url: `http://localhost:${PORT}`,
-      description: 'Serveur local',
-    },
-  ],
-});
 
 // ========================================
 // Routes Swagger/OpenAPI
