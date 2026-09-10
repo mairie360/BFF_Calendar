@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Define the build argument
 ARG NODE_AUTH_TOKEN
