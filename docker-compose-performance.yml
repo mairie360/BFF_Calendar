@@ -1,0 +1,182 @@
+# Stack de test de performance ISOLÉE pour le BFF Calendar.
+#
+#   ./performance_test.sh          (local)
+#   docker compose -f docker-compose-performance.yml up --build \
+#       --abort-on-container-exit --exit-code-from k6-perf-test   (CI)
+#
+# k6-perf-test sort en échec si un seuil de load-test.js est dépassé.
+# TARGET_IMAGE (optionnel) : image BFF pré-construite à tester au lieu du build local.
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  backend:
+
+secrets:
+  npmrc:
+    file: ./.npmrc
+
+x-db-env: &db-env
+  DB_TYPE: postgres
+  DB_NAME: mairie_360_database
+  DB_USER: postgres
+  DB_PASSWORD: password
+  DB_HOST: postgres
+  DB_PORT: 5432
+
+services:
+  postgres:
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.0.0}
+    container_name: bff-calendar-perf-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mairie_360_database
+    expose:
+      - "5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  liquibase:
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.0.0}
+    container_name: bff-calendar-perf-liquibase
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/mairie_360_database
+      LIQUIBASE_COMMAND_USERNAME: postgres
+      LIQUIBASE_COMMAND_PASSWORD: password
+      LIQUIBASE_SEARCH_PATH: /migrations
+    command: >
+      --changelog-file=changelog.xml
+      update
+    networks:
+      - backend
+
+  seeder:
+    image: postgres:18-alpine
+    container_name: bff-calendar-perf-seeder
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+    volumes:
+      - ./init-test.sql:/init-test.sql:ro
+    environment:
+      PGPASSWORD: password
+    command: >
+      sh -c "psql -h postgres -U postgres -d mairie_360_database -f /init-test.sql"
+    networks:
+      - backend
+
+  redis:
+    image: redis:8.4.0-bookworm
+    container_name: bff-calendar-perf-redis
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  calendar-api:
+    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:dev-d6d05a0}
+    container_name: bff-calendar-perf-calendar-api
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *db-env
+      HOST: "0.0.0.0"
+      PORT: 3002
+      REDIS_URL: redis://redis:6379
+      PUBLIC_URL: http://calendar-api:3002
+      JWT_SECRET: secret
+      JWT_TIMEOUT: 3600
+    expose:
+      - "3002"
+    networks:
+      - backend
+    # L'image publiée est "distroless" (ni shell ni curl) : la disponibilité est
+    # sondée depuis le conteneur calendar-api-ready ci-dessous.
+
+  calendar-api-ready:
+    image: curlimages/curl:latest
+    container_name: bff-calendar-perf-calendar-api-ready
+    depends_on:
+      calendar-api:
+        condition: service_started
+    command: >
+      sh -c 'until curl -fsS http://calendar-api:3002/health >/dev/null; do
+      echo "waiting for calendar-api..."; sleep 2; done; echo "calendar-api ready"'
+    networks:
+      - backend
+
+  bff-calendar:
+    image: ${TARGET_IMAGE:-bff-calendar:perf}
+    container_name: bff-calendar-perf-bff
+    build:
+      context: .
+      dockerfile: development.Dockerfile
+      args:
+        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN:-}
+      secrets:
+        - npmrc
+    # Pas de "tsx watch" sous charge : on lance le serveur directement.
+    command: ["npx", "tsx", "src/index.ts"]
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+      calendar-api-ready:
+        condition: service_completed_successfully
+    environment:
+      <<: *db-env
+      HOST: "0.0.0.0"
+      PORT: 4002
+      CORE_API_URL: core-api
+      CORE_API_PORT: 3000
+      CALENDAR_API_URL: calendar-api
+      CALENDAR_API_PORT: 3002
+      CALENDAR_API_BASE_PATH: http://calendar-api:3002/api
+    expose:
+      - "4002"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  k6-perf-test:
+    image: grafana/k6:latest
+    container_name: bff-calendar-perf-k6
+    depends_on:
+      bff-calendar:
+        condition: service_healthy
+    volumes:
+      - ./load-test.js:/load-test.js:ro
+    environment:
+      BASE_URL: http://bff-calendar:4002
+      JWT_SECRET: secret
+      PERF_USER_ID: "2"
+    command: ["run", "/load-test.js"]
+    networks:
+      - backend
