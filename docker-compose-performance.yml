@@ -17,6 +17,8 @@ networks:
 secrets:
   npmrc:
     file: ./.npmrc
+  node_auth_token:
+    environment: NODE_AUTH_TOKEN
 
 x-db-env: &db-env
   DB_TYPE: postgres
@@ -28,7 +30,7 @@ x-db-env: &db-env
 
 services:
   postgres:
-    image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.0.0}
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.1.0}
     container_name: bff-calendar-perf-db
     environment:
       POSTGRES_USER: postgres
@@ -47,7 +49,7 @@ services:
       retries: 10
 
   liquibase:
-    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.0.0}
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.1.0}
     container_name: bff-calendar-perf-liquibase
     depends_on:
       postgres:
@@ -167,7 +169,7 @@ services:
       - backend
 
   bff-user:
-    image: ${BFF_USER_IMAGE:-ghcr.io/mairie360/bff-user:0.3.0}
+    image: ${BFF_USER_IMAGE:-ghcr.io/mairie360/bff-user:0.4.0}
     container_name: bff-calendar-perf-bff-user
     depends_on:
       seeder:
@@ -198,10 +200,9 @@ services:
     build:
       context: .
       dockerfile: development.Dockerfile
-      args:
-        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN:-}
       secrets:
         - npmrc
+        - node_auth_token
     # Pas de "tsx watch" sous charge : on lance le serveur directement.
     command: ["npx", "tsx", "src/index.ts"]
     depends_on:

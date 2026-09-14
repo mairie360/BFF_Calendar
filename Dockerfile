@@ -1,29 +1,30 @@
 # --- Étape 1 : Build ---
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 
-# [MODIFICATION] On monte le secret npmrc au moment du npm ci
-RUN npm config set @mairie360:registry https://npm.pkg.github.com
+# Les identifiants GitHub Packages ne sont disponibles que pendant le npm ci.
 RUN --mount=type=secret,id=npmrc,target=/app/.npmrc \
+    --mount=type=secret,id=node_auth_token,env=NODE_AUTH_TOKEN \
     npm ci
 
 COPY . .
 RUN npm run build
 
-# [MODIFICATION] Idem pour l'install de prod
 RUN --mount=type=secret,id=npmrc,target=/app/.npmrc \
+    --mount=type=secret,id=node_auth_token,env=NODE_AUTH_TOKEN \
     npm ci --omit=dev --ignore-scripts
 
 # --- Étape 2 : Runtime ---
-FROM node:20-alpine
+FROM node:24-alpine
 ENV NODE_ENV=production
 RUN apk add --no-cache curl
 
 WORKDIR /app
-COPY --chown=node:node --from=builder /app/dist ./dist
-COPY --chown=node:node --from=builder /app/node_modules ./node_modules
-COPY --chown=node:node --from=builder /app/package.json ./
+# Fichiers laissés à root : l'utilisateur node ne peut pas modifier le code exécuté.
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
 
 USER node
 
@@ -31,4 +32,6 @@ USER node
 ENV NODE_OPTIONS="--max-old-space-size=180"
 
 EXPOSE 4002
-CMD ["npx", "tsx", "dist/index.js"]
+# dist/index.js importe les clients Orval publiés en .ts : tsx les transpile au vol.
+# Binaire local plutôt que npx pour ne jamais télécharger de paquet au démarrage.
+CMD ["/app/node_modules/.bin/tsx", "dist/index.js"]

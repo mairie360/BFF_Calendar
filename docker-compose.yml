@@ -11,6 +11,8 @@ networks:
 secrets:
   npmrc:
     file: .npmrc
+  node_auth_token:
+    environment: NODE_AUTH_TOKEN
 
 x-common-env: &common-env
   HOST: "0.0.0.0"
@@ -137,10 +139,9 @@ services:
     build:
       context: .
       dockerfile: development.Dockerfile
-      args:
-        - NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN}
       secrets:
         - npmrc
+        - node_auth_token
     # Mode synchronisation en temps réel (Docker Compose V2)
     develop:
       watch:
