@@ -12,7 +12,8 @@ import { OpenApiContract, type JsonSchema } from './openapi-contract';
 //   pas documentées (un mock qui renvoie une erreur doit le déclarer avec `outOfContract: true`) ;
 // - les formats (date-time, int64) disparaissent et les entiers deviennent des `number` ;
 // - les noms de paramètres de chemin sont ceux d'orval (`{eventId}` au lieu de `{event_id}`).
-// `@minimum`, `@nullable`, les champs optionnels et les enums sont conservés.
+// Les contraintes JSDoc (`@minimum`, `@maximum`, `@exclusiveMinimum`, `@minLength`, `@maxLength`, `@pattern`,
+// y compris `@items.*`), `@nullable`, les champs optionnels et les enums sont conservés.
 
 type Parameter = { name: string; in: 'path' | 'query'; required: boolean; schema: JsonSchema };
 type Operation = {
@@ -57,7 +58,10 @@ export function loadOrvalContract(packageName: string): OpenApiContract {
 type Models = {
   /** Interfaces et enums : schémas de composants OpenAPI. */
   schemas: Record<string, JsonSchema>;
-  /** Alias `type X = {...}` : orval les émet pour les paramètres de requête d'une opération. */
+  /**
+   * Alias `type X = {...}` : paramètres de requête d'une opération, ou schéma objet de composant. Quand une
+   * interface porte le même nom (ex. GetCalendarParams), l'interface est le composant et l'alias les paramètres.
+   */
   aliases: Record<string, JsonSchema>;
 };
 
@@ -72,7 +76,10 @@ function readModels(dir: string): Models {
       if (ts.isInterfaceDeclaration(statement)) {
         models.schemas[statement.name.text] = objectSchema(statement.members);
       } else if (ts.isTypeAliasDeclaration(statement)) {
-        if (ts.isTypeLiteralNode(statement.type)) models.aliases[statement.name.text] = objectSchema(statement.type.members);
+        if (ts.isTypeLiteralNode(statement.type)) {
+          models.aliases[statement.name.text] = objectSchema(statement.type.members);
+          models.schemas[statement.name.text] ??= models.aliases[statement.name.text];
+        }
         else if (ts.isIndexedAccessTypeNode(statement.type)) enumAliases.push(statement.name.text);
         else models.schemas[statement.name.text] ??= typeSchema(statement.type);
       } else if (ts.isVariableStatement(statement)) {
@@ -147,9 +154,9 @@ function readOperation(operationId: string, fn: ts.ArrowFunction, models: Models
   });
   const bodyParameter = bodyName ? fnParameters.get(bodyName) : undefined;
 
-  const responseType = successType(fn.type, operationId);
+  const responseType = withoutVoid(successType(fn.type, operationId));
   const isText = /responseType:\s*'text'/.test(call.getText());
-  const responseSchema = responseType && responseType.kind !== ts.SyntaxKind.VoidKeyword ? typeSchema(responseType) : undefined;
+  const responseSchema = responseType ? typeSchema(responseType) : undefined;
 
   const operation: Operation = {
     operationId,
@@ -172,6 +179,18 @@ function parameterType(parameter: ts.ParameterDeclaration | undefined, operation
   return typeSchema(parameter.type);
 }
 
+/**
+ * Retire `void` d'un type de réponse (`T | void` : corps éventuellement vide) ; `undefined` si seul `void` reste.
+ * Un corps vide n'est jamais validé par le mock, seul un corps JSON présent l'est.
+ */
+function withoutVoid(node: ts.TypeNode | undefined): ts.TypeNode | undefined {
+  if (!node || node.kind === ts.SyntaxKind.VoidKeyword) return undefined;
+  if (!ts.isUnionTypeNode(node)) return node;
+  const members = node.types.filter((member) => member.kind !== ts.SyntaxKind.VoidKeyword);
+  if (members.length === 0) return undefined;
+  return members.length === 1 ? members[0] : ts.factory.createUnionTypeNode(members);
+}
+
 /** `Promise<AxiosResponse<T>>` -> `T`. */
 function successType(node: ts.TypeNode | undefined, operationId: string): ts.TypeNode | undefined {
   const promise = node && ts.isTypeReferenceNode(node) ? node.typeArguments?.[0] : undefined;
@@ -187,18 +206,29 @@ function objectSchema(members: ts.NodeArray<ts.TypeElement>): JsonSchema {
     if (!ts.isPropertySignature(member) || !member.type) continue;
     const name = member.name.getText().replace(/^['"]|['"]$/g, '');
     const schema = typeSchema(member.type);
-    const minimum = ts.getJSDocTags(member).find((tag) => tag.tagName.text === 'minimum');
-    if (minimum && typeof minimum.comment === 'string') applyMinimum(schema, Number(minimum.comment));
+    applyConstraints(schema, member);
     properties[name] = schema;
     if (!member.questionToken) required.push(name);
   }
   return { type: 'object', properties, required };
 }
 
-function applyMinimum(schema: JsonSchema, minimum: number) {
-  const types = Array.isArray(schema.type) ? schema.type : [schema.type];
-  if (types.includes('number')) schema.minimum = minimum;
-  else if (schema.type === 'array' && schema.items) applyMinimum(schema.items as JsonSchema, minimum);
+const NUMBER_CONSTRAINTS = new Set(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum']);
+const STRING_CONSTRAINTS = new Set(['minLength', 'maxLength', 'pattern']);
+
+/** Reporte les contraintes JSDoc d'orval (`@minimum 0`, `@items.maximum 6`, `@pattern ^...$`) sur le schéma. */
+function applyConstraints(schema: JsonSchema, member: ts.PropertySignature) {
+  const jsDoc = ts.getJSDocCommentsAndTags(member).map((node) => node.getText()).join('\n');
+  for (const [, items, keyword, rawValue] of jsDoc.matchAll(/@(items\.)?(\w+)[ \t]+(.+?)[ \t]*(?:\*\/)?[ \t]*$/gm)) {
+    let target = schema;
+    if (items) {
+      if (schema.type !== 'array' || !schema.items) continue;
+      target = schema.items as JsonSchema;
+    }
+    const types = Array.isArray(target.type) ? target.type : [target.type];
+    if (NUMBER_CONSTRAINTS.has(keyword) && types.includes('number')) target[keyword] = Number(rawValue);
+    else if (STRING_CONSTRAINTS.has(keyword) && types.includes('string')) target[keyword] = keyword === 'pattern' ? rawValue : Number(rawValue);
+  }
 }
 
 function typeSchema(node: ts.TypeNode): JsonSchema {
@@ -222,6 +252,7 @@ function typeSchema(node: ts.TypeNode): JsonSchema {
     if (name === 'Record' && node.typeArguments?.[1]) return { type: 'object', additionalProperties: typeSchema(node.typeArguments[1]) };
     return { $ref: `#/components/schemas/${name}` };
   }
+  if (ts.isIntersectionTypeNode(node)) return { allOf: node.types.map(typeSchema) };
   if (ts.isUnionTypeNode(node)) {
     const members = node.types.map(typeSchema);
     const simple = members.every((member) => Object.keys(member).length === 1 && typeof member.type === 'string');

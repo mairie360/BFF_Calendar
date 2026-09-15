@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
 
 // Lecture des contrats OpenAPI 3.1 des services amont et validation JSON Schema minimale.
 // Le validateur ne couvre que les mots-clés émis par zod-to-openapi dans les contrats
@@ -24,18 +23,11 @@ const HANDLED = new Set([
   'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'pattern', 'format',
 ]);
 
-export const UPSTREAM_CONTRACTS_DIR = path.join(__dirname, '..', 'contracts', 'upstream');
-
 export class OpenApiContract {
   constructor(public readonly document: OpenApiDocument) {}
 
   static load(file: string): OpenApiContract {
     return new OpenApiContract(JSON.parse(readFileSync(file, 'utf8')) as OpenApiDocument);
-  }
-
-  /** Contrat copié sous tests/contracts/upstream/<name>.openapi.json. */
-  static upstream(name: string): OpenApiContract {
-    return OpenApiContract.load(path.join(UPSTREAM_CONTRACTS_DIR, `${name}.openapi.json`));
   }
 
   get title() { return this.document.info.title; }
