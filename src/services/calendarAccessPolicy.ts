@@ -211,6 +211,13 @@ export function canCurrentUserEditEvent(
   );
 }
 
+export function canCurrentUserDeleteEvent(
+  currentUser: CalendarDirectoryUser,
+  eventAccess: CalendarEventAccess,
+): boolean {
+  return eventAccess.createdById === currentUser.id;
+}
+
 export function assertCalendarEventAssigned(
   currentUser: CalendarDirectoryUser,
   eventAccess: CalendarEventAccess | null,

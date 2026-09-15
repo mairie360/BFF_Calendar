@@ -23,6 +23,7 @@ import {
   assertCalendarEventAssigned,
   calendarAssigneeScope,
   calendarEventApprovalStatus,
+  canCurrentUserDeleteEvent,
   canCurrentUserEditEvent,
   canCurrentUserValidateEvent,
   eventRequiresResponsibleApproval,
@@ -228,7 +229,6 @@ async function enrichCalendarEvent(
   eventAccess: CalendarEventAccess,
 ): Promise<BffCalendarEvent> {
   const assignees = eventAccess.members.map(mapDirectoryUserToAssignee);
-  const isCreator = eventAccess.createdById === currentUser.id;
   const metadata = await getCalendarEventMetadata(eventAccess.eventId);
 
   return {
@@ -243,7 +243,7 @@ async function enrichCalendarEvent(
     createdById: eventAccess.createdById === null ? undefined : `user-${eventAccess.createdById}`,
     canValidate: await canCurrentUserValidateEvent(currentUser, eventAccess),
     canEdit: canCurrentUserEditEvent(currentUser, eventAccess),
-    canDelete: isCreator,
+    canDelete: canCurrentUserDeleteEvent(currentUser, eventAccess),
   };
 }
 
@@ -335,6 +335,35 @@ function authOptions(incomingRequestToken?: string): AxiosRequestConfig {
   };
 }
 
+const QUERY_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Vérifie qu'un paramètre de requête est une date calendaire valide au format YYYY-MM-DD. */
+export function isQueryDate(value: unknown): value is string {
+  const match = typeof value === 'string' ? QUERY_DATE_PATTERN.exec(value) : null;
+  if (!match) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return date.getUTCFullYear() === Number(match[1])
+    && date.getUTCMonth() + 1 === Number(match[2])
+    && date.getUTCDate() === Number(match[3]);
+}
+
+/** Identifiant d'événement de chemin : entier positif, sinon null. */
+export function parseEventIdParam(value: string | undefined): number | null {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+export function sendBadRequest(res: Response, message: string): Response {
+  return res.status(400).json({ code: 'BAD_REQUEST', message });
+}
+
 export function sendValidationError(res: Response, details: unknown): Response {
   return res.status(400).json({
     code: 'BAD_REQUEST',
@@ -351,19 +380,25 @@ export function handleUnknownError(res: Response, error: unknown): Response {
     });
   }
 
+  // Les messages et corps d'erreur amont (Calendar API, PostgreSQL) ne sont jamais renvoyés au client.
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError;
-    const status = axiosError.response?.status ?? 502;
-    return res.status(status >= 500 ? 502 : status).json({
-      code: status >= 500 ? 'BAD_GATEWAY' : 'UPSTREAM_ERROR',
-      message: axiosError.message,
-      details: axiosError.response?.data,
+    const status = (error as AxiosError).response?.status;
+    if (status === undefined || status >= 500) {
+      return res.status(502).json({ code: 'BAD_GATEWAY', message: 'Le service Calendar est indisponible.' });
+    }
+
+    return res.status(status).json({
+      code: status === 401 ? 'UNAUTHORIZED' : status === 404 ? 'NOT_FOUND' : 'UPSTREAM_ERROR',
+      message: status === 401
+        ? 'Session invalide.'
+        : status === 404 ? 'Ressource introuvable.' : 'La requête a été refusée par le service Calendar.',
     });
   }
 
+  console.error('[BFF Calendar] Erreur inattendue', error);
   return res.status(500).json({
     code: 'INTERNAL_SERVER_ERROR',
-    message: error instanceof Error ? error.message : 'Unexpected error',
+    message: 'Erreur interne du serveur.',
   });
 }
 
@@ -508,6 +543,24 @@ export async function patchCalendarEvent(
 }
 
 export async function deleteCalendarEvent(eventId: number, incomingRequestToken?: string): Promise<void> {
+  // Calendar API supprime sans contrôler le propriétaire : le BFF laisse l'API valider le JWT
+  // (et l'existence de l'événement), puis réserve la suppression au créateur.
+  await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
+  const currentUser = await getCurrentCalendarUser(incomingRequestToken);
+  const eventAccess = await getCalendarEventAccess(eventId);
+
+  if (!eventAccess) {
+    throw new CalendarAccessError('Événement introuvable.', 404, 'EVENT_NOT_FOUND');
+  }
+
+  if (!canCurrentUserDeleteEvent(currentUser, eventAccess)) {
+    throw new CalendarAccessError(
+      'Seul le créateur de l’événement peut le supprimer.',
+      403,
+      'EVENT_DELETE_FORBIDDEN',
+    );
+  }
+
   await calendarApi.deleteEvent(eventId, authOptions(incomingRequestToken));
 }
 
@@ -583,14 +636,17 @@ export async function fetchCalendarBootstrap(
   };
 }
 
-export function defaultDateRange(): { from: string; to: string } {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+function formatLocalDate(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
 
+export function defaultDateRange(now = new Date()): { from: string; to: string } {
+  // Dates locales : toISOString() décalerait d'un jour sur un fuseau en avance sur UTC (ex. Europe/Paris).
   return {
-    from: from.toISOString().slice(0, 10),
-    to: to.toISOString().slice(0, 10),
+    from: formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
   };
 }
 

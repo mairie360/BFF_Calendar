@@ -244,3 +244,29 @@ export const ApiErrorSchema = z.object({
 }).openapi('ApiError');
 
 registry.register('ApiError', ApiErrorSchema);
+
+// ========================================
+// Fragments OpenAPI partagés par les routes
+// ========================================
+
+/** Réponse d'erreur documentée avec le corps ApiError. */
+export function apiErrorResponse(description: string) {
+  return {
+    description,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+  };
+}
+
+/** Paramètre de requête date au format YYYY-MM-DD. */
+export function dateQueryParameter(name: 'from' | 'to', required: boolean, description: string) {
+  return { name, in: 'query' as const, required, schema: { type: 'string' as const, format: 'date' }, description };
+}
+
+/** Paramètre de chemin identifiant un événement (entier positif). */
+export const eventIdPathParameter = {
+  name: 'id',
+  in: 'path' as const,
+  required: true,
+  schema: { type: 'string' as const, pattern: '^[0-9]+$' },
+  description: 'Identifiant unique de l\'événement',
+};

@@ -76,19 +76,21 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | --- | --- | --- | --- |
 | GET | `/health` | — | 200 |
 | GET | `/check_apis` | — | 200, 502 |
-| GET | `/calendar/bootstrap` | — | 200, 500 |
-| GET | `/calendar/events` | — | 200, 400, 500 |
-| POST | `/calendar/events` | application/json | 201, 400, 500 |
-| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 404, 500 |
-| DELETE | `/calendar/events/{id}` | — | 204, 404, 500 |
-| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 404, 500 |
-| GET | `/calendar/assignees` | — | 200, 500 |
+| GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502 |
+| GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502 |
+| POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502 |
+| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502 |
+| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| GET | `/calendar/assignees` | `from`, `to` (optional) | 200, 400, 401, 500, 502 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
 
 ## Session, permissions and errors
 
-Business routes expect the caller’s authorization. The access policy resolves identity and database roles, then limits assignments and edits. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
+Business routes expect the caller’s authorization. The access policy resolves identity and database roles, then limits assignments and edits; only the creator can delete an event, after Calendar API has validated the session. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
+
+`from` and `to` must be `YYYY-MM-DD` dates and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Errors use the `ApiError` body (`code`, `message`): upstream 4xx statuses are kept, upstream 5xx and network failures become 502, and neither Calendar API nor database error messages are returned to the client.
 
 ## Synchronization and verification
 
@@ -99,6 +101,8 @@ npm test -- --runInBand
 npm run lint
 npm run build
 ```
+
+Tests in `tests/calendar.upstream-mocks.test.ts` run the real Calendar API client against local HTTP mocks driven by the Calendar API and Core API contracts copied in `tests/contracts/upstream/`: every request (path, parameters, JSON body) and every mocked response is validated against those contracts. Regenerate the copies with `cargo open_api` at the tags of the pinned `@mairie360/*-api-openapi` clients whenever they are bumped.
 
 `contracts:generate` exports the runtime registry to `contracts/openapi.json` and regenerates `contracts/bff.d.ts`. `contracts:check` fails when the contract or types are stale. Then run `npm run contracts:sync` in each associated web service and deliver contract changes together.
 
