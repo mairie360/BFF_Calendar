@@ -1,6 +1,6 @@
 import type { CalendarDirectoryUser, CalendarEventAccess, EventValidationStatus } from '../../src/repositories/calendarAccessRepository';
 
-// Réponses Calendar API conformes à tests/contracts/upstream/calendar_api.openapi.json
+// Réponses Calendar API conformes au contrat du paquet @mairie360/calendar-api-openapi installé
 // (validées dans upstream-contracts.test.ts) et utilisateurs de l'annuaire PostgreSQL.
 
 export function eventView(id: number, overrides: Partial<{ name: string; start: string; end: string }> = {}) {

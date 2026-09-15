@@ -84,9 +84,10 @@ export class OpenApiContract {
     return { match, errors, undeclaredQuery };
   }
 
-  /** Statuts documentés et schéma JSON de la réponse pour un statut donné. */
+  /** Statuts documentés (code exact, sinon plage `2XX`…) et schéma JSON de la réponse pour un statut donné. */
   responseSchema(match: MatchedOperation, status: number): { documented: boolean; schema?: JsonSchema } {
-    const response = match.operation.responses?.[String(status)];
+    const responses = match.operation.responses ?? {};
+    const response = responses[String(status)] ?? responses[`${String(status)[0]}XX`];
     return { documented: response !== undefined, schema: response?.content?.['application/json']?.schema };
   }
 

@@ -3,7 +3,8 @@ import type { Express } from 'express';
 import request from 'supertest';
 
 // La base PostgreSQL partagée n'a pas de contrat OpenAPI : le repository reste simulé par jest.mock,
-// seules les API HTTP (Calendar API, Core API) sont servies par des mocks pilotés par leur contrat.
+// seules les API HTTP (Calendar API, Core API) sont servies par des mocks pilotés par le contrat
+// reconstruit depuis leurs paquets @mairie360/*-api-openapi installés (tests/support/orval-contract.ts).
 jest.mock('../src/repositories/calendarAccessRepository', () => ({
   filterAssignedCalendarEventIds: jest.fn(),
   getCalendarDirectoryUser: jest.fn(),
@@ -19,18 +20,20 @@ jest.mock('../src/repositories/calendarAccessRepository', () => ({
 import * as repository from '../src/repositories/calendarAccessRepository';
 import { ContractMockServer, unreachableUrl } from './support/contract-mock-server';
 import { OpenApiContract } from './support/openapi-contract';
+import { loadOrvalContract } from './support/orval-contract';
 import { access, authorizationFor, calendarResult, directoryUsers, eventDetails, eventView } from './support/calendar-fixtures';
 
 const { admin, alice, marie } = directoryUsers;
 
-const calendarApi = new ContractMockServer('CALENDAR_API', OpenApiContract.upstream('calendar_api'), { basePath: '/api', rootPaths: ['/health'] })
+const calendarApi = new ContractMockServer('CALENDAR_API', loadOrvalContract('@mairie360/calendar-api-openapi'), { basePath: '/api', rootPaths: ['/health'] })
   .allowDeviation(
-    /requête GET \/api\/v1\/calendar\?\S* : query\.(start|end): type integer attendu/,
-    // Le contrat Calendar API déclare start/end en int64, mais l'endpoint désérialise des DateTime<Utc>
-    // RFC 3339 (Calendar_API src/endpoints/v1/get/view.rs) : le BFF envoie ce que l'API lit réellement.
+    /requête GET \/api\/v1\/calendar\?\S* : query\.(start|end): type number attendu/,
+    // Le contrat Calendar API (et GetCalendarParams du paquet) déclare start/end en int64, mais l'endpoint
+    // désérialise des DateTime<Utc> RFC 3339 (Calendar_API src/endpoints/v1/get/view.rs) : le BFF envoie
+    // ce que l'API lit réellement.
     'Contrat Calendar API erroné sur les paramètres start/end de GET /v1/calendar',
   );
-const coreApi = new ContractMockServer('CORE_API', OpenApiContract.upstream('core_api'));
+const coreApi = new ContractMockServer('CORE_API', loadOrvalContract('@mairie360/core-api-openapi'));
 const mocks = [calendarApi, coreApi];
 const bffContract = OpenApiContract.load(path.join(__dirname, '..', 'contracts', 'openapi.json'));
 
@@ -74,16 +77,16 @@ afterEach(() => {
 type Details = ReturnType<typeof eventDetails>;
 function mockCalendarApi({ list = [], details = [], createdId = 42 }: { list?: Array<ReturnType<typeof eventView>>; details?: Details[]; createdId?: number } = {}) {
   calendarApi.on('get', '/v1/calendar', { body: calendarResult(list) });
-  calendarApi.on('get', '/v1/events/{event_id}/', ({ pathParams }) => {
-    const found = details.find((event) => event.id === Number(pathParams.event_id));
-    // 404 renvoyé par l'API réelle (GetEventError::UnknownEvent) mais absent de son contrat.
+  calendarApi.on('get', '/v1/events/{eventId}/', ({ pathParams }) => {
+    const found = details.find((event) => event.id === Number(pathParams.eventId));
+    // 404 renvoyé par l'API réelle (GetEventError::UnknownEvent) ; les erreurs ne sont pas typées par orval.
     return found ? { body: found } : { status: 404, raw: 'Unknown event.', contentType: 'text/plain', outOfContract: true };
   });
   calendarApi.on('post', '/v1/events/', { status: 201, body: { event_id: createdId } });
-  calendarApi.on('patch', '/v1/events/{event_id}/', { status: 200 });
-  calendarApi.on('delete', '/v1/events/{event_id}/', { status: 204 });
-  calendarApi.on('post', '/v1/events/{event_id}/members/', ({ body }) => ({ body: { user_id: (body as { user_id: number }).user_id } }));
-  calendarApi.on('delete', '/v1/events/{event_id}/members/{member_id}/', { status: 204 });
+  calendarApi.on('patch', '/v1/events/{eventId}/', { status: 200 });
+  calendarApi.on('delete', '/v1/events/{eventId}/', { status: 204 });
+  calendarApi.on('post', '/v1/events/{eventId}/members/', ({ body }) => ({ body: { user_id: (body as { user_id: number }).user_id } }));
+  calendarApi.on('delete', '/v1/events/{eventId}/members/{memberId}/', { status: 204 });
 }
 
 function expectBffContract(method: string, pathname: string, response: request.Response) {
@@ -225,7 +228,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
           type_recurrence: 'Weekly', visibility: 'Public',
         },
       });
-      expect(calendarApi.calls('/v1/events/{event_id}/members/', 'POST').map((call) => [call.pathParams.event_id, call.body]))
+      expect(calendarApi.calls('/v1/events/{eventId}/members/', 'POST').map((call) => [call.pathParams.eventId, call.body]))
         .toEqual(expect.arrayContaining([['42', { user_id: alice.id }], ['42', { user_id: marie.id }]]));
       expect(repository.setCalendarEventValidationStatus).toHaveBeenCalledWith(42, 'pending');
       expect(repository.upsertCalendarEventMetadata).toHaveBeenCalledWith(42, expect.objectContaining({ category: 'activity', location: 'Salle 2' }));
@@ -263,15 +266,15 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(200);
       expectBffContract('patch', '/calendar/events/5', response);
-      const [patch] = calendarApi.calls('/v1/events/{event_id}/', 'PATCH');
+      const [patch] = calendarApi.calls('/v1/events/{eventId}/', 'PATCH');
       expect(Object.fromEntries(patch.url.searchParams)).toEqual({ reccurent: 'false' });
       expect(patch.body).toEqual({
         description: 'Description 5', event_start_time: '2026-09-16T18:30:00Z', event_end_time: '2026-09-16T20:00:00Z',
         intervalle: null, name: 'Conseil municipal', reccurence_end_date: '2026-09-16T00:00:00Z', visibility: 'Public',
       });
-      expect(calendarApi.calls('/v1/events/{event_id}/members/{member_id}/', 'DELETE').map((call) => call.pathParams))
-        .toEqual([{ event_id: '5', member_id: String(alice.id) }]);
-      expect(calendarApi.calls('/v1/events/{event_id}/members/', 'POST').map((call) => call.body)).toEqual([{ user_id: marie.id }]);
+      expect(calendarApi.calls('/v1/events/{eventId}/members/{memberId}/', 'DELETE').map((call) => call.pathParams))
+        .toEqual([{ eventId: '5', memberId: String(alice.id) }]);
+      expect(calendarApi.calls('/v1/events/{eventId}/members/', 'POST').map((call) => call.body)).toEqual([{ user_id: marie.id }]);
       expect(repository.updateCalendarEventDetails).toHaveBeenCalledWith(5, expect.objectContaining({ name: 'Conseil municipal' }));
     });
 
@@ -320,7 +323,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.status).toBe(204);
       expectBffContract('delete', '/calendar/events/5', response);
       expect(upstreamSequence()).toEqual(['GET /v1/events/5/', 'DELETE /v1/events/5/']);
-      expect(calendarApi.calls('/v1/events/{event_id}/', 'DELETE')[0].headers.authorization).toBe(authorizationFor(admin.id));
+      expect(calendarApi.calls('/v1/events/{eventId}/', 'DELETE')[0].headers.authorization).toBe(authorizationFor(admin.id));
     });
 
     test('DELETE /calendar/events/:id forbids an assigned responsible who did not create the event', async () => {
@@ -332,7 +335,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.status).toBe(403);
       expectBffContract('delete', '/calendar/events/5', response);
       expect(response.body.code).toBe('EVENT_DELETE_FORBIDDEN');
-      expect(calendarApi.calls('/v1/events/{event_id}/', 'DELETE')).toHaveLength(0);
+      expect(calendarApi.calls('/v1/events/{eventId}/', 'DELETE')).toHaveLength(0);
     });
 
     test('DELETE /calendar/events/:id returns 404 for an event unknown to Calendar API without deleting', async () => {
@@ -350,7 +353,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
   describe('upstream failures', () => {
     test('propagates a Calendar API JWT rejection as 401 without reading the directory', async () => {
       mockCalendarApi();
-      // 401 produit par le JwtMiddleware de mairie360_api_lib, non documenté dans le contrat Calendar API.
+      // 401 produit par le JwtMiddleware de mairie360_api_lib (erreurs non typées par orval).
       calendarApi.on('get', '/v1/calendar', { status: 401, raw: 'Unauthorized', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
@@ -371,9 +374,9 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(calendarApi.calls('/v1/calendar')[0].headers.authorization).toBeUndefined();
     });
 
-    test('maps a documented Calendar API 400 to 400 without leaking the upstream body', async () => {
+    test('maps a Calendar API 400 to 400 without leaking the upstream body', async () => {
       mockCalendarApi();
-      calendarApi.on('get', '/v1/calendar', { status: 400, raw: 'Bad parameters', contentType: 'text/plain' });
+      calendarApi.on('get', '/v1/calendar', { status: 400, raw: 'Bad parameters', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).get('/calendar/events?from=2026-09-30&to=2026-09-01').set('Authorization', authorizationFor(admin.id));
 
@@ -382,9 +385,9 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.body).toEqual({ code: 'UPSTREAM_ERROR', message: 'La requête a été refusée par le service Calendar.' });
     });
 
-    test('maps a documented Calendar API 500 to 502 without leaking the upstream message', async () => {
+    test('maps a Calendar API 500 to 502 without leaking the upstream message', async () => {
       mockCalendarApi();
-      calendarApi.on('get', '/v1/calendar', { status: 500, raw: 'An error occurred while accessing the database.', contentType: 'text/plain' });
+      calendarApi.on('get', '/v1/calendar', { status: 500, raw: 'An error occurred while accessing the database.', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
 

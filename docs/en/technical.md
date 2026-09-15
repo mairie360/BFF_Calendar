@@ -102,7 +102,7 @@ npm run lint
 npm run build
 ```
 
-Tests in `tests/calendar.upstream-mocks.test.ts` run the real Calendar API client against local HTTP mocks driven by the Calendar API and Core API contracts copied in `tests/contracts/upstream/`: every request (path, parameters, JSON body) and every mocked response is validated against those contracts. Regenerate the copies with `cargo open_api` at the tags of the pinned `@mairie360/*-api-openapi` clients whenever they are bumped.
+Tests in `tests/calendar.upstream-mocks.test.ts` run the real Calendar API client against local HTTP mocks driven by the Calendar API and Core API contracts, rebuilt from the installed `@mairie360/*-api-openapi` packages (orval types, versions pinned in `package.json`): every request (path, parameters, JSON body) and every mocked success response is validated against those contracts. Bumping a package is enough to test against its new contract; error statuses are not typed by orval and are simulated explicitly.
 
 `contracts:generate` exports the runtime registry to `contracts/openapi.json` and regenerates `contracts/bff.d.ts`. `contracts:check` fails when the contract or types are stale. Then run `npm run contracts:sync` in each associated web service and deliver contract changes together.
 

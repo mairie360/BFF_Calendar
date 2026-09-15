@@ -106,11 +106,15 @@ Two styles, both with `supertest` and `jest.mock` of `calendarAccessRepository` 
 - `tests/calendar.test.ts` also `jest.mock`s `calendarClient` (fast unit tests of the helpers).
 - `tests/calendar.upstream-mocks.test.ts` keeps the **real** axios client and serves Calendar API /
   Core API from local HTTP servers (`tests/support/contract-mock-server.ts`) that validate every
-  request path, query, JSON body and every mocked response against the contracts copied in
-  `tests/contracts/upstream/` (generated with `cargo open_api` at the pinned client tags). Known
-  upstream contract bugs are accepted explicitly with `allowDeviation(pattern, reason)`; a response
-  the real API sends but its contract omits must be marked `outOfContract: true`. The app is imported
-  after `CALENDAR_API_BASE_PATH` is set, because the client reads it at module load.
+  request path, query, JSON body and every mocked response against a contract rebuilt at test time
+  from the **installed** `@mairie360/calendar-api-openapi` / `core-api-openapi` packages
+  (`tests/support/orval-contract.ts` parses their orval `endpoints/*.ts` + `model/*.ts` with the
+  TypeScript compiler API; the packages ship no `openapi.json`). Bumping the dependency is enough to
+  test against the new contract. Orval output loses error statuses (success is exposed as `2XX`),
+  formats and integer-ness, and renames path params (`{eventId}`): any mocked error reply needs
+  `outOfContract: true`. Known upstream contract bugs are accepted explicitly with
+  `allowDeviation(pattern, reason)`. The app is imported after `CALENDAR_API_BASE_PATH` is set,
+  because the client reads it at module load.
 
 `jest.config.ts` lets ts-jest compile `node_modules/@mairie360/*` (orval ships raw ESM TypeScript).
 Auth is a hand-built unsigned JWT (`Bearer <header>.<base64url {sub}>.<sig>`); see `authorizationFor(userId)`.
