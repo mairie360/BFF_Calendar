@@ -76,19 +76,21 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | --- | --- | --- | --- |
 | GET | `/health` | — | 200 |
 | GET | `/check_apis` | — | 200, 502 |
-| GET | `/calendar/bootstrap` | — | 200, 500 |
-| GET | `/calendar/events` | — | 200, 400, 500 |
-| POST | `/calendar/events` | application/json | 201, 400, 500 |
-| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 404, 500 |
-| DELETE | `/calendar/events/{id}` | — | 204, 404, 500 |
-| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 404, 500 |
-| GET | `/calendar/assignees` | — | 200, 500 |
+| GET | `/calendar/bootstrap` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502 |
+| GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502 |
+| POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502 |
+| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502 |
+| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| GET | `/calendar/assignees` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
 
 ## Session, permissions et erreurs
 
-Les routes métier attendent l’autorisation de l’appelant. La politique d’accès résout son identité et ses rôles en base, puis limite les affectations et modifications. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
+Les routes métier attendent l’autorisation de l’appelant. La politique d’accès résout son identité et ses rôles en base, puis limite les affectations et modifications; seul le créateur peut supprimer un événement, après validation de la session par Calendar API. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
+
+`from` et `to` doivent être des dates `YYYY-MM-DD` et les identifiants d’événement des entiers positifs, sinon le BFF répond 400 sans appeler Calendar API. Les erreurs utilisent le corps `ApiError` (`code`, `message`): les statuts 4xx amont sont conservés, les 5xx amont et pannes réseau deviennent 502, et aucun message d’erreur de Calendar API ou de la base n’est renvoyé au client.
 
 ## Synchronisation et vérifications
 
@@ -99,6 +101,8 @@ npm test -- --runInBand
 npm run lint
 npm run build
 ```
+
+Les tests de `tests/calendar.upstream-mocks.test.ts` exécutent le vrai client Calendar API contre des mocks HTTP locaux pilotés par les contrats Calendar API et Core API, reconstruits depuis les paquets `@mairie360/*-api-openapi` installés (types orval, versions épinglées dans `package.json`): chaque requête (chemin, paramètres, corps JSON) et chaque réponse de succès simulée est validée contre ces contrats. Monter la version d'un paquet suffit à tester le nouveau contrat; les statuts d'erreur ne sont pas typés par orval et sont simulés explicitement.
 
 `contracts:generate` exporte le registre runtime dans `contracts/openapi.json` et régénère `contracts/bff.d.ts`. `contracts:check` échoue si le contrat ou les types sont périmés. Exécuter ensuite `npm run contracts:sync` dans chaque web service associé et livrer les modifications de contrat ensemble.
 
