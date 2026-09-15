@@ -1,0 +1,810 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "calendar_api",
+    "description": "",
+    "license": {
+      "name": ""
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "post": {
+        "tags": [],
+        "operationId": "hello",
+        "responses": {
+          "200": {
+            "description": "Returns a greeting message",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [],
+        "summary": "* Handles a GET request to the /health endpoint.\n * Responds with a simple \"OK\" message to indicate the service is healthy.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calendar": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "operationId": "get_calendar",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calendar in the specified time range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/v1/events/": {
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "create_event",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostEventView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Event created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostEventResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/v1/events/{event_id}/": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "get_event",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetEventResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "delete_event",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event deleted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "patch_event",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "reccurent",
+            "in": "query",
+            "description": "Whether the event is recurring",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchEventView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Event patched successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/v1/events/{event_id}/members/": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "get_event_members",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMembersResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "add_event_member",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMemberView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Member added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostMemberView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Unknown event"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/v1/events/{event_id}/members/{member_id}/": {
+      "delete": {
+        "tags": [
+          "Events"
+        ],
+        "operationId": "remove_event_member",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Event deleted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EventValidationStatus": {
+        "type": "string",
+        "enum": [
+          "validated",
+          "refused",
+          "pending"
+        ]
+      },
+      "EventView": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GetCalendarParams": {
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "properties": {
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GetCalendarResultView": {
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventView"
+            }
+          }
+        }
+      },
+      "GetEventResultView": {
+        "type": "object",
+        "required": [
+          "id",
+          "events_start_time",
+          "events_end_time",
+          "name",
+          "owner",
+          "members"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "events_end_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "events_start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "recurrence_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "visibility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Visibility"
+              }
+            ]
+          }
+        }
+      },
+      "GetMembersResultView": {
+        "type": "object",
+        "required": [
+          "members"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          }
+        }
+      },
+      "Member": {
+        "type": "object",
+        "required": [
+          "id",
+          "validation_status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "validation_status": {
+            "$ref": "#/components/schemas/EventValidationStatus"
+          }
+        }
+      },
+      "PatchEventParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "reccurent": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "PatchEventView": {
+        "type": "object",
+        "required": [
+          "event_start_time",
+          "event_end_time",
+          "reccurence_end_date"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "event_end_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "event_start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "intervalle": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reccurence_end_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "visibility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Visibility"
+              }
+            ]
+          }
+        }
+      },
+      "PostEventResultView": {
+        "type": "object",
+        "required": [
+          "event_id"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "PostEventView": {
+        "type": "object",
+        "required": [
+          "events_start_time",
+          "events_end_time"
+        ],
+        "properties": {
+          "custom_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "custom_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "custom_visibility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Visibility"
+              }
+            ]
+          },
+          "events_end_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "events_start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "owner_group_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "recurrence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Recurrence"
+              }
+            ]
+          }
+        }
+      },
+      "PostMemberView": {
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "Recurrence": {
+        "type": "object",
+        "required": [
+          "type_recurrence",
+          "intervalle",
+          "recurrence_end_date",
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "intervalle": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_group_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "recurrence_end_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type_recurrence": {
+            "$ref": "#/components/schemas/RecurrenceType"
+          },
+          "visibility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Visibility"
+              }
+            ]
+          }
+        }
+      },
+      "RecurrenceType": {
+        "type": "string",
+        "enum": [
+          "Daily",
+          "Weekly",
+          "Monthly",
+          "Error"
+        ]
+      },
+      "Visibility": {
+        "type": "string",
+        "enum": [
+          "Public",
+          "Private",
+          "Error"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,2180 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "core_api",
+    "description": "Core API for mairie360: users, sessions/auth, roles, groups and resource-access management",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "post": {
+        "tags": [],
+        "operationId": "hello",
+        "responses": {
+          "200": {
+            "description": "Returns a greeting message",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/roles/": {
+      "get": {
+        "tags": [
+          "Admin - Roles",
+          "Admin - Roles"
+        ],
+        "operationId": "admin_get_role",
+        "responses": {
+          "200": {
+            "description": "Roles retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetResponseView"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Admin - Roles",
+          "Admin - Roles"
+        ],
+        "operationId": "admin_post_role",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleWriteView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Role created successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "409": {
+            "description": "Duplicate role name"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/roles/{id}": {
+      "put": {
+        "tags": [
+          "Admin - Roles",
+          "Admin - Roles"
+        ],
+        "operationId": "admin_put_role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Role database id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleWriteView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Role deleted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin - Roles",
+          "Admin - Roles"
+        ],
+        "operationId": "admin_delete_role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Role database id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role deleted successfully"
+          },
+          "403": {
+            "description": "Role cannot be deleted"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Admin - Roles",
+          "Admin - Roles"
+        ],
+        "operationId": "admin_patch_role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Role database id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Role deleted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/users/": {
+      "post": {
+        "tags": [
+          "Admin - Users",
+          "Admin - Users"
+        ],
+        "operationId": "admin_post_user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully"
+          },
+          "400": {
+            "description": "Invalid data provided"
+          },
+          "409": {
+            "description": "User already exists"
+          },
+          "500": {
+            "description": "Database error occurred"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{userId}/": {
+      "patch": {
+        "tags": [
+          "Admin - Users",
+          "Admin - Users"
+        ],
+        "operationId": "admin_patch_user",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchUserView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "User patched successfully"
+          },
+          "400": {
+            "description": "Invalid data provided"
+          },
+          "404": {
+            "description": "Unknown user"
+          },
+          "500": {
+            "description": "Database error occurred"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{userId}/roles/": {
+      "post": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "operationId": "admin_add_role_to_user",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "Event ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRoleToUserView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "User role updated successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "User or role not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/users/{userId}/roles/{roleId}": {
+      "delete": {
+        "tags": [
+          "Admin - Users"
+        ],
+        "operationId": "admin_delete_user_role",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "description": "ID du rôle",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "ID de l'utilisateur",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role deleted successfully"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/force_change_password/": {
+      "post": {
+        "tags": [
+          "Auth",
+          "Auth"
+        ],
+        "operationId": "force_change_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForceChangePasswordView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Unknown user token"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/forgot_password/": {
+      "post": {
+        "tags": [
+          "Auth",
+          "Auth"
+        ],
+        "operationId": "forgot_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Forgot password request sent successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth",
+          "Auth"
+        ],
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "User login successfully!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials provided."
+          },
+          "412": {
+            "description": "User needs to change password because first login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginFirstConnectionResponseView"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication",
+          "Auth"
+        ],
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data provided",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User already exists",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database error occurred",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset_password/": {
+      "post": {
+        "tags": [
+          "Auth",
+          "Auth"
+        ],
+        "operationId": "reset_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetPasswordResponseView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized, invalid token"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/groups/": {
+      "get": {
+        "tags": [
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "get_groups",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetGroupsResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "post_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostGroupView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Group created successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{group_id}/": {
+      "get": {
+        "tags": [
+          "Groups",
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "get_group",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID du groupe",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetGroupResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Groups",
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "delete_group",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID du groupe",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Group deleted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{group_id}/users/": {
+      "get": {
+        "tags": [
+          "Groups",
+          "Groups",
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "get_group_members",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID du groupe",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetGroupUsersResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Unknow group"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Groups",
+          "Groups",
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "add_user_to_group",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID du groupe",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostUserGroupView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "User added to group successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Unknow user."
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{group_id}/users/{user_id}/": {
+      "delete": {
+        "tags": [
+          "Groups",
+          "Groups",
+          "Groups",
+          "Groups"
+        ],
+        "operationId": "remove_user_from_group",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "description": "ID du groupe",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "description": "ID de l'utilisateur",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted from group successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ressources/add_access": {
+      "post": {
+        "tags": [
+          "Ressources"
+        ],
+        "operationId": "add_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAccessView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Access added successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ressources/remove_access": {
+      "post": {
+        "tags": [
+          "Ressources"
+        ],
+        "operationId": "remove_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveAccessView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Access removed successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ressources/{id}/access": {
+      "post": {
+        "tags": [
+          "Ressources"
+        ],
+        "operationId": "get_access",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAccessResultView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/roles/": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "get_roles",
+        "responses": {
+          "200": {
+            "description": "Roles retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetResponseView"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sessions/": {
+      "get": {
+        "tags": [
+          "Sessions",
+          "Sessions"
+        ],
+        "operationId": "get_active_sessions",
+        "responses": {
+          "200": {
+            "description": "User info retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetResponseView"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sessions/history": {
+      "get": {
+        "tags": [
+          "Sessions",
+          "Sessions"
+        ],
+        "operationId": "history",
+        "responses": {
+          "200": {
+            "description": "User info retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResponseView"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/sessions/refresh": {
+      "post": {
+        "tags": [
+          "Sessions",
+          "Sessions"
+        ],
+        "summary": "Enregistré hors du scope `/api` protégé par `JwtMiddleware` (cf. `sessions::public_config`) :\nun JWT expiré ne doit pas empêcher d'en obtenir un nouveau.",
+        "operationId": "refresh",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequestView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized, invalid, revoked or expired refresh token"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/revoke": {
+      "post": {
+        "tags": [
+          "Sessions",
+          "Sessions"
+        ],
+        "operationId": "revoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeRequestView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token revoked successfully"
+          },
+          "401": {
+            "description": "Unauthorized, invalid token or user not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/user/me/": {
+      "get": {
+        "tags": [
+          "Users",
+          "Users"
+        ],
+        "operationId": "get_me",
+        "responses": {
+          "200": {
+            "description": "Me retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMeResponseView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Users",
+          "Users"
+        ],
+        "operationId": "patch_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchMeView"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/user/{id}/": {
+      "get": {
+        "tags": [
+          "Users",
+          "Users"
+        ],
+        "operationId": "get_user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID de l'utilisateur",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponseView"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [],
+        "summary": "* Handles a GET request to the /health endpoint.\n * Responds with a simple \"OK\" message to indicate the service is healthy.",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Access": {
+        "type": "object",
+        "required": [
+          "id",
+          "resource_id",
+          "resource_instance_id",
+          "permission_id"
+        ],
+        "properties": {
+          "group_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "permission_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resource_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resource_instance_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "AccessType": {
+        "type": "string",
+        "enum": [
+          "Delete",
+          "Error",
+          "Read",
+          "Update"
+        ]
+      },
+      "AddAccessView": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "resource_id",
+          "ressource_type",
+          "access_type"
+        ],
+        "properties": {
+          "access_type": {
+            "$ref": "#/components/schemas/AccessType"
+          },
+          "resource_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "ressource_type": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "AddRoleToUserView": {
+        "type": "object",
+        "required": [
+          "role_id",
+          "user_id"
+        ],
+        "properties": {
+          "role_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "CreateUserView": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ForceChangePasswordView": {
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "properties": {
+          "new_password": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "ForgotPasswordView": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "GetAccessResultView": {
+        "type": "object",
+        "required": [
+          "accesses"
+        ],
+        "properties": {
+          "accesses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Access"
+            }
+          }
+        }
+      },
+      "GetGroupResultView": {
+        "type": "object",
+        "required": [
+          "group"
+        ],
+        "properties": {
+          "group": {
+            "$ref": "#/components/schemas/Group"
+          }
+        }
+      },
+      "GetGroupUsersResultView": {
+        "type": "object",
+        "required": [
+          "users"
+        ],
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "GetGroupsResultView": {
+        "type": "object",
+        "required": [
+          "groups"
+        ],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          }
+        }
+      },
+      "GetMeResponseView": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "status",
+          "role",
+          "groups"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "GetResponseView": {
+        "type": "object",
+        "required": [
+          "roles"
+        ],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            }
+          }
+        }
+      },
+      "GetUserResponseView": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "status",
+          "is_archived",
+          "role",
+          "groups"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "is_archived": {
+            "type": "boolean"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "GetUserResultView": {
+        "type": "object",
+        "required": [
+          "user",
+          "roles",
+          "groups",
+          "sessions"
+        ],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleResultView"
+            }
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionResultView"
+            }
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "Group": {
+        "type": "object",
+        "required": [
+          "id",
+          "owner_id",
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "HistoryResponseView": {
+        "type": "object",
+        "required": [
+          "sessions"
+        ],
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionSchema"
+            }
+          }
+        }
+      },
+      "LoginFirstConnectionResponseView": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginResponseView": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginView": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "device_info"
+        ],
+        "properties": {
+          "device_info": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "PatchMeView": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "first_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PatchUserView": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "first_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PatchView": {
+        "type": "object",
+        "properties": {
+          "can_be_deleted": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PostGroupResultView": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "PostGroupView": {
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "PostUserGroupView": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "group_id"
+        ],
+        "properties": {
+          "group_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "RefreshRequestView": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterView": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RemoveAccessView": {
+        "type": "object",
+        "required": [
+          "access_id"
+        ],
+        "properties": {
+          "access_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ResetPasswordResponseView": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "ResetPasswordView": {
+        "type": "object",
+        "required": [
+          "token",
+          "new_password",
+          "device_info"
+        ],
+        "properties": {
+          "device_info": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "RevokeRequestView": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "RoleResultView": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "RoleWriteView": {
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "properties": {
+          "can_be_deleted": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "SessionResultView": {
+        "type": "object",
+        "required": [
+          "id",
+          "device_info",
+          "ip_address",
+          "created_at",
+          "expires_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "device_info": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SessionSchema": {
+        "type": "object",
+        "required": [
+          "id",
+          "device_info",
+          "ip_address",
+          "created_at",
+          "expires_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "device_info": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "status",
+          "is_archived"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "is_archived": {
+            "type": "boolean"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "jwt": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

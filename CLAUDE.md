@@ -101,10 +101,19 @@ type generator).
 
 ## Tests
 
-`tests/*.test.ts` use `supertest` against a freshly-assembled Express app and `jest.mock` both
-`calendarClient` and `calendarAccessRepository` — there is no DB or Calendar API in tests. Auth is a
-hand-built unsigned JWT (`Bearer <header>.<base64url {sub}>.<sig>`); see `authorizationFor(userId)` in
-`tests/calendar.test.ts`. When adding a helper that hits the client or repository, extend those mocks.
+Two styles, both with `supertest` and `jest.mock` of `calendarAccessRepository` (no DB in tests):
+
+- `tests/calendar.test.ts` also `jest.mock`s `calendarClient` (fast unit tests of the helpers).
+- `tests/calendar.upstream-mocks.test.ts` keeps the **real** axios client and serves Calendar API /
+  Core API from local HTTP servers (`tests/support/contract-mock-server.ts`) that validate every
+  request path, query, JSON body and every mocked response against the contracts copied in
+  `tests/contracts/upstream/` (generated with `cargo open_api` at the pinned client tags). Known
+  upstream contract bugs are accepted explicitly with `allowDeviation(pattern, reason)`; a response
+  the real API sends but its contract omits must be marked `outOfContract: true`. The app is imported
+  after `CALENDAR_API_BASE_PATH` is set, because the client reads it at module load.
+
+`jest.config.ts` lets ts-jest compile `node_modules/@mairie360/*` (orval ships raw ESM TypeScript).
+Auth is a hand-built unsigned JWT (`Bearer <header>.<base64url {sub}>.<sig>`); see `authorizationFor(userId)`.
 
 ## Performance & security tests (isolated stacks)
 
