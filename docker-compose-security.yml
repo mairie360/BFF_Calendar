@@ -132,7 +132,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:1.1.1}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:1.2.0}
     container_name: bff-calendar-sec-core-api
     depends_on:
       liquibase:
