@@ -10,7 +10,7 @@ Express 5.2.1 server written in TypeScript. Zod schemas and their OpenAPI regist
 
 ## Data and persistence
 
-Calendar API supplies event operations. `calendarAccessRepository.ts` accesses PostgreSQL directly for the directory, assignments, some updates and metadata. The `calendar_event_metadata` table, created by the BFF when needed, references `events.id` and stores category, service, location and recurrence. Categories and services include reference lists defined in the helpers.
+Calendar API supplies every event operation: the events themselves, their metadata (category, service, location) and their recurrence rule, their members and their validation status, plus the rights of the caller. Core API supplies the directory (identity, roles, groups). The BFF has no database access. Categories and services include reference lists defined in the helpers.
 
 Operation depends on consistent user identifiers between Core and Calendar and the expected SQL schema. The Docker stack uses the database shared with BFF User; start that stack first. Metadata and direct SQL access remain current BFF responsibilities.
 
@@ -35,9 +35,9 @@ CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
 ```
 
-Also set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` for an existing database containing the tables expected by the SQL repositories. These variables and any secrets listed below still need to be supplied; the HTTP example prepares neither schema nor data.
+Also set `CORE_API_URL` and `CORE_API_PORT` to reach the Core API directory. These variables and any secrets listed below still need to be supplied; the HTTP example prepares no data.
 
-With Docker, start the BFF User stack first. `USER_BACKEND_NETWORK` and `SHARED_DB_HOST` connect Calendar to its shared database.
+With Docker, start the BFF User stack first. `USER_BACKEND_NETWORK` connects Calendar to Core API and BFF User.
 
 ```bash
 npm run start
@@ -64,9 +64,6 @@ Values below are local examples or explicitly described behavior, not production
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Host and port used by `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Diagnostic host and port; separate from the client base path. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | External network expected by Docker Compose. |
-| `SHARED_DB_HOST` | mairie360-db-bff-user | Shared database host in Docker Compose. |
-| `DB_HOST` / `DB_PORT` | localhost / 5432 | SQL repository PostgreSQL connection. |
-| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | — | Database, account and secret to supply for the expected shared schema. |
 
 ## Routes and data contract
 
@@ -76,19 +73,21 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | --- | --- | --- | --- |
 | GET | `/health` | — | 200 |
 | GET | `/check_apis` | — | 200, 502 |
-| GET | `/calendar/bootstrap` | — | 200, 500 |
-| GET | `/calendar/events` | — | 200, 400, 500 |
-| POST | `/calendar/events` | application/json | 201, 400, 500 |
-| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 404, 500 |
-| DELETE | `/calendar/events/{id}` | — | 204, 404, 500 |
-| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 404, 500 |
-| GET | `/calendar/assignees` | — | 200, 500 |
+| GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502 |
+| GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502 |
+| POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502 |
+| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502 |
+| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| GET | `/calendar/assignees` | `from`, `to` (optional) | 200, 400, 401, 500, 502 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
 
 ## Session, permissions and errors
 
-Business routes expect the caller’s authorization. The access policy resolves identity and database roles, then limits assignments and edits. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
+Business routes expect the caller’s authorization. The access policy resolves identity and database roles, then limits assignments and edits; only the creator can delete an event, after Calendar API has validated the session. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
+
+`from` and `to` must be `YYYY-MM-DD` dates and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Errors use the `ApiError` body (`code`, `message`): upstream 4xx statuses are kept, upstream 5xx and network failures become 502, and neither Calendar API nor database error messages are returned to the client.
 
 ## Synchronization and verification
 
@@ -99,6 +98,8 @@ npm test -- --runInBand
 npm run lint
 npm run build
 ```
+
+Tests in `tests/calendar.upstream-mocks.test.ts` run the real Calendar API client against local HTTP mocks driven by the Calendar API and Core API contracts, rebuilt from the installed `@mairie360/*-api-openapi` packages (orval types, versions pinned in `package.json`): every request (path, parameters, JSON body) and every mocked success response is validated against those contracts. Bumping a package is enough to test against its new contract; error statuses are not typed by orval and are simulated explicitly.
 
 `contracts:generate` exports the runtime registry to `contracts/openapi.json` and regenerates `contracts/bff.d.ts`. `contracts:check` fails when the contract or types are stale. Then run `npm run contracts:sync` in each associated web service and deliver contract changes together.
 
@@ -116,7 +117,7 @@ Before running Docker, check service variables, build secrets and networks in th
 
 ## Troubleshooting
 
-For missing events or rejected assignments, check the user, group membership and shared database. A `calendar_event_metadata` error requires checking the schema and SQL account permissions. `/check_apis` and the business client use different variables.
+For missing events or rejected assignments, check the user and their group membership in Core API. `/check_apis` and the business client use different variables.
 
 ## Repository reference
 
@@ -124,7 +125,7 @@ For missing events or rejected assignments, check the user, group membership and
 - [src/routes/calendar-routes.ts](../../src/routes/calendar-routes.ts)
 - [src/routes/calendar/calendar_helpers.ts](../../src/routes/calendar/calendar_helpers.ts)
 - [src/services/calendarAccessPolicy.ts](../../src/services/calendarAccessPolicy.ts)
-- [src/repositories/calendarAccessRepository.ts](../../src/repositories/calendarAccessRepository.ts)
+- [src/clients/coreDirectory.ts](../../src/clients/coreDirectory.ts)
 - [src/clients/calendarClient.ts](../../src/clients/calendarClient.ts)
 - [contracts/openapi.json](../../contracts/openapi.json)
 - [contracts/bff.d.ts](../../contracts/bff.d.ts)

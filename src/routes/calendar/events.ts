@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import {
+  apiErrorResponse,
+  dateQueryParameter,
+  eventIdPathParameter,
   registry,
   CreateCalendarEventBodySchema,
   UpdateCalendarEventApprovalBodySchema,
@@ -10,7 +13,10 @@ import {
   deleteCalendarEvent,
   fetchCalendarEvents,
   handleUnknownError,
+  isQueryDate,
+  parseEventIdParam,
   patchCalendarEvent,
+  sendBadRequest,
   sendValidationError,
   updateCalendarEventApproval,
 } from './calendar_helpers';
@@ -29,20 +35,8 @@ registry.registerPath({
   summary: 'Récupère les événements sur une plage de dates',
   description: 'Charge les événements utiles à la vue mois/semaine/jour',
   parameters: [
-    {
-      name: 'from',
-      in: 'query',
-      required: true,
-      schema: { type: 'string', format: 'date' },
-      description: 'Date de début au format YYYY-MM-DD',
-    },
-    {
-      name: 'to',
-      in: 'query',
-      required: true,
-      schema: { type: 'string', format: 'date' },
-      description: 'Date de fin au format YYYY-MM-DD',
-    },
+    dateQueryParameter('from', true, 'Date de début au format YYYY-MM-DD'),
+    dateQueryParameter('to', true, 'Date de fin au format YYYY-MM-DD'),
   ],
   responses: {
     200: {
@@ -56,12 +50,10 @@ registry.registerPath({
         },
       },
     },
-    400: {
-      description: 'Paramètres invalides',
-    },
-    500: {
-      description: 'Erreur serveur',
-    },
+    400: apiErrorResponse('Paramètres invalides'),
+    401: apiErrorResponse('Session invalide'),
+    500: apiErrorResponse('Erreur serveur'),
+    502: apiErrorResponse('Calendar API indisponible'),
   },
 });
 
@@ -86,16 +78,15 @@ registry.registerPath({
       description: 'Événement créé avec succès',
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/UpdateCalendarEventBody' },
+          schema: { $ref: '#/components/schemas/CalendarEvent' },
         },
       },
     },
-    400: {
-      description: 'Données invalides',
-    },
-    500: {
-      description: 'Erreur serveur',
-    },
+    400: apiErrorResponse('Données invalides'),
+    401: apiErrorResponse('Session invalide'),
+    403: apiErrorResponse('Personne assignée hors du périmètre autorisé'),
+    500: apiErrorResponse('Erreur serveur'),
+    502: apiErrorResponse('Calendar API indisponible'),
   },
 });
 
@@ -107,19 +98,13 @@ registry.registerPath({
   summary: 'Modifie un événement existant',
   description: 'Met à jour un événement identifié par son ID',
   parameters: [
-    {
-      name: 'id',
-      in: 'path',
-      required: true,
-      schema: { type: 'string' },
-      description: 'Identifiant unique de l\'événement',
-    },
+    eventIdPathParameter,
   ],
   request: {
     body: {
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/CalendarEvent' },
+          schema: { $ref: '#/components/schemas/UpdateCalendarEventBody' },
         },
       },
     },
@@ -133,15 +118,12 @@ registry.registerPath({
         },
       },
     },
-    400: {
-      description: 'Données invalides',
-    },
-    404: {
-      description: 'Événement non trouvé',
-    },
-    500: {
-      description: 'Erreur serveur',
-    },
+    400: apiErrorResponse('Données invalides'),
+    401: apiErrorResponse('Session invalide'),
+    403: apiErrorResponse('Action non autorisée sur cet événement'),
+    404: apiErrorResponse('Événement non trouvé'),
+    500: apiErrorResponse('Erreur serveur'),
+    502: apiErrorResponse('Calendar API indisponible'),
   },
 });
 
@@ -153,24 +135,18 @@ registry.registerPath({
   summary: 'Supprime un événement',
   description: 'Supprime un événement identifié par son ID',
   parameters: [
-    {
-      name: 'id',
-      in: 'path',
-      required: true,
-      schema: { type: 'string' },
-      description: 'Identifiant unique de l\'événement',
-    },
+    eventIdPathParameter,
   ],
   responses: {
     204: {
       description: 'Événement supprimé avec succès',
     },
-    404: {
-      description: 'Événement non trouvé',
-    },
-    500: {
-      description: 'Erreur serveur',
-    },
+    400: apiErrorResponse('Identifiant invalide'),
+    401: apiErrorResponse('Session invalide'),
+    403: apiErrorResponse('Seul le créateur peut supprimer l’événement'),
+    404: apiErrorResponse('Événement non trouvé'),
+    500: apiErrorResponse('Erreur serveur'),
+    502: apiErrorResponse('Calendar API indisponible'),
   },
 });
 
@@ -182,13 +158,7 @@ registry.registerPath({
   summary: 'Met à jour le statut d’approbation d’un événement',
   description: 'Valide, refuse ou remet en attente un événement identifié par son ID',
   parameters: [
-    {
-      name: 'id',
-      in: 'path',
-      required: true,
-      schema: { type: 'string' },
-      description: 'Identifiant unique de l\'événement',
-    },
+    eventIdPathParameter,
   ],
   request: {
     body: {
@@ -208,15 +178,12 @@ registry.registerPath({
         },
       },
     },
-    400: {
-      description: 'Données invalides',
-    },
-    404: {
-      description: 'Événement non trouvé',
-    },
-    500: {
-      description: 'Erreur serveur',
-    },
+    400: apiErrorResponse('Données invalides'),
+    401: apiErrorResponse('Session invalide'),
+    403: apiErrorResponse('Action non autorisée sur cet événement'),
+    404: apiErrorResponse('Événement non trouvé'),
+    500: apiErrorResponse('Erreur serveur'),
+    502: apiErrorResponse('Calendar API indisponible'),
   },
 });
 
@@ -231,7 +198,11 @@ router.get('/', async (req: Request, res: Response) => {
   const token = req.headers.authorization;
   
   if (!from || !to) {
-    return res.status(400).json({ error: 'Les paramètres from et to sont obligatoires' });
+    return sendBadRequest(res, 'Les paramètres from et to sont obligatoires.');
+  }
+
+  if (!isQueryDate(from) || !isQueryDate(to)) {
+    return sendBadRequest(res, 'Les paramètres from et to doivent être des dates au format YYYY-MM-DD.');
   }
   
   try {
@@ -260,11 +231,10 @@ router.post('/', async (req: Request, res: Response) => {
 
 // PATCH /calendar/events/:id
 router.patch('/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const eventId = Number(id);
-  
-  if (!id || Number.isNaN(eventId)) {
-    return res.status(400).json({ error: 'L\'ID est obligatoire' });
+  const eventId = parseEventIdParam(req.params.id);
+
+  if (eventId === null) {
+    return sendBadRequest(res, 'L\'identifiant de l\'événement doit être un entier positif.');
   }
 
   const bodyResult = UpdateCalendarEventBodySchema.safeParse(req.body);
@@ -283,11 +253,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
 // PATCH /calendar/events/:id/approval
 router.patch('/:id/approval', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const eventId = Number(id);
+  const eventId = parseEventIdParam(req.params.id);
 
-  if (!id || Number.isNaN(eventId)) {
-    return res.status(400).json({ error: 'L\'ID est obligatoire' });
+  if (eventId === null) {
+    return sendBadRequest(res, 'L\'identifiant de l\'événement doit être un entier positif.');
   }
 
   const bodyResult = UpdateCalendarEventApprovalBodySchema.safeParse(req.body);
@@ -306,11 +275,10 @@ router.patch('/:id/approval', async (req: Request, res: Response) => {
 
 // DELETE /calendar/events/:id
 router.delete('/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const eventId = Number(id);
-  
-  if (!id || Number.isNaN(eventId)) {
-    return res.status(400).json({ error: 'L\'ID est obligatoire' });
+  const eventId = parseEventIdParam(req.params.id);
+
+  if (eventId === null) {
+    return sendBadRequest(res, 'L\'identifiant de l\'événement doit être un entier positif.');
   }
   
   try {

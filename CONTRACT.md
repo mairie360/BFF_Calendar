@@ -12,7 +12,7 @@ Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètr
 | GET | `/check_apis` | 200 CheckApiResponse |
 | GET | `/calendar/bootstrap` | 200 CalendarBootstrapResponse |
 | GET | `/calendar/events` | 200 Liste des événements |
-| POST | `/calendar/events` | 201 UpdateCalendarEventBody |
+| POST | `/calendar/events` | 201 CalendarEvent |
 | PATCH | `/calendar/events/{id}` | 200 CalendarEvent |
 | DELETE | `/calendar/events/{id}` | 204 Événement supprimé avec succès |
 | PATCH | `/calendar/events/{id}/approval` | 200 CalendarEvent |

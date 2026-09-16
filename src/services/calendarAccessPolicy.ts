@@ -1,13 +1,23 @@
-import { getAuthorizationHeader } from '../config/token';
 import {
   CalendarDirectoryUser,
-  CalendarEventAccess,
-  EventValidationStatus,
   getCalendarDirectoryUser,
   listCalendarDirectoryUsers,
-} from '../repositories/calendarAccessRepository';
+} from '../clients/coreDirectory';
+import { getAuthorizationHeader } from '../config/token';
 
+export type { CalendarDirectoryUser };
+
+/** Statut de validation d'un événement, calculé par Calendar API à partir de ses membres. */
 export type CalendarApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+/** Membres d'un événement, résolus dans l'annuaire, et droits calculés par Calendar API. */
+export type CalendarEventAccess = {
+  eventId: number;
+  createdById: number | null;
+  members: Array<CalendarDirectoryUser & { validationStatus: 'pending' | 'validated' | 'refused' }>;
+  approvalStatus: CalendarApprovalStatus;
+  permissions: { canEdit: boolean; canDelete: boolean; canValidate: boolean };
+};
 
 export class CalendarAccessError extends Error {
   constructor(
@@ -68,7 +78,7 @@ export async function getCurrentCalendarUser(
   incomingRequestToken?: string,
 ): Promise<CalendarDirectoryUser> {
   const userId = currentUserIdFromAuthorization(incomingRequestToken);
-  const user = await getCalendarDirectoryUser(userId);
+  const user = await getCalendarDirectoryUser(userId, incomingRequestToken);
 
   if (!user) {
     throw new CalendarAccessError('Utilisateur introuvable.', 401, 'UNAUTHORIZED');
@@ -87,18 +97,19 @@ export function calendarAssigneeScope(user: CalendarDirectoryUser): 'all' | 'gro
 
 export async function listAssignableCalendarUsers(
   currentUser: CalendarDirectoryUser,
+  incomingRequestToken?: string,
 ): Promise<CalendarDirectoryUser[]> {
   const scope = calendarAssigneeScope(currentUser);
 
   if (scope === 'all') {
-    return listCalendarDirectoryUsers();
+    return listCalendarDirectoryUsers({}, incomingRequestToken);
   }
 
   if (scope === 'self') {
     return [currentUser];
   }
 
-  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds });
+  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds }, incomingRequestToken);
 }
 
 function parseUserAssigneeId(value: string | number): number | null {
@@ -119,8 +130,9 @@ function parseUserAssigneeId(value: string | number): number | null {
 export async function resolveAuthorizedAssigneeIds(
   currentUser: CalendarDirectoryUser,
   requestedAssigneeIds: Array<string | number>,
+  incomingRequestToken?: string,
 ): Promise<number[]> {
-  const assignableUsers = await listAssignableCalendarUsers(currentUser);
+  const assignableUsers = await listAssignableCalendarUsers(currentUser, incomingRequestToken);
   const assignableIds = new Set(assignableUsers.map((user) => user.id));
   const requestedIds = requestedAssigneeIds.map(parseUserAssigneeId);
 
@@ -144,92 +156,20 @@ export async function resolveAuthorizedAssigneeIds(
   return [...new Set([currentUser.id, ...requestedIds as number[]])];
 }
 
-function shareAGroup(firstUser: CalendarDirectoryUser, secondUser: CalendarDirectoryUser): boolean {
-  const secondGroupIds = new Set(secondUser.groupIds);
-  return firstUser.groupIds.some((groupId) => secondGroupIds.has(groupId));
-}
-
-export function eventRequiresResponsibleApproval(
-  creator: CalendarDirectoryUser,
-  members: CalendarDirectoryUser[],
-): boolean {
-  if (!hasCalendarRole(creator, 'User', 'Guest') || hasCalendarRole(creator, 'Admin', 'Maire', 'Responsable')) {
-    return false;
-  }
-
-  return members.some((member) => hasCalendarRole(member, 'Responsable') && shareAGroup(creator, member));
-}
-
+// Les droits sur un événement (validation, modification, suppression) et son statut d'approbation sont
+// calculés par Calendar API, qui les applique aussi côté serveur : le BFF relaie ses réponses.
 export function calendarEventApprovalStatus(eventAccess: CalendarEventAccess): CalendarApprovalStatus {
-  if (eventAccess.members.some((member) => member.validationStatus === 'refused')) {
-    return 'rejected';
-  }
-
-  if (eventAccess.members.some((member) => member.validationStatus === 'pending')) {
-    return 'pending';
-  }
-
-  return 'approved';
+  return eventAccess.approvalStatus;
 }
 
-export async function canCurrentUserValidateEvent(
-  currentUser: CalendarDirectoryUser,
-  eventAccess: CalendarEventAccess,
-): Promise<boolean> {
-  if (!hasCalendarRole(currentUser, 'Responsable')) {
-    return false;
-  }
-
-  if (!eventAccess.members.some((member) => member.id === currentUser.id)) {
-    return false;
-  }
-
-  if (calendarEventApprovalStatus(eventAccess) !== 'pending' || eventAccess.createdById === null) {
-    return false;
-  }
-
-  const creator = await getCalendarDirectoryUser(eventAccess.createdById);
-  return Boolean(
-    creator &&
-    eventRequiresResponsibleApproval(creator, eventAccess.members) &&
-    shareAGroup(currentUser, creator),
-  );
+export function canCurrentUserValidateEvent(eventAccess: CalendarEventAccess): boolean {
+  return eventAccess.permissions.canValidate;
 }
 
-export function canCurrentUserEditEvent(
-  currentUser: CalendarDirectoryUser,
-  eventAccess: CalendarEventAccess,
-): boolean {
-  const isAssigned = eventAccess.members.some((member) => member.id === currentUser.id);
-  if (!isAssigned) {
-    return false;
-  }
-
-  return (
-    eventAccess.createdById === currentUser.id ||
-    hasCalendarRole(currentUser, 'Responsable', 'Maire', 'Admin')
-  );
+export function canCurrentUserEditEvent(eventAccess: CalendarEventAccess): boolean {
+  return eventAccess.permissions.canEdit;
 }
 
-export function assertCalendarEventAssigned(
-  currentUser: CalendarDirectoryUser,
-  eventAccess: CalendarEventAccess | null,
-): asserts eventAccess is CalendarEventAccess {
-  if (!eventAccess || !eventAccess.members.some((member) => member.id === currentUser.id)) {
-    throw new CalendarAccessError(
-      'Cet événement est réservé aux personnes assignées.',
-      403,
-      'EVENT_NOT_ASSIGNED',
-    );
-  }
-}
-
-export function apiValidationStatus(status: CalendarApprovalStatus): EventValidationStatus {
-  const statusMap: Record<CalendarApprovalStatus, EventValidationStatus> = {
-    pending: 'pending',
-    approved: 'validated',
-    rejected: 'refused',
-  };
-
-  return statusMap[status];
+export function canCurrentUserDeleteEvent(eventAccess: CalendarEventAccess): boolean {
+  return eventAccess.permissions.canDelete;
 }

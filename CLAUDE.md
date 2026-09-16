@@ -5,23 +5,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 BFF (Backend-for-Frontend) for the municipal **Calendar** module of Mairie360. It sits between the
-`Calendars_Web_Service` frontend and two upstreams: **Calendar API** (Rust service, event CRUD) and a
-shared **PostgreSQL** database (user directory, group membership, roles, event-member assignments,
-validation status). The BFF's job is to merge those sources into frontend-shaped payloads and to
-enforce assignment / approval / edit rules that the upstreams do not.
+`Calendars_Web_Service` frontend and two upstreams: **Calendar API** (events, their metadata and
+recurrence, their members, their validation status and the caller's rights) and **Core API** (the user
+directory: identity, roles, groups). The BFF has no database access; its job is to merge those sources
+into frontend-shaped payloads and to keep assignment inside the caller's scope.
 
 Runtime: Express 5 + TypeScript (CommonJS), run under `tsx`. Node 22 is the reference version (matches CI).
+`npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js` with esbuild
+(`scripts/build.mjs`), inlining the `@mairie360/*` clients, which are published as TypeScript.
 
 ## Commands
 
 ```bash
 npm run start            # dev server with reload (tsx watch src/index.ts), port 4002
 npm test                 # jest (ts-jest); CI runs: npm test -- --runInBand
-npx jest tests/calendar.test.ts          # single test file
+npx jest tests/calendar.upstream-mocks.test.ts   # single test file
 npx jest -t "creates an event"           # single test by name
 npm run lint             # eslint . --ext .ts  (flat config: eslint.config.cjs)
 npm run lint:fix
-npm run build            # tsc -> dist/
+npm run build            # tsc --noEmit puis esbuild -> dist/index.js
 npm run contracts:generate   # regenerate contracts/openapi.json + contracts/bff.d.ts from the live registry
 npm run contracts:check      # fails if the committed contract or generated types are stale
 ```
@@ -52,21 +54,18 @@ response helpers.
 
 ### The three layers behind the helpers
 
-- **`src/clients/calendarClient.ts`** — Calendar API HTTP client. Wraps the generated
-  `@mairie360/calendar-api-openapi` client with a dedicated axios instance (`CALENDAR_API_BASE_PATH`,
-  default `http://localhost:3002/api`). An interceptor injects the `Authorization` header. The generated
-  package has duplicate type declarations, so it is `require`d untyped and re-typed locally as
-  `CalendarApiClient` — hence the `as never` casts at call sites.
-- **`src/repositories/calendarAccessRepository.ts`** — direct `pg` Pool access to the shared DB:
-  user directory (`users`/`roles`/`group_members`), event membership & `validation_status`
-  (`event_members`), event detail writes (`events`), and the BFF-owned `calendar_event_metadata`
-  table. That table (category / service / location / recurrence) is **created lazily by the BFF** via
-  `ensureCalendarEventMetadataStorage()` — it is not in a migration.
-- **`src/services/calendarAccessPolicy.ts`** — pure-ish rules: decodes the JWT payload (no signature
-  check — Calendar API is trusted to have verified it), resolves the current user, computes
-  `assigneeScope` (`all` for Admin/Maire, else `groups` or `self`), and the `canEdit` / `canValidate` /
-  `requiresResponsibleApproval` predicates. `CalendarAccessError(message, status, code)` is the typed
-  error that `handleUnknownError` turns into a JSON body.
+- **`src/clients/calendarClient.ts`** — Calendar API HTTP client: the generated
+  `@mairie360/calendar-api-openapi` client on a dedicated axios instance (`CALENDAR_API_BASE_PATH`,
+  default `http://localhost:3002/api`), with an interceptor injecting the `Authorization` header.
+  `/health` is served outside `/api`, hence `calendarApiRootUrl()` for the availability probe.
+- **`src/clients/coreDirectory.ts`** — the directory through Core API's `GET /api/v1/user/`
+  (`CORE_API_URL`/`CORE_API_PORT`), filtered by ids or groups.
+- **`src/services/calendarAccessPolicy.ts`** — decodes the JWT payload (no signature check — Calendar
+  API is trusted to have verified it), resolves the current user, computes `assigneeScope` (`all` for
+  Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
+  (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
+  `CalendarAccessError(message, status, code)` is the typed error that `handleUnknownError` turns into
+  a JSON body.
 
 ### Why some writes go straight to SQL
 
@@ -101,10 +100,22 @@ type generator).
 
 ## Tests
 
-`tests/*.test.ts` use `supertest` against a freshly-assembled Express app and `jest.mock` both
-`calendarClient` and `calendarAccessRepository` — there is no DB or Calendar API in tests. Auth is a
-hand-built unsigned JWT (`Bearer <header>.<base64url {sub}>.<sig>`); see `authorizationFor(userId)` in
-`tests/calendar.test.ts`. When adding a helper that hits the client or repository, extend those mocks.
+`supertest` against contract-driven HTTP mocks (no database, no jest.mock of the upstreams):
+
+- `tests/calendar.upstream-mocks.test.ts` keeps the **real** axios client and serves Calendar API /
+  Core API from local HTTP servers (`tests/support/contract-mock-server.ts`) that validate every
+  request path, query, JSON body and every mocked response against a contract rebuilt at test time
+  from the **installed** `@mairie360/calendar-api-openapi` / `core-api-openapi` packages
+  (`tests/support/orval-contract.ts` parses their orval `endpoints/*.ts` + `model/*.ts` with the
+  TypeScript compiler API; the packages ship no `openapi.json`). Bumping the dependency is enough to
+  test against the new contract. Orval output loses error statuses (success is exposed as `2XX`),
+  formats and integer-ness, and renames path params (`{eventId}`): any mocked error reply needs
+  `outOfContract: true`. Known upstream contract bugs are accepted explicitly with
+  `allowDeviation(pattern, reason)`. The app is imported after `CALENDAR_API_BASE_PATH` is set,
+  because the client reads it at module load.
+
+`jest.config.ts` lets ts-jest compile `node_modules/@mairie360/*` (orval ships raw ESM TypeScript).
+Auth is a hand-built unsigned JWT (`Bearer <header>.<base64url {sub}>.<sig>`); see `authorizationFor(userId)`.
 
 ## Performance & security tests (isolated stacks)
 

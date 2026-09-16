@@ -10,7 +10,7 @@ Serveur Express 5.2.1 écrit en TypeScript. Les schémas Zod et leur registre Op
 
 ## Données et persistance
 
-Calendar API fournit les opérations sur les événements. `calendarAccessRepository.ts` accède directement à PostgreSQL pour l’annuaire, les affectations, certaines modifications et les métadonnées. La table `calendar_event_metadata`, créée par le BFF si nécessaire, référence `events.id` et stocke catégorie, service, lieu et récurrence. Les catégories et services comprennent des référentiels définis dans les helpers.
+Calendar API fournit toutes les opérations sur les événements : l’événement, ses métadonnées (catégorie, service, lieu) et sa règle de répétition, ses membres et leur statut de validation, ainsi que les droits de l’appelant. Core API fournit l’annuaire (identité, rôles, groupes). Le BFF n’accède plus à la base. Les catégories et services comprennent des référentiels définis dans les helpers.
 
 Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar et du schéma SQL attendu. Le stack Docker utilise la base partagée du stack BFF User; démarrer celui-ci en premier. Les métadonnées et accès SQL restent une responsabilité actuelle du BFF.
 
@@ -35,9 +35,9 @@ CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
 ```
 
-Compléter `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD` pour une base existante contenant les tables attendues par les dépôts SQL. Ces variables et les éventuels secrets listés ci-dessous restent à fournir; l’exemple HTTP ne prépare ni schéma ni données.
+Compléter `CORE_API_URL` et `CORE_API_PORT` pour joindre l’annuaire de Core API. Ces variables et les éventuels secrets listés ci-dessous restent à fournir; l’exemple HTTP ne prépare pas de données.
 
-En Docker, lancer d’abord le stack BFF User. `USER_BACKEND_NETWORK` et `SHARED_DB_HOST` raccordent Calendar à sa base partagée.
+En Docker, lancer d’abord le stack BFF User. `USER_BACKEND_NETWORK` raccorde Calendar à Core API et BFF User.
 
 ```bash
 npm run start
@@ -64,9 +64,6 @@ Les valeurs ci-dessous sont des exemples locaux ou des comportements expliciteme
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Hôte et port utilisés par `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Hôte et port de diagnostic; distincts du chemin du client. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | Réseau externe attendu par Docker Compose. |
-| `SHARED_DB_HOST` | mairie360-db-bff-user | Hôte de base partagée dans Docker Compose. |
-| `DB_HOST` / `DB_PORT` | localhost / 5432 | Connexion PostgreSQL des dépôts SQL. |
-| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | — | Base, compte et secret à fournir pour le schéma partagé attendu. |
 
 ## Routes et contrat de données
 
@@ -76,19 +73,21 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | --- | --- | --- | --- |
 | GET | `/health` | — | 200 |
 | GET | `/check_apis` | — | 200, 502 |
-| GET | `/calendar/bootstrap` | — | 200, 500 |
-| GET | `/calendar/events` | — | 200, 400, 500 |
-| POST | `/calendar/events` | application/json | 201, 400, 500 |
-| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 404, 500 |
-| DELETE | `/calendar/events/{id}` | — | 204, 404, 500 |
-| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 404, 500 |
-| GET | `/calendar/assignees` | — | 200, 500 |
+| GET | `/calendar/bootstrap` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502 |
+| GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502 |
+| POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502 |
+| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502 |
+| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502 |
+| GET | `/calendar/assignees` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
 
 ## Session, permissions et erreurs
 
-Les routes métier attendent l’autorisation de l’appelant. La politique d’accès résout son identité et ses rôles en base, puis limite les affectations et modifications. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
+Les routes métier attendent l’autorisation de l’appelant. La politique d’accès résout son identité et ses rôles en base, puis limite les affectations et modifications; seul le créateur peut supprimer un événement, après validation de la session par Calendar API. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
+
+`from` et `to` doivent être des dates `YYYY-MM-DD` et les identifiants d’événement des entiers positifs, sinon le BFF répond 400 sans appeler Calendar API. Les erreurs utilisent le corps `ApiError` (`code`, `message`): les statuts 4xx amont sont conservés, les 5xx amont et pannes réseau deviennent 502, et aucun message d’erreur de Calendar API ou de la base n’est renvoyé au client.
 
 ## Synchronisation et vérifications
 
@@ -99,6 +98,8 @@ npm test -- --runInBand
 npm run lint
 npm run build
 ```
+
+Les tests de `tests/calendar.upstream-mocks.test.ts` exécutent le vrai client Calendar API contre des mocks HTTP locaux pilotés par les contrats Calendar API et Core API, reconstruits depuis les paquets `@mairie360/*-api-openapi` installés (types orval, versions épinglées dans `package.json`): chaque requête (chemin, paramètres, corps JSON) et chaque réponse de succès simulée est validée contre ces contrats. Monter la version d'un paquet suffit à tester le nouveau contrat; les statuts d'erreur ne sont pas typés par orval et sont simulés explicitement.
 
 `contracts:generate` exporte le registre runtime dans `contracts/openapi.json` et régénère `contracts/bff.d.ts`. `contracts:check` échoue si le contrat ou les types sont périmés. Exécuter ensuite `npm run contracts:sync` dans chaque web service associé et livrer les modifications de contrat ensemble.
 
@@ -124,7 +125,7 @@ En cas d’événements absents ou d’affectations refusées, contrôler l’ut
 - [src/routes/calendar-routes.ts](../../src/routes/calendar-routes.ts)
 - [src/routes/calendar/calendar_helpers.ts](../../src/routes/calendar/calendar_helpers.ts)
 - [src/services/calendarAccessPolicy.ts](../../src/services/calendarAccessPolicy.ts)
-- [src/repositories/calendarAccessRepository.ts](../../src/repositories/calendarAccessRepository.ts)
+- [src/clients/coreDirectory.ts](../../src/clients/coreDirectory.ts)
 - [src/clients/calendarClient.ts](../../src/clients/calendarClient.ts)
 - [contracts/openapi.json](../../contracts/openapi.json)
 - [contracts/bff.d.ts](../../contracts/bff.d.ts)
