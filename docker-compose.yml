@@ -100,7 +100,7 @@ services:
       
   calendar-api:
     container_name: calendar-api-bff-calendar-developpement
-    image: ghcr.io/mairie360/calendar-api:0.5.1
+    image: ghcr.io/mairie360/calendar-api:0.6.1
     ports:
       - "3002:3002"
     networks:
