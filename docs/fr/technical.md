@@ -10,7 +10,7 @@ Serveur Express 5.2.1 écrit en TypeScript. Les schémas Zod et leur registre Op
 
 ## Données et persistance
 
-Calendar API fournit les opérations sur les événements. `calendarAccessRepository.ts` accède directement à PostgreSQL pour l’annuaire, les affectations, certaines modifications et les métadonnées. La table `calendar_event_metadata`, créée par le BFF si nécessaire, référence `events.id` et stocke catégorie, service, lieu et récurrence. Les catégories et services comprennent des référentiels définis dans les helpers.
+Calendar API fournit toutes les opérations sur les événements : l’événement, ses métadonnées (catégorie, service, lieu) et sa règle de répétition, ses membres et leur statut de validation, ainsi que les droits de l’appelant. Core API fournit l’annuaire (identité, rôles, groupes). Le BFF n’accède plus à la base. Les catégories et services comprennent des référentiels définis dans les helpers.
 
 Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar et du schéma SQL attendu. Le stack Docker utilise la base partagée du stack BFF User; démarrer celui-ci en premier. Les métadonnées et accès SQL restent une responsabilité actuelle du BFF.
 
@@ -35,9 +35,9 @@ CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
 ```
 
-Compléter `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD` pour une base existante contenant les tables attendues par les dépôts SQL. Ces variables et les éventuels secrets listés ci-dessous restent à fournir; l’exemple HTTP ne prépare ni schéma ni données.
+Compléter `CORE_API_URL` et `CORE_API_PORT` pour joindre l’annuaire de Core API. Ces variables et les éventuels secrets listés ci-dessous restent à fournir; l’exemple HTTP ne prépare pas de données.
 
-En Docker, lancer d’abord le stack BFF User. `USER_BACKEND_NETWORK` et `SHARED_DB_HOST` raccordent Calendar à sa base partagée.
+En Docker, lancer d’abord le stack BFF User. `USER_BACKEND_NETWORK` raccorde Calendar à Core API et BFF User.
 
 ```bash
 npm run start
@@ -64,9 +64,6 @@ Les valeurs ci-dessous sont des exemples locaux ou des comportements expliciteme
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Hôte et port utilisés par `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Hôte et port de diagnostic; distincts du chemin du client. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | Réseau externe attendu par Docker Compose. |
-| `SHARED_DB_HOST` | mairie360-db-bff-user | Hôte de base partagée dans Docker Compose. |
-| `DB_HOST` / `DB_PORT` | localhost / 5432 | Connexion PostgreSQL des dépôts SQL. |
-| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | — | Base, compte et secret à fournir pour le schéma partagé attendu. |
 
 ## Routes et contrat de données
 
@@ -128,7 +125,7 @@ En cas d’événements absents ou d’affectations refusées, contrôler l’ut
 - [src/routes/calendar-routes.ts](../../src/routes/calendar-routes.ts)
 - [src/routes/calendar/calendar_helpers.ts](../../src/routes/calendar/calendar_helpers.ts)
 - [src/services/calendarAccessPolicy.ts](../../src/services/calendarAccessPolicy.ts)
-- [src/repositories/calendarAccessRepository.ts](../../src/repositories/calendarAccessRepository.ts)
+- [src/clients/coreDirectory.ts](../../src/clients/coreDirectory.ts)
 - [src/clients/calendarClient.ts](../../src/clients/calendarClient.ts)
 - [contracts/openapi.json](../../contracts/openapi.json)
 - [contracts/bff.d.ts](../../contracts/bff.d.ts)

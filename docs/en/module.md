@@ -30,7 +30,7 @@ This repository contains the BFF server and its contract. Associated web service
 
 ## Data and current state
 
-Calendar API supplies event operations. `calendarAccessRepository.ts` accesses PostgreSQL directly for the directory, assignments, some updates and metadata. The `calendar_event_metadata` table, created by the BFF when needed, references `events.id` and stores category, service, location and recurrence. Categories and services include reference lists defined in the helpers.
+Calendar API supplies every event operation: the events themselves, their metadata (category, service, location) and their recurrence rule, their members and their validation status, plus the rights of the caller. Core API supplies the directory (identity, roles, groups). The BFF has no database access. Categories and services include reference lists defined in the helpers.
 
 ## Scope and limitations
 

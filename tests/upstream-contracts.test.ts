@@ -16,10 +16,11 @@ const CONSUMED = [
   { pkg: '@mairie360/calendar-api-openapi', operationId: 'getEvent', method: 'get', template: '/v1/events/{eventId}/' },
   { pkg: '@mairie360/calendar-api-openapi', operationId: 'patchEvent', method: 'patch', template: '/v1/events/{eventId}/' },
   { pkg: '@mairie360/calendar-api-openapi', operationId: 'deleteEvent', method: 'delete', template: '/v1/events/{eventId}/' },
-  { pkg: '@mairie360/calendar-api-openapi', operationId: 'getEventMembers', method: 'get', template: '/v1/events/{eventId}/members/' },
   { pkg: '@mairie360/calendar-api-openapi', operationId: 'addEventMember', method: 'post', template: '/v1/events/{eventId}/members/' },
+  { pkg: '@mairie360/calendar-api-openapi', operationId: 'updateEventValidation', method: 'patch', template: '/v1/events/{eventId}/validation' },
   { pkg: '@mairie360/calendar-api-openapi', operationId: 'removeEventMember', method: 'delete', template: '/v1/events/{eventId}/members/{memberId}/' },
   { pkg: '@mairie360/calendar-api-openapi', operationId: 'health', method: 'get', template: '/health' },
+  { pkg: '@mairie360/core-api-openapi', operationId: 'listDirectoryUsers', method: 'get', template: '/api/v1/user/' },
   { pkg: '@mairie360/core-api-openapi', operationId: 'health', method: 'get', template: '/health' },
 ] as const;
 
@@ -48,11 +49,14 @@ describe('upstream contracts from the installed @mairie360 OpenAPI packages', ()
     const patch = calendarApi.match('PATCH', '/v1/events/5/')!;
     expect(patch.operation.parameters).toEqual([
       { name: 'eventId', in: 'path', required: true, schema: { type: 'number' } },
-      { name: 'reccurent', in: 'query', required: true, schema: { type: 'boolean' } },
     ]);
     expect(calendarApi.requestBodySchema(patch)).toEqual({ required: true, schema: { $ref: '#/components/schemas/PatchEventView' } });
-    expect(calendarApi.schema('PostEventView')).toMatchObject({ required: ['events_end_time', 'events_start_time'] });
+    expect(calendarApi.schema('PostEventView')).toMatchObject({ required: ['events_end_time', 'events_start_time', 'name'] });
     expect(calendarApi.schema('EventValidationStatus')).toEqual({ type: 'string', enum: ['validated', 'refused', 'pending'] });
+    // Catégorie, service, lieu et répétition font partie de l'événement.
+    expect(Object.keys(calendarApi.schema('GetEventResultView').properties as Record<string, unknown>))
+      .toEqual(expect.arrayContaining(['category', 'service', 'location', 'recurrence', 'approval_status', 'permissions']));
+    expect(calendarApi.schema('EventRecurrence')).toMatchObject({ required: ['frequency', 'interval'] });
     expect(calendarApi.responseSchema(calendarApi.match('DELETE', '/v1/events/5/')!, 204)).toEqual({ documented: true, schema: undefined });
     // Les erreurs ne sont pas typées par orval : aucun statut hors 2XX n'est documenté.
     expect(calendarApi.responseSchema(calendarApi.match('GET', '/v1/events/5/')!, 404).documented).toBe(false);
@@ -64,7 +68,7 @@ describe('Calendar API fixtures conform to the Calendar API contract', () => {
     ['GET /v1/calendar 200', 'get', '/v1/calendar', 200, calendarResult([eventView(1), eventView(2, { name: 'Conseil' })])],
     ['POST /v1/events/ 201', 'post', '/v1/events/', 201, { event_id: 12 }],
     ['GET /v1/events/{eventId}/ 200', 'get', '/v1/events/12/', 200, eventDetails(12, { members: [{ id: 1, validation_status: 'pending' }] })],
-    ['POST /v1/events/{eventId}/members/ 200', 'post', '/v1/events/12/members/', 200, { user_id: 7 }],
+    ['GET /v1/events/{eventId}/members/ 200', 'get', '/v1/events/12/members/', 200, { members: [{ id: 7, validation_status: 'pending' }] }],
   ] as const)('%s', (_name, method, pathname, status, body) => {
     expect(calendarApi.validate(responseSchema(calendarApi, method, pathname, status), body)).toEqual([]);
   });
@@ -85,12 +89,12 @@ describe('contract validator', () => {
     expect(calendarApi.match('DELETE', '/v1/events/5/members/7/')).toMatchObject({
       template: '/v1/events/{eventId}/members/{memberId}/', pathParams: { eventId: '5', memberId: '7' },
     });
-    expect(calendarApi.validateRequest('PATCH', new URL('http://api/v1/events/5/?reccurent=maybe')).errors)
-      .toEqual([expect.stringContaining('query.reccurent: type boolean attendu')]);
+    expect(calendarApi.validateRequest('PATCH', new URL('http://api/v1/events/abc/')).errors)
+      .toEqual([expect.stringContaining('path.eventId: type number attendu')]);
     expect(calendarApi.validateRequest('GET', new URL('http://api/v1/events/abc/')).errors)
       .toEqual([expect.stringContaining('path.eventId: type number attendu')]);
     const match = calendarApi.match('POST', '/v1/events/')!;
-    expect(calendarApi.validate(calendarApi.requestBodySchema(match).schema!, { custom_name: 'Sans dates' }))
+    expect(calendarApi.validate(calendarApi.requestBodySchema(match).schema!, { name: 'Sans dates' }))
       .toEqual(expect.arrayContaining([expect.stringContaining('$.events_start_time: propriété requise manquante')]));
   });
 });

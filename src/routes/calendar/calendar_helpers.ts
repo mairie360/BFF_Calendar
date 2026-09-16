@@ -4,29 +4,16 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
 import { getAuthorizationHeader } from '../../config/token';
-import {
-  CalendarDirectoryUser,
-  CalendarEventAccess,
-  CalendarEventMetadata,
-  filterAssignedCalendarEventIds,
-  getCalendarDirectoryUser,
-  getCalendarEventAccess,
-  getCalendarEventMetadata,
-  listAssignedRecurringCalendarEvents,
-  setCalendarEventValidationStatus,
-  updateCalendarEventDetails,
-  upsertCalendarEventMetadata,
-} from '../../repositories/calendarAccessRepository';
+import { listCalendarDirectoryUsers } from '../../clients/coreDirectory';
 import {
   CalendarAccessError,
-  apiValidationStatus,
-  assertCalendarEventAssigned,
+  CalendarDirectoryUser,
+  CalendarEventAccess,
   calendarAssigneeScope,
   calendarEventApprovalStatus,
   canCurrentUserDeleteEvent,
   canCurrentUserEditEvent,
   canCurrentUserValidateEvent,
-  eventRequiresResponsibleApproval,
   getCurrentCalendarUser,
   listAssignableCalendarUsers,
   primaryCalendarRole,
@@ -47,10 +34,11 @@ export type BffCalendarRecurrence = z.infer<typeof CalendarRecurrenceSchema>;
 export type BffCalendarService = z.infer<typeof CalendarServiceSchema>;
 export type BffCalendarEventPatch = Partial<BffCalendarEvent>;
 
-type CalendarMember = {
-  id: number;
-  member_type?: 'Group' | 'User' | 'Error';
-  regular?: boolean;
+type ApiRecurrence = {
+  frequency: 'daily' | 'weekly' | 'monthly';
+  interval: number;
+  days_of_week?: number[] | null;
+  ends_on?: string | null;
 };
 
 type ApiEventListItem = {
@@ -58,47 +46,44 @@ type ApiEventListItem = {
   name: string;
   start: string;
   end: string;
+  is_member: boolean;
+  category?: BffCalendarEvent['category'];
+  service?: string | null;
+  location?: string | null;
+  recurrence?: ApiRecurrence | null;
+};
+
+type ApiEventMember = {
+  id: number;
+  validation_status: 'pending' | 'validated' | 'refused';
 };
 
 type ApiEventDetails = {
   id: number;
-  name?: string | null;
-  description?: string | null;
-  events_start_time: string;
-  events_end_time: string;
-  members: CalendarMember[];
-  owner?: CalendarMember | number;
-  recurrence_id?: number | null;
-};
-
-type ApiRecurrence = {
-  description?: string | null;
-  intervalle: number;
   name: string;
-  owner_group_id?: number | null;
-  recurrence_end_date: string;
-  type_recurrence: 'Daily' | 'Weekly' | 'Monthly' | 'Error';
-  visibility?: 'Public' | 'Private' | 'Error' | null;
-};
-
-type ApiCreateEventBody = {
-  custom_description?: string | null;
-  custom_name?: string | null;
-  custom_visibility?: 'Public' | 'Private' | 'Error' | null;
-  events_end_time: string;
-  events_start_time: string;
-  owner_group_id?: number | null;
-  recurrence?: ApiRecurrence | null;
-};
-
-type ApiPatchEventBody = {
   description?: string | null;
-  event_end_time: string;
-  event_start_time: string;
-  intervalle?: number | null;
-  name?: string | null;
-  reccurence_end_date: string;
-  visibility?: 'Public' | 'Private' | 'Error' | null;
+  events_start_time: string;
+  events_end_time: string;
+  category?: BffCalendarEvent['category'];
+  service?: string | null;
+  location?: string | null;
+  recurrence?: ApiRecurrence | null;
+  owner?: number | null;
+  created_by?: number | null;
+  members: ApiEventMember[];
+  approval_status: 'pending' | 'approved' | 'rejected';
+  permissions: { can_edit: boolean; can_delete: boolean; can_validate: boolean };
+};
+
+type ApiEventBody = {
+  name: string;
+  description?: string | null;
+  events_start_time: string;
+  events_end_time: string;
+  category?: BffCalendarEvent['category'];
+  service?: string | null;
+  location?: string | null;
+  recurrence?: ApiRecurrence | null;
 };
 
 const categories: BffCalendarCategory[] = [
@@ -154,29 +139,27 @@ function toApiDateTime(value: string, boundary: 'start' | 'end'): string {
   return boundary === 'start' ? `${value}T00:00:00Z` : `${value}T23:59:59Z`;
 }
 
-function parseNumericId(value: string | number | undefined): number | null {
-  if (value === undefined) {
-    return null;
-  }
-
-  const text = String(value);
-  const match = text.match(/\d+$/);
-  if (!match) {
-    return null;
-  }
-
-  const id = Number(match[0]);
-  return Number.isNaN(id) ? null : id;
-}
-
-function mapMemberToAssignee(member: CalendarMember): BffCalendarAssignee {
-  const memberType = member.member_type ?? 'User';
-  const prefix = memberType === 'Group' ? 'group' : 'user';
+function mapRecurrenceToBff(recurrence?: ApiRecurrence | null): BffCalendarRecurrence | undefined {
+  if (!recurrence) return undefined;
 
   return {
-    id: `${prefix}-${member.id}`,
-    name: memberType === 'Group' ? `Groupe ${member.id}` : `Utilisateur ${member.id}`,
-    role: memberType,
+    frequency: recurrence.frequency,
+    interval: recurrence.interval,
+    ...(recurrence.days_of_week?.length ? { daysOfWeek: recurrence.days_of_week } : {}),
+    ...(recurrence.ends_on ? { endsOn: recurrence.ends_on } : {}),
+  };
+}
+
+/** Récurrence du BFF vers celle de Calendar API (`none` et absence signifient « pas de répétition »). */
+function mapRecurrenceToApi(recurrence?: BffCalendarRecurrence): ApiRecurrence | null {
+  if (!recurrence || recurrence.frequency === 'none') return null;
+
+  const endsOn = recurrence.endsOn?.trim();
+  return {
+    frequency: recurrence.frequency,
+    interval: recurrence.interval ?? 1,
+    ...(recurrence.daysOfWeek?.length ? { days_of_week: recurrence.daysOfWeek } : {}),
+    ...(endsOn ? { ends_on: normalizeCalendarDate(endsOn) } : {}),
   };
 }
 
@@ -198,7 +181,10 @@ function mapEventListItemToBff(event: ApiEventListItem): BffCalendarEvent {
     title: event.name,
     date: start.date,
     endDate: end.date !== start.date ? end.date : undefined,
-    category: 'other',
+    category: event.category ?? 'other',
+    service: event.service ?? undefined,
+    location: event.location ?? undefined,
+    recurrence: mapRecurrenceToBff(event.recurrence),
     startTime: start.time,
     endTime: end.time,
   };
@@ -207,118 +193,90 @@ function mapEventListItemToBff(event: ApiEventListItem): BffCalendarEvent {
 function mapEventDetailsToBff(event: ApiEventDetails): BffCalendarEvent {
   const start = splitDateTime(event.events_start_time);
   const end = splitDateTime(event.events_end_time);
-  const assignees = event.members.map(mapMemberToAssignee);
 
   return {
     id: event.id,
-    title: event.name ?? `Événement ${event.id}`,
+    title: event.name,
     date: start.date,
     endDate: end.date !== start.date ? end.date : undefined,
-    category: 'other',
+    category: event.category ?? 'other',
+    service: event.service ?? undefined,
+    location: event.location ?? undefined,
+    recurrence: mapRecurrenceToBff(event.recurrence),
     startTime: start.time,
     endTime: end.time,
     description: event.description ?? undefined,
-    assigneeIds: assignees.map((assignee) => assignee.id),
-    assignees,
   };
 }
 
-async function enrichCalendarEvent(
+/** Membres de l'événement résolus dans l'annuaire, avec les droits calculés par Calendar API. */
+async function toEventAccess(
+  event: ApiEventDetails,
+  incomingRequestToken?: string,
+): Promise<CalendarEventAccess> {
+  const directory = await listCalendarDirectoryUsers(
+    { ids: event.members.map((member) => member.id) },
+    incomingRequestToken,
+  );
+  const statusById = new Map(event.members.map((member) => [member.id, member.validation_status]));
+
+  return {
+    eventId: event.id,
+    createdById: event.created_by ?? null,
+    members: directory.map((user) => ({
+      ...user,
+      validationStatus: statusById.get(user.id) ?? 'pending',
+    })),
+    approvalStatus: event.approval_status,
+    permissions: {
+      canEdit: event.permissions.can_edit,
+      canDelete: event.permissions.can_delete,
+      canValidate: event.permissions.can_validate,
+    },
+  };
+}
+
+/** Événement lu dans Calendar API, avec ses membres et les droits de l'appelant. */
+async function loadCalendarEvent(
+  eventId: number,
+  incomingRequestToken?: string,
+): Promise<{ event: ApiEventDetails; access: CalendarEventAccess }> {
+  const response = await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
+  const event = response.data as ApiEventDetails;
+
+  return { event, access: await toEventAccess(event, incomingRequestToken) };
+}
+
+function enrichCalendarEvent(
   event: BffCalendarEvent,
-  currentUser: CalendarDirectoryUser,
   eventAccess: CalendarEventAccess,
-): Promise<BffCalendarEvent> {
+): BffCalendarEvent {
   const assignees = eventAccess.members.map(mapDirectoryUserToAssignee);
-  const metadata = await getCalendarEventMetadata(eventAccess.eventId);
 
   return {
     ...event,
-    category: metadata?.category ?? event.category,
-    service: metadata?.service ?? event.service,
-    location: metadata?.location ?? event.location,
-    recurrence: metadata?.recurrence ?? event.recurrence,
     assigneeIds: assignees.map((assignee) => assignee.id),
     assignees,
     approvalStatus: calendarEventApprovalStatus(eventAccess),
     createdById: eventAccess.createdById === null ? undefined : `user-${eventAccess.createdById}`,
-    canValidate: await canCurrentUserValidateEvent(currentUser, eventAccess),
-    canEdit: canCurrentUserEditEvent(currentUser, eventAccess),
-    canDelete: canCurrentUserDeleteEvent(currentUser, eventAccess),
+    canValidate: canCurrentUserValidateEvent(eventAccess),
+    canEdit: canCurrentUserEditEvent(eventAccess),
+    canDelete: canCurrentUserDeleteEvent(eventAccess),
   };
 }
 
-function mapEventToMetadata(event: BffCalendarEvent): CalendarEventMetadata {
-  const recurrenceEndsOn = event.recurrence?.endsOn?.trim();
-
+/** Corps d'écriture d'un événement pour Calendar API. */
+function mapEventToApiBody(event: BffCalendarEvent): ApiEventBody {
   return {
+    name: event.title,
+    description: event.description ?? null,
+    events_start_time: combineDateTime(event.date, event.startTime),
+    events_end_time: combineDateTime(event.endDate ?? event.date, event.endTime),
     category: event.category ?? 'other',
     service: event.service ?? null,
     location: event.location ?? null,
-    recurrence: event.recurrence ? {
-      frequency: event.recurrence.frequency,
-      interval: event.recurrence.interval,
-      daysOfWeek: event.recurrence.daysOfWeek,
-      endsOn: recurrenceEndsOn ? normalizeCalendarDate(recurrenceEndsOn) : undefined,
-    } : null,
+    recurrence: mapRecurrenceToApi(event.recurrence),
   };
-}
-
-function mapRecurrenceToApi(event: BffCalendarEvent): ApiRecurrence | null {
-  if (!event.recurrence || event.recurrence.frequency === 'none') {
-    return null;
-  }
-
-  const typeMap: Record<Exclude<BffCalendarRecurrence['frequency'], 'none'>, ApiRecurrence['type_recurrence']> = {
-    daily: 'Daily',
-    weekly: 'Weekly',
-    monthly: 'Monthly',
-  };
-
-  return {
-    description: event.description ?? null,
-    intervalle: event.recurrence.interval ?? 1,
-    name: event.title,
-    recurrence_end_date: combineDateTime(event.recurrence.endsOn ?? event.endDate ?? event.date),
-    type_recurrence: typeMap[event.recurrence.frequency],
-    visibility: 'Public',
-  };
-}
-
-function mapEventToCreateBody(event: BffCalendarEvent): ApiCreateEventBody {
-  return {
-    custom_description: event.description ?? null,
-    custom_name: event.title,
-    custom_visibility: 'Public',
-    events_start_time: combineDateTime(event.date, event.startTime),
-    events_end_time: combineDateTime(event.endDate ?? event.date, event.endTime),
-    owner_group_id: null,
-    recurrence: mapRecurrenceToApi(event),
-  };
-}
-
-function mapEventToPatchBody(event: BffCalendarEvent): ApiPatchEventBody {
-  const hasRecurrence = Boolean(event.recurrence && event.recurrence.frequency !== 'none');
-  const recurrenceEndDate = event.recurrence?.endsOn?.trim() || event.endDate || event.date;
-
-  return {
-    description: event.description ?? null,
-    event_start_time: combineDateTime(event.date, event.startTime),
-    event_end_time: combineDateTime(event.endDate ?? event.date, event.endTime),
-    intervalle: hasRecurrence ? event.recurrence?.interval ?? 1 : null,
-    name: event.title,
-    reccurence_end_date: combineDateTime(recurrenceEndDate),
-    visibility: 'Public',
-  };
-}
-
-function mapAssigneeIdToMember(assigneeId: string | number): CalendarMember | null {
-  const id = parseNumericId(assigneeId);
-  if (id === null) {
-    return null;
-  }
-
-  const memberType = String(assigneeId).startsWith('group-') ? 'Group' : 'User';
-  return { id, member_type: memberType, regular: true };
 }
 
 function authOptions(incomingRequestToken?: string): AxiosRequestConfig {
@@ -407,70 +365,45 @@ export async function fetchCalendarEvents(
   to: string,
   incomingRequestToken?: string,
 ): Promise<BffCalendarEvent[]> {
+  // Calendar API renvoie les événements possédés ou assignés de la période, y compris ceux dont la
+  // règle de répétition la chevauche, et indique l'appartenance de l'appelant.
   const response = await calendarApi.getCalendar(
     { start: toApiDateTime(from, 'start'), end: toApiDateTime(to, 'end') } as never,
     authOptions(incomingRequestToken),
   );
-  const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const recurringEvents = await listAssignedRecurringCalendarEvents(currentUser.id, from, to);
-  const eventsById = new Map<number, BffCalendarEvent>();
 
-  for (const event of [
-    ...(response.data.events as ApiEventListItem[]),
-    ...recurringEvents,
-  ]) {
-    eventsById.set(event.id, mapEventListItemToBff(event));
-  }
-
-  const events = [...eventsById.values()];
-  const assignedEventIds = await filterAssignedCalendarEventIds(
-    events.map((event) => Number(event.id)).filter(Number.isInteger),
-    currentUser.id,
-  );
-
-  return events.filter((event) => assignedEventIds.has(Number(event.id)));
+  return (response.data.events as ApiEventListItem[])
+    .filter((event) => event.is_member)
+    .map(mapEventListItemToBff);
 }
 
 export async function fetchCalendarEvent(
   eventId: number,
   incomingRequestToken?: string,
 ): Promise<BffCalendarEvent> {
-  const response = await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
-  const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const eventAccess = await getCalendarEventAccess(eventId);
-  assertCalendarEventAssigned(currentUser, eventAccess);
+  const { event, access } = await loadCalendarEvent(eventId, incomingRequestToken);
 
-  return enrichCalendarEvent(
-    mapEventDetailsToBff(response.data as ApiEventDetails),
-    currentUser,
-    eventAccess,
-  );
+  return enrichCalendarEvent(mapEventDetailsToBff(event), access);
 }
 
 export async function createCalendarEvent(
   event: BffCalendarEvent,
   incomingRequestToken?: string,
 ): Promise<BffCalendarEvent> {
-  // Le Core Calendar valide la signature du JWT avant toute lecture du
-  // référentiel utilisateur effectuée par le BFF.
-  await calendarApi.getCalendar(
-    {
-      start: combineDateTime(event.date, event.startTime),
-      end: combineDateTime(event.endDate ?? event.date, event.endTime),
-    } as never,
-    authOptions(incomingRequestToken),
-  );
   const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const assigneeIds = await resolveAuthorizedAssigneeIds(currentUser, event.assigneeIds ?? []);
+  const assigneeIds = await resolveAuthorizedAssigneeIds(
+    currentUser,
+    event.assigneeIds ?? [],
+    incomingRequestToken,
+  );
   const response = await calendarApi.createEvent(
-    mapEventToCreateBody(event) as never,
+    mapEventToApiBody(event) as never,
     authOptions(incomingRequestToken),
   );
   const eventId = response.data.event_id;
 
-  await syncEventMembers(eventId, [], assigneeIds.map((userId) => `user-${userId}`), incomingRequestToken);
-  await refreshCalendarEventValidation(eventId);
-  await upsertCalendarEventMetadata(eventId, mapEventToMetadata(event));
+  // Calendar API recalcule la validation à chaque changement de membres.
+  await syncEventMembers(eventId, [], assigneeIds, incomingRequestToken);
 
   return fetchCalendarEvent(eventId, incomingRequestToken);
 }
@@ -480,80 +413,44 @@ export async function patchCalendarEvent(
   event: BffCalendarEventPatch,
   incomingRequestToken?: string,
 ): Promise<BffCalendarEvent> {
-  const current = await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
-  const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const currentAccess = await getCalendarEventAccess(eventId);
-  assertCalendarEventAssigned(currentUser, currentAccess);
-  if (!canCurrentUserEditEvent(currentUser, currentAccess)) {
+  const { event: current, access } = await loadCalendarEvent(eventId, incomingRequestToken);
+  if (!canCurrentUserEditEvent(access)) {
     throw new CalendarAccessError(
       'Seuls le créateur, un responsable, le maire ou un administrateur assigné peuvent modifier cet événement.',
       403,
       'EVENT_UPDATE_FORBIDDEN',
     );
   }
-  const mergedEvent = {
-    ...mapEventDetailsToBff(current.data as ApiEventDetails),
-    ...event,
-  };
-  const apiPatchBody = mapEventToPatchBody(mergedEvent);
 
+  const mergedEvent = { ...mapEventDetailsToBff(current), ...event };
   await calendarApi.patchEvent(
     eventId,
-    apiPatchBody as never,
-    { reccurent: mergedEvent.recurrence?.frequency !== undefined && mergedEvent.recurrence.frequency !== 'none' },
+    mapEventToApiBody(mergedEvent) as never,
     authOptions(incomingRequestToken),
   );
 
-  // La version actuelle de Calendar API accepte le PATCH mais ne persiste
-  // pas les champs de l'événement. Le BFF maintient donc l'écriture dans la
-  // base partagée, après que Calendar API a validé le JWT et les droits.
-  const eventUpdated = await updateCalendarEventDetails(eventId, {
-    name: mergedEvent.title,
-    description: mergedEvent.description ?? null,
-    startDate: apiPatchBody.event_start_time,
-    endDate: apiPatchBody.event_end_time,
-    visibility: apiPatchBody.visibility === 'Private' ? 'private' : 'public',
-  });
-
-  if (!eventUpdated) {
-    throw new CalendarAccessError('Événement introuvable.', 404, 'EVENT_NOT_FOUND');
-  }
-
-  await upsertCalendarEventMetadata(eventId, mapEventToMetadata(mergedEvent));
-
   if (event.assigneeIds) {
-    const assigneeIds = await resolveAuthorizedAssigneeIds(currentUser, event.assigneeIds);
-    await syncEventMembers(
-      eventId,
-      (current.data as ApiEventDetails).members.map((member) => `${member.member_type === 'Group' ? 'group' : 'user'}-${member.id}`),
-      assigneeIds.map((userId) => `user-${userId}`),
+    const currentUser = await getCurrentCalendarUser(incomingRequestToken);
+    const assigneeIds = await resolveAuthorizedAssigneeIds(
+      currentUser,
+      event.assigneeIds,
       incomingRequestToken,
     );
-    await refreshCalendarEventValidation(eventId);
+    await syncEventMembers(
+      eventId,
+      current.members.map((member) => member.id),
+      assigneeIds,
+      incomingRequestToken,
+    );
   }
 
-  const updatedAccess = await getCalendarEventAccess(eventId);
-  assertCalendarEventAssigned(currentUser, updatedAccess);
-
-  return enrichCalendarEvent(
-    { ...mergedEvent, id: eventId },
-    currentUser,
-    updatedAccess,
-  );
+  return fetchCalendarEvent(eventId, incomingRequestToken);
 }
 
 export async function deleteCalendarEvent(eventId: number, incomingRequestToken?: string): Promise<void> {
-  // Calendar API supprime sans contrôler le propriétaire : le BFF laisse l'API valider le JWT
-  // (et l'existence de l'événement), puis réserve la suppression au créateur.
-  await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
-  const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const eventAccess = await getCalendarEventAccess(eventId);
+  const { access } = await loadCalendarEvent(eventId, incomingRequestToken);
 
-  if (!eventAccess) {
-    throw new CalendarAccessError('Événement introuvable.', 404, 'EVENT_NOT_FOUND');
-  }
-
-  if (!canCurrentUserDeleteEvent(currentUser, eventAccess)) {
+  if (!canCurrentUserDeleteEvent(access)) {
     throw new CalendarAccessError(
       'Seul le créateur de l’événement peut le supprimer.',
       403,
@@ -577,12 +474,9 @@ export async function updateCalendarEventApproval(
   approvalStatus: NonNullable<BffCalendarEvent['approvalStatus']>,
   incomingRequestToken?: string,
 ): Promise<BffCalendarEvent> {
-  await calendarApi.getEvent(eventId, authOptions(incomingRequestToken));
-  const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const eventAccess = await getCalendarEventAccess(eventId);
-  assertCalendarEventAssigned(currentUser, eventAccess);
+  const { access } = await loadCalendarEvent(eventId, incomingRequestToken);
 
-  if (!await canCurrentUserValidateEvent(currentUser, eventAccess)) {
+  if (!canCurrentUserValidateEvent(access)) {
     throw new CalendarAccessError(
       'Seul un responsable assigné du groupe peut valider cet événement.',
       403,
@@ -590,7 +484,12 @@ export async function updateCalendarEventApproval(
     );
   }
 
-  await setCalendarEventValidationStatus(eventId, apiValidationStatus(approvalStatus));
+  await calendarApi.updateEventValidation(
+    eventId,
+    { status: approvalStatus } as never,
+    authOptions(incomingRequestToken),
+  );
+
   return fetchCalendarEvent(eventId, incomingRequestToken);
 }
 
@@ -601,7 +500,7 @@ export async function fetchKnownAssignees(
 ): Promise<BffCalendarAssignee[]> {
   await fetchCalendarEvents(from, to, incomingRequestToken);
   const currentUser = await getCurrentCalendarUser(incomingRequestToken);
-  const users = await listAssignableCalendarUsers(currentUser);
+  const users = await listAssignableCalendarUsers(currentUser, incomingRequestToken);
   return users.map(mapDirectoryUserToAssignee);
 }
 
@@ -620,7 +519,7 @@ export async function fetchCalendarBootstrap(
   const events = await Promise.all(
     calendarEvents.map((event) => fetchCalendarEvent(Number(event.id), incomingRequestToken)),
   );
-  const assignableUsers = await listAssignableCalendarUsers(currentUser);
+  const assignableUsers = await listAssignableCalendarUsers(currentUser, incomingRequestToken);
 
   return {
     events,
@@ -650,43 +549,29 @@ export function defaultDateRange(now = new Date()): { from: string; to: string }
   };
 }
 
-async function refreshCalendarEventValidation(eventId: number): Promise<void> {
-  const eventAccess = await getCalendarEventAccess(eventId);
-  if (!eventAccess || eventAccess.createdById === null) {
-    return;
-  }
-
-  const creator = await getCalendarDirectoryUser(eventAccess.createdById);
-  const requiresApproval = Boolean(
-    creator && eventRequiresResponsibleApproval(creator, eventAccess.members),
-  );
-
-  await setCalendarEventValidationStatus(
-    eventId,
-    requiresApproval ? 'pending' : 'validated',
-  );
-}
-
+/** Aligne les membres de l'événement : Calendar API recalcule la validation à chaque changement. */
 async function syncEventMembers(
   eventId: number,
-  currentAssigneeIds: Array<string | number>,
-  nextAssigneeIds: Array<string | number>,
+  currentUserIds: number[],
+  nextUserIds: number[],
   incomingRequestToken?: string,
 ): Promise<void> {
-  const current = new Set(currentAssigneeIds.map(String));
-  const next = new Set(nextAssigneeIds.map(String));
+  const current = new Set(currentUserIds);
+  const next = new Set(nextUserIds);
 
   await Promise.all(
     [...current]
-      .filter((assigneeId) => !next.has(assigneeId))
-      .map((assigneeId) => calendarApi.removeEventMember(String(eventId), String(parseNumericId(assigneeId)), authOptions(incomingRequestToken))),
+      .filter((userId) => !next.has(userId))
+      .map((userId) => calendarApi.removeEventMember(eventId, userId, authOptions(incomingRequestToken))),
   );
 
   await Promise.all(
     [...next]
-      .filter((assigneeId) => !current.has(assigneeId))
-      .map(mapAssigneeIdToMember)
-      .filter((member): member is CalendarMember => member !== null)
-      .map((member) => calendarApi.addEventMember(eventId, { user_id: member.id }, authOptions(incomingRequestToken))),
+      .filter((userId) => !current.has(userId))
+      .map((userId) => calendarApi.addEventMember(
+        eventId,
+        { user_id: userId },
+        authOptions(incomingRequestToken),
+      )),
   );
 }

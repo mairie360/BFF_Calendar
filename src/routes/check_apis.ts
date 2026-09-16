@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import axios from 'axios';
+import calendarApi, { calendarApiRootUrl } from '../clients/calendarClient';
+import { checkCoreApi } from '../clients/coreDirectory';
 import { CheckApiResponse, CheckApiResponseSchema } from '../views/check_api_view';
 import { registry } from '../openapi-registry';
 
@@ -30,16 +31,11 @@ registry.registerPath({
   },
 });
 
-async function isReachable(service: 'CORE_API' | 'CALENDAR_API'): Promise<boolean> {
-  const host = process.env[`${service}_URL`];
-  const port = process.env[`${service}_PORT`];
-  if (!host || !port) {
-    return false;
-  }
-
+// Chaque API est sondée par l'opération /health de son contrat.
+async function isReachable(probe: () => Promise<unknown>): Promise<boolean> {
   try {
-    const response = await axios.get(`http://${host}:${port}/health`, { timeout: 5000 });
-    return response.status === 200;
+    await probe();
+    return true;
   } catch {
     return false;
   }
@@ -47,7 +43,10 @@ async function isReachable(service: 'CORE_API' | 'CALENDAR_API'): Promise<boolea
 
 router.get('/', async (_, res) => {
   // Les deux API sont sondées indépendamment : une panne de l'une ne masque pas l'état de l'autre.
-  const [coreReachable, calendarReachable] = await Promise.all([isReachable('CORE_API'), isReachable('CALENDAR_API')]);
+  const [coreReachable, calendarReachable] = await Promise.all([
+    isReachable(checkCoreApi),
+    isReachable(() => calendarApi.health({ baseURL: calendarApiRootUrl(), timeout: 5_000 })),
+  ]);
   const result: CheckApiResponse = {
     status: coreReachable && calendarReachable ? 'OK' : 'Error',
     core_api: coreReachable ? 'Connected' : 'Unreachable',

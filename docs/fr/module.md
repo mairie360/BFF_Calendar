@@ -30,7 +30,7 @@ Ce dépôt contient le serveur BFF et son contrat. Les web services associés po
 
 ## Données et état actuel
 
-Calendar API fournit les opérations sur les événements. `calendarAccessRepository.ts` accède directement à PostgreSQL pour l’annuaire, les affectations, certaines modifications et les métadonnées. La table `calendar_event_metadata`, créée par le BFF si nécessaire, référence `events.id` et stocke catégorie, service, lieu et récurrence. Les catégories et services comprennent des référentiels définis dans les helpers.
+Calendar API fournit toutes les opérations sur les événements : l’événement, ses métadonnées (catégorie, service, lieu) et sa règle de répétition, ses membres et leur statut de validation, ainsi que les droits de l’appelant. Core API fournit l’annuaire (identité, rôles, groupes). Le BFF n’accède plus à la base. Les catégories et services comprennent des référentiels définis dans les helpers.
 
 ## Périmètre et limites
 

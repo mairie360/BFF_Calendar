@@ -10,7 +10,7 @@ Express 5.2.1 server written in TypeScript. Zod schemas and their OpenAPI regist
 
 ## Data and persistence
 
-Calendar API supplies event operations. `calendarAccessRepository.ts` accesses PostgreSQL directly for the directory, assignments, some updates and metadata. The `calendar_event_metadata` table, created by the BFF when needed, references `events.id` and stores category, service, location and recurrence. Categories and services include reference lists defined in the helpers.
+Calendar API supplies every event operation: the events themselves, their metadata (category, service, location) and their recurrence rule, their members and their validation status, plus the rights of the caller. Core API supplies the directory (identity, roles, groups). The BFF has no database access. Categories and services include reference lists defined in the helpers.
 
 Operation depends on consistent user identifiers between Core and Calendar and the expected SQL schema. The Docker stack uses the database shared with BFF User; start that stack first. Metadata and direct SQL access remain current BFF responsibilities.
 
@@ -35,9 +35,9 @@ CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
 ```
 
-Also set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD` for an existing database containing the tables expected by the SQL repositories. These variables and any secrets listed below still need to be supplied; the HTTP example prepares neither schema nor data.
+Also set `CORE_API_URL` and `CORE_API_PORT` to reach the Core API directory. These variables and any secrets listed below still need to be supplied; the HTTP example prepares no data.
 
-With Docker, start the BFF User stack first. `USER_BACKEND_NETWORK` and `SHARED_DB_HOST` connect Calendar to its shared database.
+With Docker, start the BFF User stack first. `USER_BACKEND_NETWORK` connects Calendar to Core API and BFF User.
 
 ```bash
 npm run start
@@ -64,9 +64,6 @@ Values below are local examples or explicitly described behavior, not production
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Host and port used by `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Diagnostic host and port; separate from the client base path. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | External network expected by Docker Compose. |
-| `SHARED_DB_HOST` | mairie360-db-bff-user | Shared database host in Docker Compose. |
-| `DB_HOST` / `DB_PORT` | localhost / 5432 | SQL repository PostgreSQL connection. |
-| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | — | Database, account and secret to supply for the expected shared schema. |
 
 ## Routes and data contract
 
@@ -120,7 +117,7 @@ Before running Docker, check service variables, build secrets and networks in th
 
 ## Troubleshooting
 
-For missing events or rejected assignments, check the user, group membership and shared database. A `calendar_event_metadata` error requires checking the schema and SQL account permissions. `/check_apis` and the business client use different variables.
+For missing events or rejected assignments, check the user and their group membership in Core API. `/check_apis` and the business client use different variables.
 
 ## Repository reference
 
@@ -128,7 +125,7 @@ For missing events or rejected assignments, check the user, group membership and
 - [src/routes/calendar-routes.ts](../../src/routes/calendar-routes.ts)
 - [src/routes/calendar/calendar_helpers.ts](../../src/routes/calendar/calendar_helpers.ts)
 - [src/services/calendarAccessPolicy.ts](../../src/services/calendarAccessPolicy.ts)
-- [src/repositories/calendarAccessRepository.ts](../../src/repositories/calendarAccessRepository.ts)
+- [src/clients/coreDirectory.ts](../../src/clients/coreDirectory.ts)
 - [src/clients/calendarClient.ts](../../src/clients/calendarClient.ts)
 - [contracts/openapi.json](../../contracts/openapi.json)
 - [contracts/bff.d.ts](../../contracts/bff.d.ts)

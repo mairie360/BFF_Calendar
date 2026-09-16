@@ -211,7 +211,6 @@ services:
       calendar-api-ready:
         condition: service_completed_successfully
     environment:
-      <<: *db-env
       HOST: "0.0.0.0"
       PORT: 4002
       CORE_API_URL: core-api
