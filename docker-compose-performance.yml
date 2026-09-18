@@ -30,7 +30,7 @@ x-db-env: &db-env
 
 services:
   postgres:
-    image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.1.0}
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.3.0}
     container_name: bff-calendar-perf-db
     environment:
       POSTGRES_USER: postgres
@@ -49,7 +49,7 @@ services:
       retries: 10
 
   liquibase:
-    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.1.0}
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.3.0}
     container_name: bff-calendar-perf-liquibase
     depends_on:
       postgres:
@@ -96,7 +96,7 @@ services:
       retries: 5
 
   calendar-api:
-    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:0.5.1}
+    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:0.6.1}
     container_name: bff-calendar-perf-calendar-api
     depends_on:
       liquibase:
@@ -131,7 +131,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:1.1.1}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:1.2.0}
     container_name: bff-calendar-perf-core-api
     depends_on:
       liquibase:
@@ -217,7 +217,7 @@ services:
       CORE_API_PORT: 3000
       CALENDAR_API_URL: calendar-api
       CALENDAR_API_PORT: 3002
-      CALENDAR_API_BASE_PATH: http://calendar-api:3002/api
+      CALENDAR_API_BASE_PATH: http://calendar-api:3002
     expose:
       - "4002"
     networks:

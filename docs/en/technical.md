@@ -28,7 +28,7 @@ Create `.env` in the repository root. Local HTTP configuration example to adapt 
 
 ```dotenv
 PORT=4002
-CALENDAR_API_BASE_PATH=http://localhost:3002/api
+CALENDAR_API_BASE_PATH=http://localhost:3002
 CORE_API_URL=localhost
 CORE_API_PORT=3000
 CALENDAR_API_URL=localhost
@@ -60,7 +60,7 @@ Values below are local examples or explicitly described behavior, not production
 | Variable or precedence | Example / stated fallback | Purpose |
 | --- | --- | --- |
 | `PORT` | 4002 | Port used by this local example. |
-| `CALENDAR_API_BASE_PATH` | http://localhost:3002/api | Calendar business client base address, including `/api`. |
+| `CALENDAR_API_BASE_PATH` | http://localhost:3002 | Calendar API root (its routes are published under `/api/v1` by the generated client). |
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Host and port used by `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Diagnostic host and port; separate from the client base path. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | External network expected by Docker Compose. |

@@ -1,11 +1,12 @@
 import axios from "axios";
 import { getAuthorizationHeader } from "../config/token";
 
-import { getCalendarApi } from "@mairie360/calendar-api-openapi/endpoints/calendarApi";
+import { getCalendarAPIMairie360 } from "@mairie360/calendar-api-openapi/endpoints/calendarAPIMairie360";
 
 // 1. Créer l'instance Axios dédiée au service distant
 const apiClientInstance = axios.create({
-  baseURL: process.env.CALENDAR_API_BASE_PATH || "http://localhost:3002/api",
+  // Les routes du contrat sont publiées sous /api/v1 par le client généré : l'adresse est la racine du service.
+  baseURL: calendarApiRootUrl(),
   timeout: 5000,
   headers: {
     "Content-Type": "application/json",
@@ -32,15 +33,12 @@ apiClientInstance.interceptors.request.use(
 );
 
 // Calendar API n'est appelée que par les opérations de son contrat publié (@mairie360/calendar-api-openapi).
-const calendarClient = getCalendarApi(apiClientInstance);
+const calendarClient = getCalendarAPIMairie360(apiClientInstance);
 
 export default calendarClient;
 
-/**
- * Racine de Calendar API (hors préfixe `/api`) : l'opération `/health` y est servie, alors que les
- * autres opérations du contrat sont relatives à `/api`.
- */
+/** Racine de Calendar API : toutes les opérations du contrat, `/health` compris, y sont relatives. */
 export function calendarApiRootUrl(): string {
-  const basePath = process.env.CALENDAR_API_BASE_PATH || "http://localhost:3002/api";
-  return basePath.replace(/\/+$/, "").replace(/\/api$/, "");
+  const basePath = process.env.CALENDAR_API_BASE_PATH || "http://localhost:3002";
+  return basePath.replace(/\/+$/, "");
 }
