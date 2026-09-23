@@ -769,58 +769,97 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Recurrence rule of the event */
         CalendarRecurrence: {
             /**
              * @description Fréquence de récurrence
              * @enum {string}
              */
             frequency: "none" | "daily" | "weekly" | "monthly";
-            /** @description Intervalle de récurrence (par défaut 1) */
+            /**
+             * @description Intervalle de récurrence (par défaut 1)
+             * @example 1
+             */
             interval?: number;
             /** @description Jours de la semaine (0=dimanche, 6=samedi). Utilisé pour les récurrences hebdomadaires */
             daysOfWeek?: number[];
-            /** @description Date de fin inclusive (format YYYY-MM-DD) */
+            /**
+             * @description Date de fin inclusive (format YYYY-MM-DD)
+             * @example 2030-12-31
+             */
             endsOn?: string;
         };
         CalendarAssignee: {
-            /** @description Identifiant unique de la personne */
+            /**
+             * @description Identifiant unique de la personne
+             * @example 1
+             */
             id: string | number;
-            /** @description Nom complet affichable */
+            /**
+             * @description Nom complet affichable
+             * @example Security Admin
+             */
             name: string;
             /**
              * Format: email
              * @description Adresse email
+             * @example security-admin@mairie360.fr
              */
             email?: string;
-            /** @description Fonction ou rôle métier */
+            /**
+             * @description Fonction ou rôle métier
+             * @example Admin
+             */
             role?: string;
             /**
              * Format: uri
              * @description URL de l'image de profil
+             * @example https://mairie360.fr/avatar.png
              */
             avatarUrl?: string;
         };
         CalendarEvent: {
             /** @description Identifiant stable. Optionnel en création, obligatoire en lecture. */
             id?: string | number;
-            /** @description Titre de l'événement */
+            /**
+             * @description Titre de l'événement
+             * @example Scan event
+             */
             title: string;
-            /** @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY) */
+            /**
+             * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @example 2030-06-15
+             */
             date: string;
-            /** @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY) */
+            /**
+             * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @example 2030-06-15
+             */
             endDate?: string;
             /**
              * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
              * @enum {string}
              */
             category?: "meeting" | "activity" | "ceremony" | "other";
-            /** @description Service ou département organisateur */
+            /**
+             * @description Service ou département organisateur
+             * @example direction
+             */
             service?: string;
-            /** @description Heure de début au format HH:mm */
+            /**
+             * @description Heure de début au format HH:mm
+             * @example 09:00
+             */
             startTime?: string;
-            /** @description Heure de fin au format HH:mm */
+            /**
+             * @description Heure de fin au format HH:mm
+             * @example 10:00
+             */
             endTime?: string;
-            /** @description Lieu de l'événement */
+            /**
+             * @description Lieu de l'événement
+             * @example Town hall
+             */
             location?: string;
             /** @description Description détaillée */
             description?: string;
@@ -828,13 +867,16 @@ export interface components {
             assigneeIds?: (string | number)[];
             /** @description Objets complets des personnes assignées (optionnel, peut être reconstruit côté front) */
             assignees?: components["schemas"]["CalendarAssignee"][];
-            recurrence?: components["schemas"]["CalendarRecurrence"] & unknown;
+            recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
              * @description Statut d'approbation de l'événement
              * @enum {string}
              */
             approvalStatus?: "pending" | "approved" | "rejected";
-            /** @description Identifiant de l'utilisateur ayant créé l'événement */
+            /**
+             * @description Identifiant de l'utilisateur ayant créé l'événement
+             * @example 1
+             */
             createdById?: string | number;
             /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
             canValidate?: boolean;
@@ -907,24 +949,45 @@ export interface components {
             category?: string;
         };
         CreateCalendarEventBody: {
-            /** @description Titre de l'événement */
+            /**
+             * @description Titre de l'événement
+             * @example Scan event
+             */
             title: string;
-            /** @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY) */
+            /**
+             * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @example 2030-06-15
+             */
             date: string;
-            /** @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY) */
+            /**
+             * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @example 2030-06-15
+             */
             endDate?: string;
             /**
              * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
              * @enum {string}
              */
             category?: "meeting" | "activity" | "ceremony" | "other";
-            /** @description Service ou département organisateur */
+            /**
+             * @description Service ou département organisateur
+             * @example direction
+             */
             service?: string;
-            /** @description Heure de début au format HH:mm */
+            /**
+             * @description Heure de début au format HH:mm
+             * @example 09:00
+             */
             startTime?: string;
-            /** @description Heure de fin au format HH:mm */
+            /**
+             * @description Heure de fin au format HH:mm
+             * @example 10:00
+             */
             endTime?: string;
-            /** @description Lieu de l'événement */
+            /**
+             * @description Lieu de l'événement
+             * @example Town hall
+             */
             location?: string;
             /** @description Description détaillée */
             description?: string;
@@ -932,13 +995,16 @@ export interface components {
             assigneeIds?: (string | number)[];
             /** @description Objets complets des personnes assignées (optionnel, peut être reconstruit côté front) */
             assignees?: components["schemas"]["CalendarAssignee"][];
-            recurrence?: components["schemas"]["CalendarRecurrence"] & unknown;
+            recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
              * @description Statut d'approbation de l'événement
              * @enum {string}
              */
             approvalStatus?: "pending" | "approved" | "rejected";
-            /** @description Identifiant de l'utilisateur ayant créé l'événement */
+            /**
+             * @description Identifiant de l'utilisateur ayant créé l'événement
+             * @example 1
+             */
             createdById?: string | number;
             /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
             canValidate?: boolean;
@@ -950,24 +1016,45 @@ export interface components {
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
         UpdateCalendarEventBody: {
-            /** @description Titre de l'événement */
+            /**
+             * @description Titre de l'événement
+             * @example Scan event
+             */
             title?: string;
-            /** @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY) */
+            /**
+             * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @example 2030-06-15
+             */
             date?: string;
-            /** @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY) */
+            /**
+             * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @example 2030-06-15
+             */
             endDate?: string;
             /**
              * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
              * @enum {string}
              */
             category?: "meeting" | "activity" | "ceremony" | "other";
-            /** @description Service ou département organisateur */
+            /**
+             * @description Service ou département organisateur
+             * @example direction
+             */
             service?: string;
-            /** @description Heure de début au format HH:mm */
+            /**
+             * @description Heure de début au format HH:mm
+             * @example 09:00
+             */
             startTime?: string;
-            /** @description Heure de fin au format HH:mm */
+            /**
+             * @description Heure de fin au format HH:mm
+             * @example 10:00
+             */
             endTime?: string;
-            /** @description Lieu de l'événement */
+            /**
+             * @description Lieu de l'événement
+             * @example Town hall
+             */
             location?: string;
             /** @description Description détaillée */
             description?: string;
@@ -975,13 +1062,16 @@ export interface components {
             assigneeIds?: (string | number)[];
             /** @description Objets complets des personnes assignées (optionnel, peut être reconstruit côté front) */
             assignees?: components["schemas"]["CalendarAssignee"][];
-            recurrence?: components["schemas"]["CalendarRecurrence"] & unknown;
+            recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
              * @description Statut d'approbation de l'événement
              * @enum {string}
              */
             approvalStatus?: "pending" | "approved" | "rejected";
-            /** @description Identifiant de l'utilisateur ayant créé l'événement */
+            /**
+             * @description Identifiant de l'utilisateur ayant créé l'événement
+             * @example 1
+             */
             createdById?: string | number;
             /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
             canValidate?: boolean;

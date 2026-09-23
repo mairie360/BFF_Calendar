@@ -22,25 +22,29 @@
           "interval": {
             "type": "integer",
             "minimum": 1,
-            "description": "Intervalle de récurrence (par défaut 1)"
+            "description": "Intervalle de récurrence (par défaut 1)",
+            "example": 1
           },
           "daysOfWeek": {
             "type": "array",
             "items": {
               "type": "integer",
               "minimum": 0,
-              "maximum": 6
+              "maximum": 6,
+              "example": 1
             },
             "description": "Jours de la semaine (0=dimanche, 6=samedi). Utilisé pour les récurrences hebdomadaires"
           },
           "endsOn": {
             "type": "string",
-            "description": "Date de fin inclusive (format YYYY-MM-DD)"
+            "description": "Date de fin inclusive (format YYYY-MM-DD)",
+            "example": "2030-12-31"
           }
         },
         "required": [
           "frequency"
-        ]
+        ],
+        "description": "Recurrence rule of the event"
       },
       "CalendarAssignee": {
         "type": "object",
@@ -54,25 +58,30 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant unique de la personne"
+            "description": "Identifiant unique de la personne",
+            "example": 1
           },
           "name": {
             "type": "string",
-            "description": "Nom complet affichable"
+            "description": "Nom complet affichable",
+            "example": "Security Admin"
           },
           "email": {
             "type": "string",
             "format": "email",
-            "description": "Adresse email"
+            "description": "Adresse email",
+            "example": "security-admin@mairie360.fr"
           },
           "role": {
             "type": "string",
-            "description": "Fonction ou rôle métier"
+            "description": "Fonction ou rôle métier",
+            "example": "Admin"
           },
           "avatarUrl": {
             "type": "string",
             "format": "uri",
-            "description": "URL de l'image de profil"
+            "description": "URL de l'image de profil",
+            "example": "https://mairie360.fr/avatar.png"
           }
         },
         "required": [
@@ -96,15 +105,19 @@
           },
           "title": {
             "type": "string",
-            "description": "Titre de l'événement"
+            "pattern": "^[^<>]*$",
+            "description": "Titre de l'événement",
+            "example": "Scan event"
           },
           "date": {
             "type": "string",
-            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)"
+            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
-            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)"
+            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "example": "2030-06-15"
           },
           "category": {
             "type": "string",
@@ -118,24 +131,31 @@
           },
           "service": {
             "type": "string",
-            "description": "Service ou département organisateur"
+            "pattern": "^[^<>]*$",
+            "description": "Service ou département organisateur",
+            "example": "direction"
           },
           "startTime": {
             "type": "string",
             "pattern": "^\\d{2}:\\d{2}$",
-            "description": "Heure de début au format HH:mm"
+            "description": "Heure de début au format HH:mm",
+            "example": "09:00"
           },
           "endTime": {
             "type": "string",
             "pattern": "^\\d{2}:\\d{2}$",
-            "description": "Heure de fin au format HH:mm"
+            "description": "Heure de fin au format HH:mm",
+            "example": "10:00"
           },
           "location": {
             "type": "string",
-            "description": "Lieu de l'événement"
+            "pattern": "^[^<>]*$",
+            "description": "Lieu de l'événement",
+            "example": "Town hall"
           },
           "description": {
             "type": "string",
+            "pattern": "^[^<>]*$",
             "description": "Description détaillée"
           },
           "assigneeIds": {
@@ -148,7 +168,8 @@
                 {
                   "type": "number"
                 }
-              ]
+              ],
+              "example": 1
             },
             "description": "Liste des identifiants des personnes assignées"
           },
@@ -160,14 +181,7 @@
             "description": "Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)"
           },
           "recurrence": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CalendarRecurrence"
-              },
-              {
-                "description": "Règle de récurrence de l'événement"
-              }
-            ]
+            "$ref": "#/components/schemas/CalendarRecurrence"
           },
           "approvalStatus": {
             "type": "string",
@@ -187,7 +201,8 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'utilisateur ayant créé l'événement"
+            "description": "Identifiant de l'utilisateur ayant créé l'événement",
+            "example": 1
           },
           "canValidate": {
             "type": "boolean",
@@ -410,15 +425,19 @@
         "properties": {
           "title": {
             "type": "string",
-            "description": "Titre de l'événement"
+            "pattern": "^[^<>]*$",
+            "description": "Titre de l'événement",
+            "example": "Scan event"
           },
           "date": {
             "type": "string",
-            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)"
+            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
-            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)"
+            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "example": "2030-06-15"
           },
           "category": {
             "type": "string",
@@ -432,24 +451,31 @@
           },
           "service": {
             "type": "string",
-            "description": "Service ou département organisateur"
+            "pattern": "^[^<>]*$",
+            "description": "Service ou département organisateur",
+            "example": "direction"
           },
           "startTime": {
             "type": "string",
             "pattern": "^\\d{2}:\\d{2}$",
-            "description": "Heure de début au format HH:mm"
+            "description": "Heure de début au format HH:mm",
+            "example": "09:00"
           },
           "endTime": {
             "type": "string",
             "pattern": "^\\d{2}:\\d{2}$",
-            "description": "Heure de fin au format HH:mm"
+            "description": "Heure de fin au format HH:mm",
+            "example": "10:00"
           },
           "location": {
             "type": "string",
-            "description": "Lieu de l'événement"
+            "pattern": "^[^<>]*$",
+            "description": "Lieu de l'événement",
+            "example": "Town hall"
           },
           "description": {
             "type": "string",
+            "pattern": "^[^<>]*$",
             "description": "Description détaillée"
           },
           "assigneeIds": {
@@ -462,7 +488,8 @@
                 {
                   "type": "number"
                 }
-              ]
+              ],
+              "example": 1
             },
             "description": "Liste des identifiants des personnes assignées"
           },
@@ -474,14 +501,7 @@
             "description": "Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)"
           },
           "recurrence": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CalendarRecurrence"
-              },
-              {
-                "description": "Règle de récurrence de l'événement"
-              }
-            ]
+            "$ref": "#/components/schemas/CalendarRecurrence"
           },
           "approvalStatus": {
             "type": "string",
@@ -501,7 +521,8 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'utilisateur ayant créé l'événement"
+            "description": "Identifiant de l'utilisateur ayant créé l'événement",
+            "example": 1
           },
           "canValidate": {
             "type": "boolean",
@@ -538,15 +559,19 @@
         "properties": {
           "title": {
             "type": "string",
-            "description": "Titre de l'événement"
+            "pattern": "^[^<>]*$",
+            "description": "Titre de l'événement",
+            "example": "Scan event"
           },
           "date": {
             "type": "string",
-            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)"
+            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
-            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)"
+            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "example": "2030-06-15"
           },
           "category": {
             "type": "string",
@@ -560,24 +585,31 @@
           },
           "service": {
             "type": "string",
-            "description": "Service ou département organisateur"
+            "pattern": "^[^<>]*$",
+            "description": "Service ou département organisateur",
+            "example": "direction"
           },
           "startTime": {
             "type": "string",
             "pattern": "^\\d{2}:\\d{2}$",
-            "description": "Heure de début au format HH:mm"
+            "description": "Heure de début au format HH:mm",
+            "example": "09:00"
           },
           "endTime": {
             "type": "string",
             "pattern": "^\\d{2}:\\d{2}$",
-            "description": "Heure de fin au format HH:mm"
+            "description": "Heure de fin au format HH:mm",
+            "example": "10:00"
           },
           "location": {
             "type": "string",
-            "description": "Lieu de l'événement"
+            "pattern": "^[^<>]*$",
+            "description": "Lieu de l'événement",
+            "example": "Town hall"
           },
           "description": {
             "type": "string",
+            "pattern": "^[^<>]*$",
             "description": "Description détaillée"
           },
           "assigneeIds": {
@@ -590,7 +622,8 @@
                 {
                   "type": "number"
                 }
-              ]
+              ],
+              "example": 1
             },
             "description": "Liste des identifiants des personnes assignées"
           },
@@ -602,14 +635,7 @@
             "description": "Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)"
           },
           "recurrence": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CalendarRecurrence"
-              },
-              {
-                "description": "Règle de récurrence de l'événement"
-              }
-            ]
+            "$ref": "#/components/schemas/CalendarRecurrence"
           },
           "approvalStatus": {
             "type": "string",
@@ -629,7 +655,8 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'utilisateur ayant créé l'événement"
+            "description": "Identifiant de l'utilisateur ayant créé l'événement",
+            "example": 1
           },
           "canValidate": {
             "type": "boolean",
@@ -773,7 +800,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "example": "2030-06-01"
             },
             "description": "Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant)"
           },
@@ -783,7 +811,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "example": "2030-06-30"
             },
             "description": "Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant)"
           }
@@ -856,7 +885,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "example": "2030-06-01"
             },
             "description": "Date de début au format YYYY-MM-DD"
           },
@@ -866,7 +896,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "example": "2030-06-30"
             },
             "description": "Date de fin au format YYYY-MM-DD"
           }
@@ -1020,7 +1051,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^[0-9]+$"
+              "pattern": "^[0-9]+$",
+              "example": "101"
             },
             "description": "Identifiant unique de l'événement"
           }
@@ -1120,7 +1152,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^[0-9]+$"
+              "pattern": "^[0-9]+$",
+              "example": "102"
             },
             "description": "Identifiant unique de l'événement"
           }
@@ -1206,7 +1239,8 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^[0-9]+$"
+              "pattern": "^[0-9]+$",
+              "example": "101"
             },
             "description": "Identifiant unique de l'événement"
           }
@@ -1308,7 +1342,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "example": "2030-06-01"
             },
             "description": "Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant)"
           },
@@ -1318,7 +1353,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "example": "2030-06-30"
             },
             "description": "Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant)"
           }
