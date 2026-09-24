@@ -128,15 +128,20 @@ that returns the tool's exit code.
 ```
 
 Both stacks bring up `postgres` (`ghcr.io/mairie360/database`) + `liquibase-migrations` + a `seeder`
-(`init-test.sql`, inserts user id 2) + `redis` + `calendar-api` + the BFF, which the compose files
+(`init-test.sql`: users 1 Admin, 2 User, 3 Responsable, group 20, events 101/102/110) + `redis` + `calendar-api` + the BFF, which the compose files
 never build: they run `IMAGE_REF` (the CI passes the `dev` image published by `release-dev`, so the
 tested artifact is the one promoted to staging/prod). With `IMAGE_REF` empty, the scripts first build
 `bff-calendar:local` from `development.Dockerfile` (`NODE_AUTH_TOKEN` + `./.npmrc` needed, same as
 `npm ci`). Upstream image tags are overridable via `DB_IMAGE` / `LIQUIBASE_IMAGE` / `CALENDAR_API_IMAGE`.
 
-- **k6** (`load-test.js`) mints an HS256 JWT (`JWT_SECRET=secret`, `sub=2`) and hits `/health` plus the
-  authenticated `/calendar/*` reads. Thresholds: `http_req_failed < 1%`, health p95 < 50 ms,
-  calendar p95 < 400 ms — tune per reference machine.
+- **k6** (`load-test.js`) mints HS256 JWTs (`JWT_SECRET=b"secret"`) for user 2 (User) and user 3
+  (Responsable, in group 20 with user 2, seeded by `init-test.sql`) and has **one handler per
+  operation** of `contracts/openapi.json` through `coverage.js` (a new route without a handler makes
+  k6 abort at init). Scenario `crud` (2 VUs, `coverage.run()`, carries the gate): user 2 creates an
+  event assigned to user 3 plus a disposable one, deletes the disposable one (DELETE runs before
+  PATCH within a path), patches the kept one, user 3 approves it, `cleanup()` deletes it. Scenario
+  `reads` (ramp to 20 VUs) replays the GET handlers on the June 2030 fixtures (event 110). Per-op
+  `p(95)`: health 50 ms, check_apis 150 ms, reads 400 ms, writes 800 ms; `http_req_failed < 1%`.
 - **ZAP** imports `/openapi.json`, replays every operation with a static long-lived JWT (header
   replacer), and fails on any alert not downgraded to `IGNORE` in `.zap/rules.tsv` (informational
   rules are pre-ignored there; add rule IDs as false positives appear).
@@ -145,8 +150,7 @@ tested artifact is the one promoted to staging/prod). With `IMAGE_REF` empty, th
   the pinned `cicd_version` (`CICD_VERSION=<branch>` overrides it). ZAP runs its `zap_hooks.py` with
   `--hook`: every operation of the served spec must be reached, and non-public ones with a
   non-401/403 answer. The spec requires `bearerAuth` at the top level (`openapi.ts`); `/health` and
-  `/check_apis` set `security: []` in `registerPath`. The k6 side (`coverage.js`, one handler per
-  operation in `load-test.js`) is not wired yet.
+  `/check_apis` set `security: []` in `registerPath`.
 
 CI: the reusable `BFFs-cicd.yml` `security_tests` / `performance_tests` jobs log in to GHCR and run
 `./security_test.sh` / `./performance_test.sh` with `IMAGE_REF` set to the image `release-dev` pushed.
