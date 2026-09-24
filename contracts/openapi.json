@@ -4,7 +4,19 @@
     "title": "bff_calendar",
     "version": "1.0.0"
   },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "schemas": {
       "CalendarRecurrence": {
         "type": "object",
@@ -745,6 +757,7 @@
   "paths": {
     "/health": {
       "get": {
+        "security": [],
         "tags": [
           "Connectivity"
         ],
@@ -758,6 +771,7 @@
     },
     "/check_apis": {
       "get": {
+        "security": [],
         "tags": [
           "Connectivity"
         ],
