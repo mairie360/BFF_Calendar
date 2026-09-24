@@ -141,6 +141,13 @@ tested artifact is the one promoted to staging/prod). With `IMAGE_REF` empty, th
   replacer), and fails on any alert not downgraded to `IGNORE` in `.zap/rules.tsv` (informational
   rules are pre-ignored there; add rule IDs as false positives appear).
 
+- **ZAP OpenAPI coverage gate**: the scripts clone `mairie360/CICD` into `cicd-repo/` (gitignored) at
+  the pinned `cicd_version` (`CICD_VERSION=<branch>` overrides it). ZAP runs its `zap_hooks.py` with
+  `--hook`: every operation of the served spec must be reached, and non-public ones with a
+  non-401/403 answer. The spec requires `bearerAuth` at the top level (`openapi.ts`); `/health` and
+  `/check_apis` set `security: []` in `registerPath`. The k6 side (`coverage.js`, one handler per
+  operation in `load-test.js`) is not wired yet.
+
 CI: the reusable `BFFs-cicd.yml` `security_tests` / `performance_tests` jobs log in to GHCR and run
 `./security_test.sh` / `./performance_test.sh` with `IMAGE_REF` set to the image `release-dev` pushed.
 
