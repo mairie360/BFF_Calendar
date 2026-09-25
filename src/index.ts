@@ -1,6 +1,7 @@
 import { openApiDocument as openApiSpec } from './openapi';
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
+import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import healthRouter from './routes/health';
 import checkApis from './routes/check_apis';
@@ -10,17 +11,10 @@ export const app = express();
 
 export const PORT = Number(process.env.PORT ?? 4002);
 
-// Ne pas divulguer la stack technique (repéré par les scans ZAP)
-app.disable('x-powered-by');
-
-// En-têtes de sécurité minimaux (couvre les alertes ZAP 10021 / 90004 / etc.)
-app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  next();
-});
+// Security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CORP…) and
+// removal of X-Powered-By, same configuration as the other BFFs. upgrade-insecure-requests is
+// dropped because the BFF is served over HTTP behind the reverse proxy.
+app.use(helmet({ contentSecurityPolicy: { useDefaults: true, directives: { 'upgrade-insecure-requests': null } } }));
 
 // Middleware pour parser les JSON
 app.use(express.json());
