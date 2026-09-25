@@ -128,10 +128,11 @@ that returns the tool's exit code.
 ```
 
 Both stacks bring up `postgres` (`ghcr.io/mairie360/database`) + `liquibase-migrations` + a `seeder`
-(`init-test.sql`, inserts user id 2) + `redis` + `calendar-api` + the BFF (built from
-`development.Dockerfile`, run as `npx tsx src/index.ts`). Image tags are overridable via
-`DB_IMAGE` / `LIQUIBASE_IMAGE` / `CALENDAR_API_IMAGE` / `TARGET_IMAGE`; `NODE_AUTH_TOKEN` must be in the
-environment for the BFF image build (same as `npm ci`).
+(`init-test.sql`, inserts user id 2) + `redis` + `calendar-api` + the BFF, which the compose files
+never build: they run `IMAGE_REF` (the CI passes the `dev` image published by `release-dev`, so the
+tested artifact is the one promoted to staging/prod). With `IMAGE_REF` empty, the scripts first build
+`bff-calendar:local` from `development.Dockerfile` (`NODE_AUTH_TOKEN` + `./.npmrc` needed, same as
+`npm ci`). Upstream image tags are overridable via `DB_IMAGE` / `LIQUIBASE_IMAGE` / `CALENDAR_API_IMAGE`.
 
 - **k6** (`load-test.js`) mints an HS256 JWT (`JWT_SECRET=secret`, `sub=2`) and hits `/health` plus the
   authenticated `/calendar/*` reads. Thresholds: `http_req_failed < 1%`, health p95 < 50 ms,
@@ -140,9 +141,8 @@ environment for the BFF image build (same as `npm ci`).
   replacer), and fails on any alert not downgraded to `IGNORE` in `.zap/rules.tsv` (informational
   rules are pre-ignored there; add rule IDs as false positives appear).
 
-CI: the reusable `BFFs-cicd.yml` currently runs `docker compose -f docker-compose.test.yml ...` inline.
-To use these stacks, point its `security_tests` / `performance_tests` jobs at `./security_test.sh` /
-`./performance_test.sh` (with `NODE_AUTH_TOKEN` in `env:`), exactly like `APIs_cicd.yml`.
+CI: the reusable `BFFs-cicd.yml` `security_tests` / `performance_tests` jobs log in to GHCR and run
+`./security_test.sh` / `./performance_test.sh` with `IMAGE_REF` set to the image `release-dev` pushed.
 
 ## Local run
 
