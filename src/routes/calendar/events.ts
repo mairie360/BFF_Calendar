@@ -3,6 +3,7 @@ import {
   apiErrorResponse,
   dateQueryParameter,
   eventIdPathParameter,
+  deletedEventIdPathParameter,
   registry,
   CreateCalendarEventBodySchema,
   UpdateCalendarEventApprovalBodySchema,
@@ -135,7 +136,7 @@ registry.registerPath({
   summary: 'Supprime un événement',
   description: 'Supprime un événement identifié par son ID',
   parameters: [
-    eventIdPathParameter,
+    deletedEventIdPathParameter,
   ],
   responses: {
     204: {

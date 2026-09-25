@@ -267,6 +267,21 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(calendarApi.requests).toHaveLength(0);
     });
 
+    test.each([
+      { title: '<script>alert(1)</script>', date: '2026-09-20' },
+      { title: 'Atelier', date: '2026-09-20', description: '<img src=x onerror=alert(1)>' },
+      { title: 'Atelier', date: '2026-09-20', location: '<b>Mairie</b>' },
+      { title: 'Atelier', date: '2026-09-20', service: '<i>culture</i>' },
+    ])('POST /calendar/events refuses markup in a stored text before calling Calendar API (%#)', async (body) => {
+      mockCalendarApi();
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id)).send(body);
+
+      expect(response.status).toBe(400);
+      expectBffContract('post', '/calendar/events', response);
+      expect(calendarApi.requests).toHaveLength(0);
+    });
+
     test('POST /calendar/events refuses an assignee outside the user scope without creating the event', async () => {
       mockCalendarApi();
 
