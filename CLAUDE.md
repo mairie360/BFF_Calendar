@@ -151,3 +151,7 @@ Needs `.env` with `CALENDAR_API_BASE_PATH`, `CORE_API_URL/PORT`, `CALENDAR_API_U
 (`users`, `roles`, `group_members`, `events`, `event_members`, the `event_visibility` enum). With
 Docker Compose, start the BFF User stack first — it owns the shared DB and the external
 `bff_user_backend` network.
+
+## Pull request reviewers
+
+Every PR requests a review from the whole team, minus its author: `CarolinHugo`, `LAURETbenjamin`, `MathTek` and `Quentintnrl` (`gh pr create … --reviewer CarolinHugo,LAURETbenjamin,MathTek`). `.github/CODEOWNERS` makes GitHub request them automatically as well.
