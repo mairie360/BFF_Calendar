@@ -13,19 +13,18 @@ const apiClientInstance = axios.create({
   },
 });
 
-// Intercepteur pour injecter automatiquement le token
+// Normalizes the caller's Authorization header (Bearer prefix); no default token is ever injected.
 apiClientInstance.interceptors.request.use(
   (config) => {
     const currentAuth = config.headers.Authorization;
 
-    // Si aucun token n'est fourni par l'appel Orval, on met celui par défaut.
     const authHeader = getAuthorizationHeader(typeof currentAuth === "string" ? currentAuth : undefined);
     if (authHeader) {
       config.headers.Authorization = authHeader;
     }
 
-    console.log("Requête sortante vers :", config.baseURL + "" + config.url);
-    return config; // <-- TRÈS IMPORTANT : Si cette ligne manque, Axios bloque !
+    console.log("Outgoing request to:", config.baseURL + "" + config.url);
+    return config;
   },
   (error) => {
     return Promise.reject(error);
