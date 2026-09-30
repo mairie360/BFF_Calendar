@@ -1,4 +1,5 @@
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { ErrorResponseSchema as LibErrorResponseSchema } from '@mairie360/bffs-lib';
 import { z } from 'zod';
 
 // On ajoute les méthodes .openapi() à Zod
@@ -247,26 +248,23 @@ registry.register(
 );
 
 // ========================================
-// Schémas - Erreur API
+// Error envelope
 // ========================================
 
-export const ApiErrorSchema = z.object({
-  code: z.string(),
-  message: z.string(),
-  details: z.unknown().optional(),
-}).openapi('ApiError');
-
-registry.register('ApiError', ApiErrorSchema);
+// Body of every error answer, shared by every BFF (`@mairie360/bffs-lib`): `{ error: { code, message, details } }`.
+// clone(): the lib builds its schemas on import, before extendZodWithOpenApi() above, and zod 4 only
+// adds .openapi() to schemas created after the extension.
+export const ErrorResponseSchema = registry.register('ErrorResponse', LibErrorResponseSchema.clone());
 
 // ========================================
 // Fragments OpenAPI partagés par les routes
 // ========================================
 
-/** Réponse d'erreur documentée avec le corps ApiError. */
+/** Error response documented with the shared ErrorResponse body. */
 export function apiErrorResponse(description: string) {
   return {
     description,
-    content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+    content: { 'application/json': { schema: ErrorResponseSchema } },
   };
 }
 

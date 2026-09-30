@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { registry } from '../../openapi-registry';
+import { apiErrorResponse, registry } from '../../openapi-registry';
 import { getCalendarServices } from './calendar_helpers';
 
 const router = Router();
@@ -26,9 +26,7 @@ registry.registerPath({
         },
       },
     },
-    500: {
-      description: 'Erreur serveur',
-    },
+    500: apiErrorResponse('Unexpected server error'),
   },
 });
 

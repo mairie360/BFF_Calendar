@@ -149,7 +149,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(400);
       expectBffContract('get', url.split('?')[0], response);
-      expect(response.body).toEqual({ code: 'BAD_REQUEST', message: expect.stringContaining('from et to') });
+      expect(response.body).toEqual({ error: { code: 'BAD_REQUEST', message: expect.stringContaining('from and to'), details: [] } });
       expect(calendarApi.requests).toHaveLength(0);
     });
 
@@ -290,7 +290,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(403);
       expectBffContract('post', '/calendar/events', response);
-      expect(response.body).toEqual({ code: 'ASSIGNEE_OUT_OF_SCOPE', message: expect.any(String) });
+      expect(response.body).toEqual({ error: { code: 'FORBIDDEN', message: 'This person is outside your assignment scope.', details: [] } });
       expect(calendarApi.requests).toHaveLength(0);
     });
 
@@ -324,7 +324,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(403);
       expectBffContract('patch', '/calendar/events/5', response);
-      expect(response.body.code).toBe('EVENT_UPDATE_FORBIDDEN');
+      expect(response.body.error.code).toBe('FORBIDDEN');
       expect(upstreamSequence()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(5))]);
     });
 
@@ -338,7 +338,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       ]);
 
       expect(responses.map((response) => response.status)).toEqual([400, 400, 400]);
-      expect(responses[0].body).toEqual({ code: 'BAD_REQUEST', message: expect.stringContaining('entier positif') });
+      expect(responses[0].body).toEqual({ error: { code: 'BAD_REQUEST', message: 'The event id must be a positive integer.', details: [] } });
       expect(calendarApi.requests).toHaveLength(0);
     });
 
@@ -380,7 +380,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(403);
       expectBffContract('delete', '/calendar/events/5', response);
-      expect(response.body.code).toBe('EVENT_DELETE_FORBIDDEN');
+      expect(response.body.error.code).toBe('FORBIDDEN');
       expect(calendarApi.calls(CALENDAR.event, 'DELETE')).toHaveLength(0);
     });
 
@@ -391,7 +391,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(404);
       expectBffContract('delete', '/calendar/events/404', response);
-      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Ressource introuvable.' });
+      expect(response.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Resource not found', details: [] } });
       expect(upstreamSequence()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(404))]);
     });
   });
@@ -406,7 +406,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(401);
       expectBffContract('get', '/calendar/bootstrap', response);
-      expect(response.body).toEqual({ code: 'UNAUTHORIZED', message: 'Session invalide.' });
+      expect(response.body).toEqual({ error: { code: 'UNAUTHORIZED', message: 'Authentication required', details: [] } });
       expect(coreApi.requests).toHaveLength(0);
     });
 
@@ -428,7 +428,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(400);
       expectBffContract('get', '/calendar/events', response);
-      expect(response.body).toEqual({ code: 'UPSTREAM_ERROR', message: 'La requête a été refusée par le service Calendar.' });
+      expect(response.body).toEqual({ error: { code: 'BAD_REQUEST', message: 'Invalid request', details: [] } });
     });
 
     test('maps a Calendar API 500 to 502 without leaking the upstream message', async () => {
@@ -439,7 +439,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(502);
       expectBffContract('get', '/calendar/bootstrap', response);
-      expect(response.body).toEqual({ code: 'BAD_GATEWAY', message: 'Le service Calendar est indisponible.' });
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'Upstream service error', details: [] } });
     });
 
     test('maps a dropped Calendar API connection to 502', async () => {
@@ -450,7 +450,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(502);
       expectBffContract('post', '/calendar/events', response);
-      expect(response.body.code).toBe('BAD_GATEWAY');
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'The calendar service is unavailable.', details: [] } });
     });
 
     test('maps a Core API directory failure to 502 without leaking its body', async () => {
@@ -467,8 +467,84 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(502);
       expectBffContract('get', '/calendar/bootstrap', response);
-      expect(response.body).toEqual({ code: 'BAD_GATEWAY', message: 'Le service Calendar est indisponible.' });
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'Upstream service error', details: [] } });
       expect(JSON.stringify(response.body)).not.toContain('database');
+    });
+  });
+
+  describe('undeclared upstream statuses and the error envelope', () => {
+    test.each([403, 404, 409])('maps a Calendar API %i that GET /calendar/events does not declare to 502', async (status) => {
+      mockCalendarApi();
+      calendarApi.on('get', CALENDAR.calendar, { status, raw: 'Refused', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(502);
+      expectBffContract('get', '/calendar/events', response);
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'Upstream service error', details: [] } });
+    });
+
+    test('maps a Calendar API 409 on PATCH /calendar/events/:id to 502', async () => {
+      mockCalendarApi({ details: [eventDetails(5)] });
+      calendarApi.on('patch', CALENDAR.event, { status: 409, raw: 'Conflict', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(admin.id)).send({ title: 'x' });
+
+      expect(response.status).toBe(502);
+      expectBffContract('patch', '/calendar/events/5', response);
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'Upstream service error', details: [] } });
+    });
+
+    test('keeps a declared Calendar API 403 on DELETE /calendar/events/:id with a generic message', async () => {
+      mockCalendarApi({ details: [eventDetails(5)] });
+      calendarApi.on('delete', CALENDAR.event, { status: 403, raw: 'Forbidden by policy', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).delete('/calendar/events/5').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(403);
+      expectBffContract('delete', '/calendar/events/5', response);
+      expect(response.body).toEqual({ error: { code: 'FORBIDDEN', message: 'Access denied', details: [] } });
+    });
+
+    test('answers the validation issues of an invalid body as details', async () => {
+      mockCalendarApi();
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id)).send({ date: '2026-09-20' });
+
+      expect(response.status).toBe(400);
+      expectBffContract('post', '/calendar/events', response);
+      expect(response.body.error).toMatchObject({ code: 'BAD_REQUEST', message: 'Validation failed' });
+      expect(response.body.error.details).toEqual(expect.arrayContaining([{ path: 'body.title', message: expect.any(String) }]));
+    });
+
+    test('answers an unexpected failure with a generic 500 that leaks nothing', async () => {
+      mockCalendarApi();
+      const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      // A list without its events array makes the mapping throw a TypeError: a bug, not an upstream status.
+      calendarApi.on('get', CALENDAR.calendar, { body: { events: null }, outOfContract: true });
+
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(500);
+      expectBffContract('get', '/calendar/events', response);
+      expect(response.body).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error', details: [] } });
+      expect(log).toHaveBeenCalled();
+    });
+
+    test('answers an unknown route with a 404 envelope', async () => {
+      const response = await request(app).get('/calendar/unknown/route');
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Route not found', details: [] } });
+    });
+
+    test('answers an unparsable JSON body with a 400 envelope', async () => {
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id))
+        .set('Content-Type', 'application/json').send('{"title"');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: { code: 'BAD_REQUEST', message: 'Invalid request', details: [] } });
+      expect(calendarApi.requests).toHaveLength(0);
     });
   });
 

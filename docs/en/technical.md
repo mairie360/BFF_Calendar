@@ -87,7 +87,7 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 
 Business routes expect the caller’s authorization. The access policy resolves identity and database roles, then limits assignments and edits; only the creator can delete an event, after Calendar API has validated the session. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
 
-`from` and `to` must be `YYYY-MM-DD` dates and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Errors use the `ApiError` body (`code`, `message`): upstream 4xx statuses are kept, upstream 5xx and network failures become 502, and neither Calendar API nor database error messages are returned to the client.
+`from` and `to` must be `YYYY-MM-DD` dates and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Every error uses the envelope shared by all the BFFs (`@mairie360/bffs-lib`), the `ErrorResponse` schema of the contract: `{ "error": { "code", "message", "details" } }`, where `code` derives from the status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`...) and `details` lists the invalid fields of a rejected body (`{ "path": "body.title", "message" }`), empty otherwise. An upstream 4xx is kept only when the route declares that status in the contract (with a generic message), any other upstream status and network failures become 502, unknown routes answer a 404 envelope, an unparsable JSON body a 400 one, and an unexpected error a generic 500. Neither Calendar API, Core API nor database error messages are returned to the client.
 
 ## Synchronization and verification
 

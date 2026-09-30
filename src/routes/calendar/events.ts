@@ -13,13 +13,13 @@ import {
   createCalendarEvent,
   deleteCalendarEvent,
   fetchCalendarEvents,
-  handleUnknownError,
   isQueryDate,
   parseEventIdParam,
   patchCalendarEvent,
-  sendBadRequest,
-  sendValidationError,
+  badRequest,
+  calendarError,
   updateCalendarEventApproval,
+  validationError,
 } from './calendar_helpers';
 
 const router = Router();
@@ -51,10 +51,10 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Paramètres invalides'),
-    401: apiErrorResponse('Session invalide'),
-    500: apiErrorResponse('Erreur serveur'),
-    502: apiErrorResponse('Calendar API indisponible'),
+    400: apiErrorResponse('Invalid parameters'),
+    401: apiErrorResponse('Missing or invalid session'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
   },
 });
 
@@ -83,11 +83,11 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Données invalides'),
-    401: apiErrorResponse('Session invalide'),
-    403: apiErrorResponse('Personne assignée hors du périmètre autorisé'),
-    500: apiErrorResponse('Erreur serveur'),
-    502: apiErrorResponse('Calendar API indisponible'),
+    400: apiErrorResponse('Invalid data'),
+    401: apiErrorResponse('Missing or invalid session'),
+    403: apiErrorResponse('Assignee outside the authorized scope, or refused by Calendar API'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
   },
 });
 
@@ -119,12 +119,12 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Données invalides'),
-    401: apiErrorResponse('Session invalide'),
-    403: apiErrorResponse('Action non autorisée sur cet événement'),
-    404: apiErrorResponse('Événement non trouvé'),
-    500: apiErrorResponse('Erreur serveur'),
-    502: apiErrorResponse('Calendar API indisponible'),
+    400: apiErrorResponse('Invalid data'),
+    401: apiErrorResponse('Missing or invalid session'),
+    403: apiErrorResponse('Action not allowed on this event'),
+    404: apiErrorResponse('Event not found'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
   },
 });
 
@@ -142,12 +142,12 @@ registry.registerPath({
     204: {
       description: 'Événement supprimé avec succès',
     },
-    400: apiErrorResponse('Identifiant invalide'),
-    401: apiErrorResponse('Session invalide'),
-    403: apiErrorResponse('Seul le créateur peut supprimer l’événement'),
-    404: apiErrorResponse('Événement non trouvé'),
-    500: apiErrorResponse('Erreur serveur'),
-    502: apiErrorResponse('Calendar API indisponible'),
+    400: apiErrorResponse('Invalid id'),
+    401: apiErrorResponse('Missing or invalid session'),
+    403: apiErrorResponse('Only the creator can delete the event'),
+    404: apiErrorResponse('Event not found'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
   },
 });
 
@@ -179,12 +179,12 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Données invalides'),
-    401: apiErrorResponse('Session invalide'),
-    403: apiErrorResponse('Action non autorisée sur cet événement'),
-    404: apiErrorResponse('Événement non trouvé'),
-    500: apiErrorResponse('Erreur serveur'),
-    502: apiErrorResponse('Calendar API indisponible'),
+    400: apiErrorResponse('Invalid data'),
+    401: apiErrorResponse('Missing or invalid session'),
+    403: apiErrorResponse('Action not allowed on this event'),
+    404: apiErrorResponse('Event not found'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
   },
 });
 
@@ -199,18 +199,18 @@ router.get('/', async (req: Request, res: Response) => {
   const token = req.headers.authorization;
   
   if (!from || !to) {
-    return sendBadRequest(res, 'Les paramètres from et to sont obligatoires.');
+    throw badRequest('The from and to parameters are required.');
   }
 
   if (!isQueryDate(from) || !isQueryDate(to)) {
-    return sendBadRequest(res, 'Les paramètres from et to doivent être des dates au format YYYY-MM-DD.');
+    throw badRequest('The from and to parameters must be YYYY-MM-DD dates.');
   }
   
   try {
     const events = await fetchCalendarEvents(from, to, token);
     return res.status(200).json(events);
   } catch (error) {
-    return handleUnknownError(res, error);
+    throw calendarError(error, [400, 401]);
   }
 });
 
@@ -219,14 +219,14 @@ router.post('/', async (req: Request, res: Response) => {
   const bodyResult = CreateCalendarEventBodySchema.safeParse(req.body);
 
   if (!bodyResult.success) {
-    return sendValidationError(res, bodyResult.error.issues);
+    throw validationError(bodyResult.error.issues);
   }
 
   try {
     const event = await createCalendarEvent(bodyResult.data, req.headers.authorization);
     return res.status(201).json(event);
   } catch (error) {
-    return handleUnknownError(res, error);
+    throw calendarError(error, [400, 401, 403]);
   }
 });
 
@@ -235,20 +235,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
   const eventId = parseEventIdParam(req.params.id);
 
   if (eventId === null) {
-    return sendBadRequest(res, 'L\'identifiant de l\'événement doit être un entier positif.');
+    throw badRequest('The event id must be a positive integer.');
   }
 
   const bodyResult = UpdateCalendarEventBodySchema.safeParse(req.body);
   
   if (!bodyResult.success) {
-    return sendValidationError(res, bodyResult.error.issues);
+    throw validationError(bodyResult.error.issues);
   }
 
   try {
     const event = await patchCalendarEvent(eventId, bodyResult.data, req.headers.authorization);
     return res.status(200).json(event);
   } catch (error) {
-    return handleUnknownError(res, error);
+    throw calendarError(error, [400, 401, 403, 404]);
   }
 });
 
@@ -257,20 +257,20 @@ router.patch('/:id/approval', async (req: Request, res: Response) => {
   const eventId = parseEventIdParam(req.params.id);
 
   if (eventId === null) {
-    return sendBadRequest(res, 'L\'identifiant de l\'événement doit être un entier positif.');
+    throw badRequest('The event id must be a positive integer.');
   }
 
   const bodyResult = UpdateCalendarEventApprovalBodySchema.safeParse(req.body);
 
   if (!bodyResult.success) {
-    return sendValidationError(res, bodyResult.error.issues);
+    throw validationError(bodyResult.error.issues);
   }
 
   try {
     const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus, req.headers.authorization);
     return res.status(200).json(event);
   } catch (error) {
-    return handleUnknownError(res, error);
+    throw calendarError(error, [400, 401, 403, 404]);
   }
 });
 
@@ -279,14 +279,14 @@ router.delete('/:id', async (req: Request, res: Response) => {
   const eventId = parseEventIdParam(req.params.id);
 
   if (eventId === null) {
-    return sendBadRequest(res, 'L\'identifiant de l\'événement doit être un entier positif.');
+    throw badRequest('The event id must be a positive integer.');
   }
   
   try {
     await deleteCalendarEvent(eventId, req.headers.authorization);
     return res.status(204).send();
   } catch (error) {
-    return handleUnknownError(res, error);
+    throw calendarError(error, [400, 401, 403, 404]);
   }
 });
 

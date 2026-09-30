@@ -1,12 +1,11 @@
-import axios, { AxiosError } from 'axios';
+import { HttpError, mapUpstreamError, type ErrorDetail } from '@mairie360/bffs-lib';
+import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
-import type { Response } from 'express';
 import { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
 import { getAuthorizationHeader } from '../../config/token';
 import { listCalendarDirectoryUsers } from '../../clients/coreDirectory';
 import {
-  CalendarAccessError,
   CalendarDirectoryUser,
   CalendarEventAccess,
   calendarAssigneeScope,
@@ -318,46 +317,33 @@ export function parseEventIdParam(value: string | undefined): number | null {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-export function sendBadRequest(res: Response, message: string): Response {
-  return res.status(400).json({ code: 'BAD_REQUEST', message });
+/** 400 for an invalid path or query parameter. */
+export function badRequest(message: string): HttpError {
+  return new HttpError(400, message);
 }
 
-export function sendValidationError(res: Response, details: unknown): Response {
-  return res.status(400).json({
-    code: 'BAD_REQUEST',
-    message: 'Validation failed',
-    details,
-  });
+/** 400 for a body rejected by its Zod schema, one detail per issue (`path` like `body.title`). */
+export function validationError(issues: z.core.$ZodIssue[]): HttpError {
+  const details: ErrorDetail[] = issues.map((issue) => ({
+    path: ['body', ...issue.path.map(String)].join('.'),
+    message: issue.message,
+  }));
+  return new HttpError(400, 'Validation failed', { details });
 }
 
-export function handleUnknownError(res: Response, error: unknown): Response {
-  if (error instanceof CalendarAccessError) {
-    return res.status(error.status).json({
-      code: error.code,
-      message: error.message,
-    });
+/**
+ * Error to throw for a failed route. HttpErrors raised by the BFF itself are kept. For a failed upstream
+ * call (Calendar API, Core API), only the upstream 4xx the route declares in its contract (`declared`) are
+ * kept, with a generic message; any other status and a network failure become a 502. Upstream messages
+ * and bodies are never relayed.
+ */
+export function calendarError(error: unknown, declared: readonly number[]): unknown {
+  if (!axios.isAxiosError(error)) {
+    // HttpErrors keep their status; anything else is a bug, answered as a generic 500 by errorHandler().
+    return error;
   }
-
-  // Les messages et corps d'erreur amont (Calendar API, PostgreSQL) ne sont jamais renvoyés au client.
-  if (axios.isAxiosError(error)) {
-    const status = (error as AxiosError).response?.status;
-    if (status === undefined || status >= 500) {
-      return res.status(502).json({ code: 'BAD_GATEWAY', message: 'Le service Calendar est indisponible.' });
-    }
-
-    return res.status(status).json({
-      code: status === 401 ? 'UNAUTHORIZED' : status === 404 ? 'NOT_FOUND' : 'UPSTREAM_ERROR',
-      message: status === 401
-        ? 'Session invalide.'
-        : status === 404 ? 'Ressource introuvable.' : 'La requête a été refusée par le service Calendar.',
-    });
-  }
-
-  console.error('[BFF Calendar] Erreur inattendue', error);
-  return res.status(500).json({
-    code: 'INTERNAL_SERVER_ERROR',
-    message: 'Erreur interne du serveur.',
-  });
+  if (error.response === undefined) return new HttpError(502, 'The calendar service is unavailable.');
+  return mapUpstreamError(error, declared);
 }
 
 export async function fetchCalendarEvents(
@@ -415,11 +401,7 @@ export async function patchCalendarEvent(
 ): Promise<BffCalendarEvent> {
   const { event: current, access } = await loadCalendarEvent(eventId, incomingRequestToken);
   if (!canCurrentUserEditEvent(access)) {
-    throw new CalendarAccessError(
-      'Seuls le créateur, un responsable, le maire ou un administrateur assigné peuvent modifier cet événement.',
-      403,
-      'EVENT_UPDATE_FORBIDDEN',
-    );
+    throw new HttpError(403, 'Only the creator, or an assigned manager, mayor or administrator, can edit this event.');
   }
 
   const mergedEvent = { ...mapEventDetailsToBff(current), ...event };
@@ -451,11 +433,7 @@ export async function deleteCalendarEvent(eventId: number, incomingRequestToken?
   const { access } = await loadCalendarEvent(eventId, incomingRequestToken);
 
   if (!canCurrentUserDeleteEvent(access)) {
-    throw new CalendarAccessError(
-      'Seul le créateur de l’événement peut le supprimer.',
-      403,
-      'EVENT_DELETE_FORBIDDEN',
-    );
+    throw new HttpError(403, 'Only the creator of the event can delete it.');
   }
 
   await calendarApi.deleteEvent(eventId, authOptions(incomingRequestToken));
@@ -477,11 +455,7 @@ export async function updateCalendarEventApproval(
   const { access } = await loadCalendarEvent(eventId, incomingRequestToken);
 
   if (!canCurrentUserValidateEvent(access)) {
-    throw new CalendarAccessError(
-      'Seul un responsable assigné du groupe peut valider cet événement.',
-      403,
-      'EVENT_APPROVAL_FORBIDDEN',
-    );
+    throw new HttpError(403, 'Only an assigned manager of the group can approve this event.');
   }
 
   await calendarApi.updateEventValidation(

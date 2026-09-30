@@ -49,8 +49,11 @@ and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calen
 Almost all real logic lives in **`src/routes/calendar/calendar_helpers.ts`** — mapping between the BFF
 event shape and the Calendar API shapes (`ApiCreateEventBody`, `ApiPatchEventBody`, `ApiRecurrence`,
 date/time normalization), orchestrating multi-call operations (create event → sync members → refresh
-validation → upsert metadata → re-fetch), and the `handleUnknownError` / `sendValidationError`
-response helpers.
+validation → upsert metadata → re-fetch), and the error helpers `badRequest`, `validationError` and
+`calendarError(error, declared)`, which keeps only the upstream 4xx a route declares and turns any other
+upstream failure into a 502. Routes throw them; `notFoundHandler` + `errorHandler()` from
+`@mairie360/bffs-lib` close `src/index.ts` and answer every error in the shared envelope
+`{ error: { code, message, details } }` (schema `ErrorResponse` in the contract).
 
 ### The three layers behind the helpers
 
@@ -64,8 +67,7 @@ response helpers.
   API is trusted to have verified it), resolves the current user, computes `assigneeScope` (`all` for
   Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
   (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
-  `CalendarAccessError(message, status, code)` is the typed error that `handleUnknownError` turns into
-  a JSON body.
+  Its refusals are thrown as the lib's `HttpError(status, message)`.
 
 ### Why some writes go straight to SQL
 

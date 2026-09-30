@@ -1,6 +1,7 @@
 import { openApiDocument as openApiSpec } from './openapi';
 import 'dotenv/config';
-import express, { NextFunction, Request, Response } from 'express';
+import { errorHandler, notFoundHandler } from '@mairie360/bffs-lib';
+import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import healthRouter from './routes/health';
@@ -54,21 +55,14 @@ app.use('/check_apis', checkApis);
 app.use('/calendar', calendarRouter);
 
 // ========================================
-// Fallback JSON (404 + erreurs non gérées)
+// Error envelope (unknown routes + every error)
 // ========================================
 
-// Réponse JSON systématique sur route inconnue (évite le 404 HTML par défaut
-// d'Express, signalé par ZAP en « Unexpected Content-Type »).
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not Found' });
-});
-
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const status = typeof (err as { status?: number })?.status === 'number'
-    ? (err as { status: number }).status
-    : 500;
-  res.status(status).json({ error: status === 500 ? 'Internal Server Error' : 'Request Error' });
-});
+// Unknown routes and every error end in the shared envelope `{ error: { code, message, details } }`
+// (@mairie360/bffs-lib): the status of the error is kept (400 for an unparsable body, 401, 403, 404,
+// 502...) and anything unexpected becomes a 500 without leaking its message.
+app.use(notFoundHandler);
+app.use(errorHandler({ onError: (error) => console.error('[BFF Calendar] Unexpected error', error) }));
 
 // ========================================
 // Démarrage du serveur
