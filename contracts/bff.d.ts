@@ -117,40 +117,40 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarBootstrapResponse"];
                     };
                 };
-                /** @description Paramètres invalides */
+                /** @description Invalid parameters */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -197,40 +197,40 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarEvent"][];
                     };
                 };
-                /** @description Paramètres invalides */
+                /** @description Invalid parameters */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -262,49 +262,49 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarEvent"];
                     };
                 };
-                /** @description Données invalides */
+                /** @description Invalid data */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Personne assignée hors du périmètre autorisé */
+                /** @description Assignee outside the authorized scope, or refused by Calendar API */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -348,58 +348,58 @@ export interface paths {
                     };
                     content?: never;
                 };
-                /** @description Identifiant invalide */
+                /** @description Invalid id */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Seul le créateur peut supprimer l’événement */
+                /** @description Only the creator can delete the event */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Événement non trouvé */
+                /** @description Event not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -435,58 +435,58 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarEvent"];
                     };
                 };
-                /** @description Données invalides */
+                /** @description Invalid data */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Action non autorisée sur cet événement */
+                /** @description Action not allowed on this event */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Événement non trouvé */
+                /** @description Event not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -535,58 +535,58 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarEvent"];
                     };
                 };
-                /** @description Données invalides */
+                /** @description Invalid data */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Action non autorisée sur cet événement */
+                /** @description Action not allowed on this event */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Événement non trouvé */
+                /** @description Event not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -627,40 +627,40 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarAssignee"][];
                     };
                 };
-                /** @description Paramètres invalides */
+                /** @description Invalid parameters */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Session invalide */
+                /** @description Missing or invalid session */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API indisponible */
+                /** @description Calendar API or Core API is unavailable or failed */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ApiError"];
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -702,12 +702,14 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarCategory"][];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
             };
         };
@@ -748,12 +750,14 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarService"][];
                     };
                 };
-                /** @description Erreur serveur */
+                /** @description Unexpected server error */
                 500: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
                 };
             };
         };
@@ -1089,10 +1093,16 @@ export interface components {
              */
             approvalStatus: "pending" | "approved" | "rejected";
         };
-        ApiError: {
-            code: string;
-            message: string;
-            details?: unknown;
+        ErrorResponse: {
+            error: {
+                /** @enum {string} */
+                code: "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "PAYLOAD_TOO_LARGE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "INTERNAL_ERROR" | "BAD_GATEWAY" | "SERVICE_UNAVAILABLE" | "GATEWAY_TIMEOUT";
+                message: string;
+                details: {
+                    path?: string;
+                    message: string;
+                }[];
+            };
         };
         CheckApiResponse: {
             /** @example OK */

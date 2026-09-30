@@ -1,3 +1,4 @@
+import { HttpError } from '@mairie360/bffs-lib';
 import {
   CalendarDirectoryUser,
   getCalendarDirectoryUser,
@@ -19,17 +20,6 @@ export type CalendarEventAccess = {
   permissions: { canEdit: boolean; canDelete: boolean; canValidate: boolean };
 };
 
-export class CalendarAccessError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly code: string,
-  ) {
-    super(message);
-    this.name = 'CalendarAccessError';
-  }
-}
-
 function normalizedRole(role: string): string {
   return role.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -47,20 +37,20 @@ export function primaryCalendarRole(user: CalendarDirectoryUser): string {
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const encodedPayload = token.split('.')[1];
   if (!encodedPayload) {
-    throw new CalendarAccessError('Jeton de session invalide.', 401, 'UNAUTHORIZED');
+    throw new HttpError(401, 'Invalid session token.');
   }
 
   try {
     return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as Record<string, unknown>;
   } catch {
-    throw new CalendarAccessError('Jeton de session invalide.', 401, 'UNAUTHORIZED');
+    throw new HttpError(401, 'Invalid session token.');
   }
 }
 
 export function currentUserIdFromAuthorization(incomingRequestToken?: string): number {
   const authorization = getAuthorizationHeader(incomingRequestToken);
   if (!authorization) {
-    throw new CalendarAccessError('Authentification requise.', 401, 'UNAUTHORIZED');
+    throw new HttpError(401, 'Authentication required.');
   }
 
   const payload = decodeJwtPayload(authorization.replace(/^Bearer\s+/i, ''));
@@ -68,7 +58,7 @@ export function currentUserIdFromAuthorization(incomingRequestToken?: string): n
   const userId = Number(rawUserId);
 
   if (!Number.isInteger(userId) || userId <= 0) {
-    throw new CalendarAccessError('Identifiant utilisateur absent du jeton.', 401, 'UNAUTHORIZED');
+    throw new HttpError(401, 'The session token has no user id.');
   }
 
   return userId;
@@ -81,7 +71,7 @@ export async function getCurrentCalendarUser(
   const user = await getCalendarDirectoryUser(userId, incomingRequestToken);
 
   if (!user) {
-    throw new CalendarAccessError('Utilisateur introuvable.', 401, 'UNAUTHORIZED');
+    throw new HttpError(401, 'Unknown user.');
   }
 
   return user;
@@ -137,20 +127,12 @@ export async function resolveAuthorizedAssigneeIds(
   const requestedIds = requestedAssigneeIds.map(parseUserAssigneeId);
 
   if (requestedIds.some((userId) => userId === null)) {
-    throw new CalendarAccessError(
-      'Une personne assignée possède un identifiant invalide.',
-      400,
-      'INVALID_ASSIGNEE',
-    );
+    throw new HttpError(400, 'An assignee has an invalid id.');
   }
 
   const unauthorizedId = requestedIds.find((userId) => userId !== null && !assignableIds.has(userId));
   if (unauthorizedId !== undefined) {
-    throw new CalendarAccessError(
-      'Cette personne ne fait pas partie de votre périmètre d’assignation.',
-      403,
-      'ASSIGNEE_OUT_OF_SCOPE',
-    );
+    throw new HttpError(403, 'This person is outside your assignment scope.');
   }
 
   return [...new Set([currentUser.id, ...requestedIds as number[]])];

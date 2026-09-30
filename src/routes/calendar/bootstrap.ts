@@ -5,9 +5,9 @@ import {
   fetchCalendarBootstrap,
   getCalendarCategories,
   getCalendarServices,
-  handleUnknownError,
   isQueryDate,
-  sendBadRequest,
+  badRequest,
+  calendarError,
 } from './calendar_helpers';
 
 const router = Router();
@@ -35,10 +35,10 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Paramètres invalides'),
-    401: apiErrorResponse('Session invalide'),
-    500: apiErrorResponse('Erreur serveur'),
-    502: apiErrorResponse('Calendar API indisponible'),
+    400: apiErrorResponse('Invalid parameters'),
+    401: apiErrorResponse('Missing or invalid session'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
   },
 });
 
@@ -52,7 +52,7 @@ router.get('/', async (req: Request, res: Response) => {
   const to = typeof req.query.to === 'string' ? req.query.to : defaults.to;
 
   if (!isQueryDate(from) || !isQueryDate(to)) {
-    return sendBadRequest(res, 'Les paramètres from et to doivent être des dates au format YYYY-MM-DD.');
+    throw badRequest('The from and to parameters must be YYYY-MM-DD dates.');
   }
 
   try {
@@ -71,7 +71,7 @@ router.get('/', async (req: Request, res: Response) => {
       assigneeScope,
     });
   } catch (error) {
-    return handleUnknownError(res, error);
+    throw calendarError(error, [400, 401]);
   }
 });
 

@@ -713,20 +713,59 @@
           "approvalStatus"
         ]
       },
-      "ApiError": {
+      "ErrorResponse": {
         "type": "object",
         "properties": {
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "details": {}
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "BAD_REQUEST",
+                  "UNAUTHORIZED",
+                  "FORBIDDEN",
+                  "NOT_FOUND",
+                  "CONFLICT",
+                  "PAYLOAD_TOO_LARGE",
+                  "UNPROCESSABLE_ENTITY",
+                  "TOO_MANY_REQUESTS",
+                  "INTERNAL_ERROR",
+                  "BAD_GATEWAY",
+                  "SERVICE_UNAVAILABLE",
+                  "GATEWAY_TIMEOUT"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ]
+          }
         },
         "required": [
-          "code",
-          "message"
+          "error"
         ]
       },
       "CheckApiResponse": {
@@ -843,41 +882,41 @@
             }
           },
           "400": {
-            "description": "Paramètres invalides",
+            "description": "Invalid parameters",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -931,41 +970,41 @@
             }
           },
           "400": {
-            "description": "Paramètres invalides",
+            "description": "Invalid parameters",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -999,51 +1038,51 @@
             }
           },
           "400": {
-            "description": "Données invalides",
+            "description": "Invalid data",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "403": {
-            "description": "Personne assignée hors du périmètre autorisé",
+            "description": "Assignee outside the authorized scope, or refused by Calendar API",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1092,61 +1131,61 @@
             }
           },
           "400": {
-            "description": "Données invalides",
+            "description": "Invalid data",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "403": {
-            "description": "Action non autorisée sur cet événement",
+            "description": "Action not allowed on this event",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "Événement non trouvé",
+            "description": "Event not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1177,61 +1216,61 @@
             "description": "Événement supprimé avec succès"
           },
           "400": {
-            "description": "Identifiant invalide",
+            "description": "Invalid id",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "403": {
-            "description": "Seul le créateur peut supprimer l’événement",
+            "description": "Only the creator can delete the event",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "Événement non trouvé",
+            "description": "Event not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1280,61 +1319,61 @@
             }
           },
           "400": {
-            "description": "Données invalides",
+            "description": "Invalid data",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "403": {
-            "description": "Action non autorisée sur cet événement",
+            "description": "Action not allowed on this event",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "404": {
-            "description": "Événement non trouvé",
+            "description": "Event not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1388,41 +1427,41 @@
             }
           },
           "400": {
-            "description": "Paramètres invalides",
+            "description": "Invalid parameters",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Session invalide",
+            "description": "Missing or invalid session",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Erreur serveur",
+            "description": "Unexpected server error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
           "502": {
-            "description": "Calendar API indisponible",
+            "description": "Calendar API or Core API is unavailable or failed",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1452,7 +1491,14 @@
             }
           },
           "500": {
-            "description": "Erreur serveur"
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1479,7 +1525,14 @@
             }
           },
           "500": {
-            "description": "Erreur serveur"
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
