@@ -882,7 +882,7 @@
             }
           },
           "400": {
-            "description": "Invalid parameters",
+            "description": "Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart",
             "content": {
               "application/json": {
                 "schema": {
@@ -970,7 +970,7 @@
             }
           },
           "400": {
-            "description": "Invalid parameters",
+            "description": "Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart",
             "content": {
               "application/json": {
                 "schema": {
@@ -1427,7 +1427,7 @@
             }
           },
           "400": {
-            "description": "Invalid parameters",
+            "description": "Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart",
             "content": {
               "application/json": {
                 "schema": {

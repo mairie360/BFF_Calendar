@@ -10,9 +10,10 @@ recurrence, their members, their validation status and the caller's rights) and 
 directory: identity, roles, groups). The BFF has no database access; its job is to merge those sources
 into frontend-shaped payloads and to keep assignment inside the caller's scope.
 
-Runtime: Express 5 + TypeScript (CommonJS), run under `tsx`. Node 22 is the reference version (matches CI).
-`npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js` with esbuild
-(`scripts/build.mjs`), inlining the `@mairie360/*` clients, which are published as TypeScript.
+Runtime: Express 5 + TypeScript (CommonJS), `tsx` in development only. Node 22 is the reference version
+(matches the contracts job). `npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js`
+with esbuild (`scripts/build.mjs`), inlining the `@mairie360/*` clients, which are published as TypeScript;
+the production image runs that bundle with plain `node dist/index.js`, like the other BFFs.
 
 ## Commands
 
@@ -23,7 +24,7 @@ npx jest tests/calendar.upstream-mocks.test.ts   # single test file
 npx jest -t "creates an event"           # single test by name
 npm run lint             # eslint . --ext .ts  (flat config: eslint.config.cjs)
 npm run lint:fix
-npm run build            # tsc --noEmit puis esbuild -> dist/index.js
+npm run build            # tsc --noEmit then esbuild -> dist/index.js
 npm run contracts:generate   # regenerate contracts/openapi.json + contracts/bff.d.ts from the live registry
 npm run contracts:check      # fails if the committed contract or generated types are stale
 ```
@@ -39,28 +40,38 @@ environment (see `.npmrc`).
 ### Request flow
 
 `src/index.ts` builds the Express app, mounts Swagger UI at `/docs`, serves the spec at `/openapi.json`
-and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calendar`.
+and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calendar`. Started directly, it exits at once when
+`CALENDAR_API_BASE_PATH` is missing.
 
 `/calendar` (`src/routes/calendar/index.ts`) fans out to sub-routers: `bootstrap`, `events`,
-`assignees`, `categories`, `services`. Each sub-route file does two things:
+`assignees`, `categories`, `services`. `bootstrap`, `events` and `assignees` sit behind `requireSession`,
+which answers 401 before any upstream call when the `Authorization` header carries no readable user id
+(Calendar API still checks the signature); `categories` and `services` are static and public. Each
+sub-route file does two things:
 1. calls `registry.registerPath(...)` at module load to declare its OpenAPI operation, and
 2. defines the Express handler, which validates input with a Zod schema then delegates.
 
 Almost all real logic lives in **`src/routes/calendar/calendar_helpers.ts`** — mapping between the BFF
-event shape and the Calendar API shapes (`ApiCreateEventBody`, `ApiPatchEventBody`, `ApiRecurrence`,
-date/time normalization), orchestrating multi-call operations (create event → sync members → refresh
-validation → upsert metadata → re-fetch), and the error helpers `badRequest`, `validationError` and
+event shape and the Calendar API models, typed with the installed `@mairie360/calendar-api-openapi`
+`model/` types (`PostEventView`, `PatchEventView`, `GetEventResultView`, `EventView`…, no casts: Calendar
+API's PATCH names the dates `event_start_time` / `event_end_time`, unlike creation and reads which use
+`events_*`), the `from`/`to` checks (`parseDateRange`: YYYY-MM-DD, ordered, at most
+`MAX_DATE_RANGE_DAYS` = 1096 days because BFF_Message reads a three-year window), orchestrating
+multi-call operations (authorize everything → create/patch → sync members → re-fetch; a create whose
+member sync fails is deleted again), bounded upstream fan-out (`mapWithConcurrency`, 5 at a time; the
+bootstrap reads each distinct event once then resolves all members with one directory call), and the
+error helpers `badRequest`, `validationError` and
 `calendarError(error, declared)`, which keeps only the upstream 4xx a route declares and turns any other
 upstream failure into a 502. Routes throw them; `notFoundHandler` + `errorHandler()` from
 `@mairie360/bffs-lib` close `src/index.ts` and answer every error in the shared envelope
 `{ error: { code, message, details } }` (schema `ErrorResponse` in the contract).
 
-### The three layers behind the helpers
+### The layers behind the helpers
 
 - **`src/clients/calendarClient.ts`** — Calendar API HTTP client: the generated
-  `@mairie360/calendar-api-openapi` client on a dedicated axios instance (`CALENDAR_API_BASE_PATH`,
-  default `http://localhost:3002/api`), with an interceptor injecting the `Authorization` header.
-  `/health` is served outside `/api`, hence `calendarApiRootUrl()` for the availability probe.
+  `@mairie360/calendar-api-openapi` client on a dedicated axios instance whose interceptor resolves the
+  root from `CALENDAR_API_BASE_PATH` on each call (no default: `calendarApiRootUrl()` throws when it is
+  unset) and normalizes the caller's `Authorization` header. Outgoing URLs are not logged.
 - **`src/clients/coreDirectory.ts`** — the directory through Core API's `GET /api/v1/user/`
   (`CORE_API_URL`/`CORE_API_PORT`), filtered by ids or groups.
 - **`src/services/calendarAccessPolicy.ts`** — decodes the JWT payload (no signature check — Calendar
@@ -68,19 +79,21 @@ upstream failure into a 502. Routes throw them; `notFoundHandler` + `errorHandle
   Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
   (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
   Its refusals are thrown as the lib's `HttpError(status, message)`.
+- **`src/services/calendarTimeZone.ts`** — users type wall-clock times in the instance time zone
+  (`CALENDAR_TIME_ZONE`, default Europe/Paris from `@mairie360/bffs-lib`), Calendar API stores UTC
+  instants: `wallClockToUtc` / `utcToWallClock` (Intl, DST-aware) convert every date/time crossing the
+  boundary, and query days are sent as their UTC first/last second. The container time zone never matters.
 
-### Why some writes go straight to SQL
+### Writes
 
-Calendar API currently accepts `PATCH` but does not persist event fields, and does not model
-assignment/approval. So `patchCalendarEvent` calls Calendar API first (to validate JWT + permissions),
-then writes the actual field changes through `updateCalendarEventDetails` and member/validation state
-through the repository. Keep this ordering: upstream call for auth, then SQL for persistence.
+Every write goes through Calendar API (the BFF has no database). All authorization checks — edit rights,
+assignee scope — run before the first upstream write, so a refused request modifies nothing.
 
 ### Approval model
 
-`validation_status` per event-member is `pending | validated | refused` in the DB; the BFF exposes it
-as `approvalStatus` `pending | approved | rejected` (mapped by `apiValidationStatus` /
-`calendarEventApprovalStatus`). An event created by a plain User that assigns a Responsible from the
+`validation_status` per event-member is `pending | validated | refused` in Calendar API; the event's
+`approval_status` (`pending | approved | rejected`) is relayed as `approvalStatus` by
+`calendarEventApprovalStatus`. An event created by a plain User that assigns a Responsible from the
 same group starts `pending`; only an assigned Responsible sharing a group with the creator can approve.
 
 ## OpenAPI / contract pipeline
@@ -95,10 +108,7 @@ registrations) and generates the document with `@asteasolutions/zod-to-openapi`.
 - `contracts/` is the versioned contract consumed by `Calendars_Web_Service`; ship BFF and web-service
   contract changes together.
 
-Ignore `orval.config.ts`, `next.config.js`, `.eslintrc.js`, and the `swagger-ui-react` /
-`openapi-typescript-codegen` deps — they are leftovers from an earlier setup and are not part of the
-active pipeline (`eslint.config.cjs` is the live lint config; `openapi-typescript` 7.10.1 is the live
-type generator).
+`eslint.config.cjs` is the lint config; `openapi-typescript` 7.10.1 is the type generator.
 
 ## Tests
 
@@ -113,8 +123,11 @@ type generator).
   test against the new contract. Orval output loses error statuses (success is exposed as `2XX`),
   formats and integer-ness, and renames path params (`{eventId}`): any mocked error reply needs
   `outOfContract: true`. Known upstream contract bugs are accepted explicitly with
-  `allowDeviation(pattern, reason)`. The app is imported after `CALENDAR_API_BASE_PATH` is set,
-  because the client reads it at module load.
+  `allowDeviation(pattern, reason)`. `CALENDAR_API_BASE_PATH` is set to the mock before the app is
+  imported (the client reads it on each call). Expected times are Paris wall-clock values of the UTC
+  fixtures (09:00Z is 11:00 in September).
+- `tests/calendar_dates.test.ts` covers the time zone conversions, `parseDateRange`,
+  `mapWithConcurrency` and the missing-URL failure, under a far-off container `TZ`.
 
 `jest.config.ts` lets ts-jest compile `node_modules/@mairie360/*` (orval ships raw ESM TypeScript).
 Auth is a hand-built unsigned JWT (`Bearer <header>.<base64url {sub}>.<sig>`); see `authorizationFor(userId)`.
@@ -159,11 +172,10 @@ CI: the reusable `BFFs-cicd.yml` `security_tests` / `performance_tests` jobs log
 
 ## Local run
 
-Needs `.env` with `CALENDAR_API_BASE_PATH`, `CORE_API_URL/PORT`, `CALENDAR_API_URL/PORT`, and
-`DB_HOST/PORT/NAME/USER/PASSWORD` pointing at a DB that already has the Mairie360 shared schema
-(`users`, `roles`, `group_members`, `events`, `event_members`, the `event_visibility` enum). With
-Docker Compose, start the BFF User stack first — it owns the shared DB and the external
-`bff_user_backend` network.
+Needs `.env` with `CALENDAR_API_BASE_PATH` (required), `CORE_API_URL/PORT`, `CALENDAR_API_URL/PORT`, and
+optionally `CALENDAR_TIME_ZONE`. The BFF itself uses no database; the databases of the Compose files only
+serve the upstream API images. With Docker Compose, start the BFF User stack first — it owns the
+external `bff_user_backend` network.
 
 ## Pull request reviewers
 

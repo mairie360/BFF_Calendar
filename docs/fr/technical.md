@@ -6,13 +6,13 @@
 
 Serveur Express 5.2.1 écrit en TypeScript. Les schémas Zod et leur registre OpenAPI décrivent les objets échangés; les routeurs adaptent les services amont aux besoins des interfaces.
 
-`src/index.ts` monte `/calendar`. Les routeurs délèguent aux helpers pour les conversions et à `calendarAccessPolicy.ts` pour les règles de rôle, d’affectation et de validation. Le client Calendar utilise un chemin de base incluant `/api`; le dépôt SQL complète les réponses métier.
+`src/index.ts` monte `/calendar`. Les routeurs délèguent aux helpers pour les conversions et à `calendarAccessPolicy.ts` pour les règles de rôle, d’affectation et de validation. Le client Calendar cible la racine de Calendar API donnée par `CALENDAR_API_BASE_PATH` (le client généré ajoute `/api/v1`).
 
 ## Données et persistance
 
 Calendar API fournit toutes les opérations sur les événements : l’événement, ses métadonnées (catégorie, service, lieu) et sa règle de répétition, ses membres et leur statut de validation, ainsi que les droits de l’appelant. Core API fournit l’annuaire (identité, rôles, groupes). Le BFF n’accède plus à la base. Les catégories et services comprennent des référentiels définis dans les helpers.
 
-Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar et du schéma SQL attendu. Le stack Docker utilise la base partagée du stack BFF User; démarrer celui-ci en premier. Les métadonnées et accès SQL restent une responsabilité actuelle du BFF.
+Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar. Le BFF n’écrit dans aucune base : toutes les écritures passent par Calendar API. Les dates et heures échangées avec l’interface sont des heures locales du fuseau de l’instance (`CALENDAR_TIME_ZONE`, Europe/Paris par défaut) ; le BFF les convertit vers et depuis les instants UTC que stocke Calendar API.
 
 ## Installation et lancement local
 
@@ -60,7 +60,8 @@ Les valeurs ci-dessous sont des exemples locaux ou des comportements expliciteme
 | Variable ou priorité | Exemple / repli indiqué | Rôle |
 | --- | --- | --- |
 | `PORT` | 4002 | Port de cet exemple local. |
-| `CALENDAR_API_BASE_PATH` | http://localhost:3002 | Racine de Calendar API (ses routes sont publiées sous `/api/v1` par le client généré). |
+| `CALENDAR_API_BASE_PATH` | http://localhost:3002 (obligatoire, sans repli) | Racine de Calendar API (ses routes sont publiées sous `/api/v1` par le client généré). Le serveur refuse de démarrer sans elle. |
+| `CALENDAR_TIME_ZONE` | Europe/Paris (repli) | Fuseau IANA de l’instance : les heures saisies y sont converties en UTC avant d’atteindre Calendar API, et inversement. |
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Hôte et port utilisés par `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Hôte et port de diagnostic; distincts du chemin du client. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | Réseau externe attendu par Docker Compose. |
@@ -85,9 +86,9 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 
 ## Session, permissions et erreurs
 
-Les routes métier attendent l’autorisation de l’appelant. La politique d’accès résout son identité et ses rôles en base, puis limite les affectations et modifications; seul le créateur peut supprimer un événement, après validation de la session par Calendar API. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
+Les routes métier attendent l’autorisation de l’appelant : `/calendar/bootstrap`, `/calendar/events*` et `/calendar/assignees` répondent 401 avant tout appel amont quand l’en-tête `Authorization` manque ou ne porte pas d’identifiant utilisateur lisible (Calendar API vérifie toujours la signature) ; `/calendar/categories` et `/calendar/services` restent publiques. La politique d’accès résout son identité et ses rôles dans Core API, puis limite les affectations et modifications, et toutes les autorisations (dont le périmètre des nouvelles personnes assignées) sont vérifiées avant la première écriture ; si l’affectation des membres d’un nouvel événement échoue, le BFF le supprime (au mieux). Seul le créateur peut supprimer un événement, après validation de la session par Calendar API. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
 
-`from` et `to` doivent être des dates `YYYY-MM-DD` et les identifiants d’événement des entiers positifs, sinon le BFF répond 400 sans appeler Calendar API. Toutes les erreurs utilisent l’enveloppe commune à tous les BFFs (`@mairie360/bffs-lib`), le schéma `ErrorResponse` du contrat : `{ "error": { "code", "message", "details" } }`, où `code` découle du statut (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`…) et `details` liste les champs invalides d’un corps refusé (`{ "path": "body.title", "message" }`), vide sinon. Un 4xx amont n’est conservé que si la route déclare ce statut dans le contrat (avec un message générique) ; tout autre statut amont et les pannes réseau deviennent 502, une route inconnue répond une enveloppe 404, un corps JSON illisible une enveloppe 400 et une erreur inattendue un 500 générique. Aucun message d’erreur de Calendar API, de Core API ou de la base n’est renvoyé au client.
+`from` et `to` doivent être des dates `YYYY-MM-DD` (jours de Paris, envoyés à Calendar API comme bornes UTC), avec `from` au plus tard égal à `to` et au plus 1096 jours (trois ans) d’écart, et les identifiants d’événement des entiers positifs, sinon le BFF répond 400 sans appeler Calendar API. Toutes les erreurs utilisent l’enveloppe commune à tous les BFFs (`@mairie360/bffs-lib`), le schéma `ErrorResponse` du contrat : `{ "error": { "code", "message", "details" } }`, où `code` découle du statut (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`…) et `details` liste les champs invalides d’un corps refusé (`{ "path": "body.title", "message" }`), vide sinon. Un 4xx amont n’est conservé que si la route déclare ce statut dans le contrat (avec un message générique) ; tout autre statut amont et les pannes réseau deviennent 502, une route inconnue répond une enveloppe 404, un corps JSON illisible une enveloppe 400 et une erreur inattendue un 500 générique. Aucun message d’erreur de Calendar API, de Core API ou de la base n’est renvoyé au client.
 
 ## Synchronisation et vérifications
 
@@ -111,7 +112,7 @@ Le job `contracts.yml` utilise Node.js 22, `actions/checkout@v7` et `actions/set
 
 `cicd.yml` appelle `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v3.0.0`, avec `cicd_version: v3.0.0` et `node_version: "22"`. Les étapes réutilisables et les environnements GitHub déterminent les contrôles, publications et déploiements effectifs.
 
-Le Dockerfile utilise encore `node:20-alpine` pour la construction et l’exécution; la commande de l’image est `["npx", "tsx", "dist/index.js"]`. Cette version est distincte du job de contrats Node.js 22.
+Le Dockerfile utilise `node:24-alpine` pour la construction et l’exécution et lance le bundle esbuild avec `["node", "dist/index.js"]`, comme les autres BFFs (`tsx` n’est qu’une dépendance de développement). Cette version est distincte du job de contrats Node.js 22.
 
 `security_test.sh` et `performance_test.sh` testent l’image désignée par `IMAGE_REF`: en CI, l’image que `release-dev` vient de publier, soit l’artefact ensuite promu en staging puis en prod. Quand `IMAGE_REF` est vide (usage local), ils construisent d’abord `bff-calendar:local` depuis `development.Dockerfile`, ce qui demande `NODE_AUTH_TOKEN` et `./.npmrc`.
 
@@ -125,7 +126,7 @@ Avant un lancement Docker, vérifier les variables de service, les secrets de bu
 
 ## Diagnostic
 
-En cas d’événements absents ou d’affectations refusées, contrôler l’utilisateur, ses groupes et la base partagée. Une erreur sur `calendar_event_metadata` impose de vérifier le schéma et les droits du compte SQL. `/check_apis` et le client métier utilisent des variables différentes.
+En cas d’événements absents ou d’affectations refusées, contrôler l’utilisateur et ses groupes dans Core API. `/check_apis` et le client métier utilisent des variables différentes.
 
 ## Repères dans le dépôt
 
