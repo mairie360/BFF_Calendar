@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { apiErrorResponse, dateQueryParameter, registry } from '../../openapi-registry';
-import { defaultDateRange, fetchKnownAssignees, badRequest, calendarError, isQueryDate } from './calendar_helpers';
+import { MAX_DATE_RANGE_DAYS, defaultDateRange, fetchKnownAssignees, calendarError, parseDateRange } from './calendar_helpers';
 
 const router = Router();
 
@@ -30,7 +30,7 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Invalid parameters'),
+    400: apiErrorResponse(`Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than ${MAX_DATE_RANGE_DAYS} days apart`),
     401: apiErrorResponse('Missing or invalid session'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
@@ -43,12 +43,7 @@ registry.registerPath({
 
 router.get('/', async (req: Request, res: Response) => {
   const defaults = defaultDateRange();
-  const from = typeof req.query.from === 'string' ? req.query.from : defaults.from;
-  const to = typeof req.query.to === 'string' ? req.query.to : defaults.to;
-
-  if (!isQueryDate(from) || !isQueryDate(to)) {
-    throw badRequest('The from and to parameters must be YYYY-MM-DD dates.');
-  }
+  const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
   try {
     const assignees = await fetchKnownAssignees(from, to, req.headers.authorization);

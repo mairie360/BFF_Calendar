@@ -117,7 +117,7 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarBootstrapResponse"];
                     };
                 };
-                /** @description Invalid parameters */
+                /** @description Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -197,7 +197,7 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarEvent"][];
                     };
                 };
-                /** @description Invalid parameters */
+                /** @description Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -627,7 +627,7 @@ export interface paths {
                         "application/json": components["schemas"]["CalendarAssignee"][];
                     };
                 };
-                /** @description Invalid parameters */
+                /** @description Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart */
                 400: {
                     headers: {
                         [name: string]: unknown;

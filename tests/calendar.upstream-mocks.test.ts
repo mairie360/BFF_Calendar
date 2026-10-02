@@ -12,6 +12,8 @@ import { OpenApiContract } from './support/openapi-contract';
 import { loadOrvalContract } from './support/orval-contract';
 import type { EventView, GetEventResultView } from '@mairie360/calendar-api-openapi/model';
 import type { ListDirectoryUsersParams } from '@mairie360/core-api-openapi/model';
+import { parisDate } from '@mairie360/bffs-lib';
+import { monthBounds, wallClockToUtc } from '../src/services/calendarTimeZone';
 import {
   authorizationFor, calendarApiUrls, calendarResult, coreApiUrls, coreDirectory, directoryUsers, eventDetails, eventView, postEventResult,
 } from './support/calendar-fixtures';
@@ -121,16 +123,18 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(200);
       expectBffContract('get', '/calendar/events', response);
+      // Calendar API instants are UTC; the BFF answers wall-clock times in Europe/Paris (UTC+2 in September).
       expect(response.body).toEqual([
-        { id: 1, title: 'Événement 1', date: '2026-09-16', category: 'meeting', location: 'Salle 1', startTime: '09:00', endTime: '10:30' },
+        { id: 1, title: 'Événement 1', date: '2026-09-16', category: 'meeting', location: 'Salle 1', startTime: '11:00', endTime: '12:30' },
         {
           id: 3, title: 'Permanence', date: '2026-09-20', endDate: '2026-09-21', category: 'other',
-          startTime: '18:00', endTime: '01:00',
+          startTime: '20:00', endTime: '03:00',
           recurrence: { frequency: 'weekly', interval: 1, daysOfWeek: [1], endsOn: '2026-12-31' },
         },
       ]);
       const [calendar] = calendarApi.calls(CALENDAR.calendar);
-      expect(`${calendar.url.pathname}${calendar.url.search}`).toBe(calendarApiUrls.getGetCalendarUrl({ start: '2026-09-01T00:00:00Z', end: '2026-09-30T23:59:59Z' }));
+      // The requested days are Paris days: their bounds are sent to Calendar API as UTC instants.
+      expect(`${calendar.url.pathname}${calendar.url.search}`).toBe(calendarApiUrls.getGetCalendarUrl({ start: '2026-08-31T22:00:00Z', end: '2026-09-30T21:59:59Z' }));
       expect(calendar.headers.authorization).toBe(authorizationFor(admin.id));
       // La liste suffit : plus d'appel à l'annuaire ni de requête supplémentaire par événement.
       expect(upstreamSequence()).toEqual([calendarListed]);
@@ -142,6 +146,10 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       ['a DD-MM-YYYY date', '/calendar/events?from=01-09-2026&to=30-09-2026'],
       ['a bootstrap date that is not YYYY-MM-DD', '/calendar/bootstrap?from=septembre'],
       ['an assignees date that is not YYYY-MM-DD', '/calendar/assignees?to=2026-9-30'],
+      ['a from date after the to date', '/calendar/events?from=2026-09-30&to=2026-09-01'],
+      ['a range longer than three years', '/calendar/events?from=2026-01-01&to=2029-01-02'],
+      ['a bootstrap range longer than three years', '/calendar/bootstrap?from=2020-01-01&to=2026-09-30'],
+      ['an assignees range longer than three years', '/calendar/assignees?from=2020-01-01&to=2026-09-30'],
     ])('rejects %s with a documented 400 before calling Calendar API', async (_label, url) => {
       mockCalendarApi();
 
@@ -149,8 +157,17 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(400);
       expectBffContract('get', url.split('?')[0], response);
-      expect(response.body).toEqual({ error: { code: 'BAD_REQUEST', message: expect.stringContaining('from and to'), details: [] } });
+      expect(response.body).toEqual({ error: { code: 'BAD_REQUEST', message: expect.stringMatching(/from|to/), details: [] } });
       expect(calendarApi.requests).toHaveLength(0);
+    });
+
+    test('accepts the three-year window BFF_Message requests for its business references', async () => {
+      mockCalendarApi();
+
+      const response = await request(app).get('/calendar/bootstrap?from=2025-01-01&to=2027-12-31').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(200);
+      expect(upstreamSequence()).toEqual([calendarListed]);
     });
 
     test('GET /calendar/bootstrap loads event details for the declared from/to range', async () => {
@@ -170,10 +187,13 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.status).toBe(200);
       expectBffContract('get', '/calendar/bootstrap', response);
       expect(bffContract.match('get', '/calendar/bootstrap')?.operation.parameters?.map((parameter) => parameter.name)).toEqual(['from', 'to']);
-      expect(upstreamSequence()).toEqual([calendarListed, called('GET', calendarApiUrls.getGetEventUrl(5)), called('GET', calendarApiUrls.getGetEventUrl(6))]);
+      expect(upstreamSequence()[0]).toBe(calendarListed);
+      expect(upstreamSequence().slice(1).sort()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(5)), called('GET', calendarApiUrls.getGetEventUrl(6))].sort());
+      // Members of all the events are resolved by a single directory call, not one per event.
+      expect(coreApi.calls(CORE.directory).filter((call) => call.url.searchParams.get('ids') === `${admin.id},${alice.id}`)).toHaveLength(1);
       expect(response.body.events[0]).toEqual({
         id: 5, title: 'Conseil municipal', date: '2026-09-16', category: 'ceremony', service: 'direction', location: 'Salle du conseil',
-        startTime: '09:00', endTime: '10:00', description: 'Description 5',
+        startTime: '11:00', endTime: '12:00', description: 'Description 5',
         assigneeIds: ['user-1', 'user-7'],
         assignees: [
           { id: 'user-1', name: 'Admin Mairie', email: 'admin@mairie.test', role: 'Admin' },
@@ -189,19 +209,16 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.body.assignees).toHaveLength(3);
     });
 
-    test('GET /calendar/bootstrap without from/to uses the current local month', async () => {
+    test('GET /calendar/bootstrap without from/to uses the current Paris month', async () => {
       mockCalendarApi();
-      const now = new Date();
-      const pad = (value: number) => `${value}`.padStart(2, '0');
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const month = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+      const { from, to } = monthBounds(parisDate());
 
       const response = await request(app).get('/calendar/bootstrap').set('Authorization', authorizationFor(admin.id));
 
       expect(response.status).toBe(200);
       const [calendar] = calendarApi.calls(CALENDAR.calendar);
       expect(`${calendar.url.pathname}${calendar.url.search}`)
-        .toBe(calendarApiUrls.getGetCalendarUrl({ start: `${month}-01T00:00:00Z`, end: `${month}-${pad(lastDay)}T23:59:59Z` }));
+        .toBe(calendarApiUrls.getGetCalendarUrl({ start: wallClockToUtc(from, '00:00:00'), end: wallClockToUtc(to, '23:59:59') }));
     });
 
     test('GET /calendar/assignees checks the session with Calendar API then returns the group scope', async () => {
@@ -222,8 +239,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('POST /calendar/events sends contract-valid bodies to Calendar API and returns the created event', async () => {
       mockCalendarApi({ createdId: 42, details: [eventDetails(42, {
         name: 'Atelier',
-        events_start_time: '2026-09-20T14:00:00Z',
-        events_end_time: '2026-09-20T16:00:00Z',
+        events_start_time: '2026-09-20T12:00:00Z',
+        events_end_time: '2026-09-20T14:00:00Z',
         category: 'activity',
         location: 'Salle 2',
         recurrence: { frequency: 'weekly', interval: 2, ends_on: '2026-12-31' },
@@ -242,17 +259,17 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expectBffContract('post', '/calendar/events', response);
       expect(upstreamSequence()[0]).toBe(called('POST', calendarApiUrls.getCreateEventUrl()));
       expect(upstreamSequence().slice(-1)).toEqual([called('GET', calendarApiUrls.getGetEventUrl(42))]);
-      // Catégorie, service, lieu et récurrence sont portés par l'événement : plus de table annexe.
+      // 14:00-16:00 typed in Paris (UTC+2 in September) is stored as 12:00Z-14:00Z.
       expect(calendarApi.calls(CALENDAR.events, 'POST')[0].body).toEqual({
         name: 'Atelier', description: null,
-        events_start_time: '2026-09-20T14:00:00Z', events_end_time: '2026-09-20T16:00:00Z',
+        events_start_time: '2026-09-20T12:00:00Z', events_end_time: '2026-09-20T14:00:00Z',
         category: 'activity', service: null, location: 'Salle 2',
         recurrence: { frequency: 'weekly', interval: 2, ends_on: '2026-12-31' },
       });
       expect(calendarApi.calls(CALENDAR.members, 'POST').map((call) => [call.url.pathname, call.body]))
         .toEqual(expect.arrayContaining([[calendarApiUrls.getAddEventMemberUrl(42), { user_id: alice.id }], [calendarApiUrls.getAddEventMemberUrl(42), { user_id: marie.id }]]));
       expect(response.body).toMatchObject({
-        id: 42, title: 'Atelier', approvalStatus: 'pending', canDelete: true,
+        id: 42, title: 'Atelier', startTime: '14:00', endTime: '16:00', approvalStatus: 'pending', canDelete: true,
         recurrence: { frequency: 'weekly', interval: 2, endsOn: '2026-12-31' },
       });
     });
@@ -303,9 +320,10 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.status).toBe(200);
       expectBffContract('patch', '/calendar/events/5', response);
       const [patch] = calendarApi.calls(CALENDAR.event, 'PATCH');
+      // Calendar API's PATCH names the dates event_start_time / event_end_time (singular), and they are UTC.
       expect(patch.body).toEqual({
         name: 'Conseil municipal', description: 'Description 5',
-        events_start_time: '2026-09-16T18:30:00Z', events_end_time: '2026-09-16T20:00:00Z',
+        event_start_time: '2026-09-16T16:30:00Z', event_end_time: '2026-09-16T18:00:00Z',
         category: 'other', service: null, location: null, recurrence: null,
       });
       expect(calendarApi.calls(CALENDAR.member, 'DELETE').map((call) => call.url.pathname))
@@ -326,6 +344,37 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expectBffContract('patch', '/calendar/events/5', response);
       expect(response.body.error.code).toBe('FORBIDDEN');
       expect(upstreamSequence()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(5))]);
+    });
+
+    test('PATCH /calendar/events/:id refuses an assignee outside the user scope without modifying the event', async () => {
+      mockCalendarApi({ details: [eventDetails(5, {
+        created_by: alice.id,
+        members: [{ id: alice.id, validation_status: 'validated' }],
+        permissions: { can_edit: true, can_delete: true, can_validate: false },
+      })] });
+
+      const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(alice.id))
+        .send({ title: 'Renommé', startTime: '08:00', assigneeIds: ['user-99'] });
+
+      expect(response.status).toBe(403);
+      expectBffContract('patch', '/calendar/events/5', response);
+      expect(response.body).toEqual({ error: { code: 'FORBIDDEN', message: 'This person is outside your assignment scope.', details: [] } });
+      // Only the read that checked the rights: no PATCH, no member change.
+      expect(upstreamSequence()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(5))]);
+    });
+
+    test('POST /calendar/events deletes the created event when assigning its members fails', async () => {
+      mockCalendarApi({ createdId: 42 });
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      calendarApi.on('post', CALENDAR.members, { status: 500, raw: 'database down', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
+        .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00', assigneeIds: ['user-3'] });
+
+      expect(response.status).toBe(502);
+      expectBffContract('post', '/calendar/events', response);
+      expect(upstreamSequence()[0]).toBe(called('POST', calendarApiUrls.getCreateEventUrl()));
+      expect(upstreamSequence().slice(-1)).toEqual([called('DELETE', calendarApiUrls.getDeleteEventUrl(42))]);
     });
 
     test.each(['abc', '1.5', '0', '-3'])('rejects the event id %s with 400 before calling Calendar API', async (id) => {
@@ -410,21 +459,38 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(coreApi.requests).toHaveLength(0);
     });
 
-    test('forwards no Authorization header when the request has none, and relays the resulting 401', async () => {
-      mockCalendarApi();
-      calendarApi.on('get', CALENDAR.calendar, { status: 401, raw: 'Unauthorized', contentType: 'text/plain', outOfContract: true });
+    test.each([
+      ['get', '/calendar/events?from=2026-09-01&to=2026-09-30', undefined],
+      ['get', '/calendar/bootstrap', undefined],
+      ['get', '/calendar/assignees', undefined],
+      ['post', '/calendar/events', 'Bearer not-a-jwt'],
+      ['patch', '/calendar/events/5', 'Bearer null'],
+      ['delete', '/calendar/events/5', undefined],
+    ] as const)('answers %s %s without a usable session token with 401 before any upstream call', async (method, url, authorization) => {
+      mockCalendarApi({ details: [eventDetails(5)] });
 
-      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30');
+      let call = request(app)[method](url);
+      if (authorization) call = call.set('Authorization', authorization);
+      const response = await (method === 'get' || method === 'delete' ? call : call.send({ title: 'Atelier', date: '2026-09-20' }));
 
       expect(response.status).toBe(401);
-      expect(calendarApi.calls(CALENDAR.calendar)[0].headers.authorization).toBeUndefined();
+      expectBffContract(method, url.split('?')[0], response);
+      expect(response.body.error.code).toBe('UNAUTHORIZED');
+      expect(calendarApi.requests).toHaveLength(0);
+      expect(coreApi.requests).toHaveLength(0);
+    });
+
+    test('keeps the static categories and services public', async () => {
+      const responses = await Promise.all([request(app).get('/calendar/categories'), request(app).get('/calendar/services')]);
+
+      expect(responses.map((response) => response.status)).toEqual([200, 200]);
     });
 
     test('maps a Calendar API 400 to 400 without leaking the upstream body', async () => {
       mockCalendarApi();
       calendarApi.on('get', CALENDAR.calendar, { status: 400, raw: 'Bad parameters', contentType: 'text/plain', outOfContract: true });
 
-      const response = await request(app).get('/calendar/events?from=2026-09-30&to=2026-09-01').set('Authorization', authorizationFor(admin.id));
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
 
       expect(response.status).toBe(400);
       expectBffContract('get', '/calendar/events', response);

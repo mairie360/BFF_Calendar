@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import calendarApi, { calendarApiRootUrl } from '../clients/calendarClient';
+import calendarApi from '../clients/calendarClient';
 import { checkCoreApi } from '../clients/coreDirectory';
 import { CheckApiResponse, CheckApiResponseSchema } from '../views/check_api_view';
 import { registry } from '../openapi-registry';
@@ -46,7 +46,7 @@ router.get('/', async (_, res) => {
   // Les deux API sont sondées indépendamment : une panne de l'une ne masque pas l'état de l'autre.
   const [coreReachable, calendarReachable] = await Promise.all([
     isReachable(checkCoreApi),
-    isReachable(() => calendarApi.health({ baseURL: calendarApiRootUrl(), timeout: 5_000 })),
+    isReachable(() => calendarApi.health({ timeout: 5_000 })),
   ]);
   const result: CheckApiResponse = {
     status: coreReachable && calendarReachable ? 'OK' : 'Error',

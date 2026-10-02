@@ -34,7 +34,7 @@ Calendar API fournit toutes les opérations sur les événements : l’événeme
 
 ## Périmètre et limites
 
-Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar et du schéma SQL attendu. Le stack Docker utilise la base partagée du stack BFF User; démarrer celui-ci en premier. Les métadonnées et accès SQL restent une responsabilité actuelle du BFF.
+Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar. Le BFF n’écrit dans aucune base : toutes les écritures passent par Calendar API. Les dates et heures échangées avec l’interface sont des heures locales du fuseau de l’instance (`CALENDAR_TIME_ZONE`, Europe/Paris par défaut) ; le BFF les convertit vers et depuis les instants UTC que stocke Calendar API.
 
 ## Pour développer ou exploiter ce module
 

@@ -7,6 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 import healthRouter from './routes/health';
 import checkApis from './routes/check_apis';
 import calendarRouter from './routes/calendar-routes';
+import { calendarApiRootUrl } from './clients/calendarClient';
 
 export const app = express();
 
@@ -65,13 +66,15 @@ app.use(notFoundHandler);
 app.use(errorHandler({ onError: (error) => console.error('[BFF Calendar] Unexpected error', error) }));
 
 // ========================================
-// Démarrage du serveur
+// Server start
 // ========================================
 
 if (require.main === module) {
+  // Fail fast on a missing upstream URL rather than answering every request with an error.
+  calendarApiRootUrl();
   app.listen(PORT, () => {
-    console.log(`🚀 Server listening on port ${PORT}`);
-    console.log(`📚 Documentation OpenAPI disponible à http://localhost:${PORT}/docs`);
-    console.log(`📋 Spec OpenAPI JSON disponible à http://localhost:${PORT}/openapi.json`);
+    console.log(`Server listening on port ${PORT}`);
+    console.log(`OpenAPI documentation available at http://localhost:${PORT}/docs`);
+    console.log(`OpenAPI JSON spec available at http://localhost:${PORT}/openapi.json`);
   });
 }

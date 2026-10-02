@@ -6,13 +6,13 @@
 
 Express 5.2.1 server written in TypeScript. Zod schemas and their OpenAPI registry describe exchanged objects; routers adapt upstream services to interface needs.
 
-`src/index.ts` mounts `/calendar`. Routers delegate conversion to the helpers and role, assignment and approval rules to `calendarAccessPolicy.ts`. The Calendar client uses a base path including `/api`; the SQL repository supplements business responses.
+`src/index.ts` mounts `/calendar`. Routers delegate conversion to the helpers and role, assignment and approval rules to `calendarAccessPolicy.ts`. The Calendar client targets the Calendar API root given by `CALENDAR_API_BASE_PATH` (the generated client adds `/api/v1`).
 
 ## Data and persistence
 
 Calendar API supplies every event operation: the events themselves, their metadata (category, service, location) and their recurrence rule, their members and their validation status, plus the rights of the caller. Core API supplies the directory (identity, roles, groups). The BFF has no database access. Categories and services include reference lists defined in the helpers.
 
-Operation depends on consistent user identifiers between Core and Calendar and the expected SQL schema. The Docker stack uses the database shared with BFF User; start that stack first. Metadata and direct SQL access remain current BFF responsibilities.
+Operation depends on consistent user identifiers between Core and Calendar. The BFF writes nothing to a database: every write goes through Calendar API. Dates and times exchanged with the interface are wall-clock values in the instance time zone (`CALENDAR_TIME_ZONE`, Europe/Paris by default); the BFF converts them to and from the UTC instants Calendar API stores.
 
 ## Installation and local startup
 
@@ -60,7 +60,8 @@ Values below are local examples or explicitly described behavior, not production
 | Variable or precedence | Example / stated fallback | Purpose |
 | --- | --- | --- |
 | `PORT` | 4002 | Port used by this local example. |
-| `CALENDAR_API_BASE_PATH` | http://localhost:3002 | Calendar API root (its routes are published under `/api/v1` by the generated client). |
+| `CALENDAR_API_BASE_PATH` | http://localhost:3002 (required, no fallback) | Calendar API root (its routes are published under `/api/v1` by the generated client). The server refuses to start without it. |
+| `CALENDAR_TIME_ZONE` | Europe/Paris (fallback) | IANA time zone of the instance: typed times are converted from it to UTC before reaching Calendar API, and back. |
 | `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Host and port used by `/check_apis`. |
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Diagnostic host and port; separate from the client base path. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | External network expected by Docker Compose. |
@@ -85,9 +86,9 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 
 ## Session, permissions and errors
 
-Business routes expect the caller’s authorization. The access policy resolves identity and database roles, then limits assignments and edits; only the creator can delete an event, after Calendar API has validated the session. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
+Business routes expect the caller’s authorization: `/calendar/bootstrap`, `/calendar/events*` and `/calendar/assignees` answer 401 before any upstream call when the `Authorization` header is missing or carries no readable user id (Calendar API still verifies the signature); `/calendar/categories` and `/calendar/services` stay public. The access policy resolves identity and Core API roles, then limits assignments and edits, and every authorization (including the scope of new assignees) is checked before the first write; when assigning the members of a new event fails, the BFF deletes it (best effort). Only the creator can delete an event, after Calendar API has validated the session. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
 
-`from` and `to` must be `YYYY-MM-DD` dates and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Every error uses the envelope shared by all the BFFs (`@mairie360/bffs-lib`), the `ErrorResponse` schema of the contract: `{ "error": { "code", "message", "details" } }`, where `code` derives from the status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`...) and `details` lists the invalid fields of a rejected body (`{ "path": "body.title", "message" }`), empty otherwise. An upstream 4xx is kept only when the route declares that status in the contract (with a generic message), any other upstream status and network failures become 502, unknown routes answer a 404 envelope, an unparsable JSON body a 400 one, and an unexpected error a generic 500. Neither Calendar API, Core API nor database error messages are returned to the client.
+`from` and `to` must be `YYYY-MM-DD` dates (Paris days, sent to Calendar API as UTC bounds), with `from` not after `to` and at most 1096 days (three years) apart, and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Every error uses the envelope shared by all the BFFs (`@mairie360/bffs-lib`), the `ErrorResponse` schema of the contract: `{ "error": { "code", "message", "details" } }`, where `code` derives from the status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`...) and `details` lists the invalid fields of a rejected body (`{ "path": "body.title", "message" }`), empty otherwise. An upstream 4xx is kept only when the route declares that status in the contract (with a generic message), any other upstream status and network failures become 502, unknown routes answer a 404 envelope, an unparsable JSON body a 400 one, and an unexpected error a generic 500. Neither Calendar API, Core API nor database error messages are returned to the client.
 
 ## Synchronization and verification
 
@@ -111,7 +112,7 @@ The `contracts.yml` job uses Node.js 22, `actions/checkout@v7` and `actions/setu
 
 `cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v3.0.0`, with `cicd_version: v3.0.0` and `node_version: "22"`. Reusable steps and GitHub environments determine actual checks, publications and deployments.
 
-The Dockerfile currently uses `node:20-alpine` for build and runtime; the image command is `["npx", "tsx", "dist/index.js"]`. That version is separate from the Node.js 22 contract job.
+The Dockerfile uses `node:24-alpine` for build and runtime and runs the esbuild bundle with `["node", "dist/index.js"]`, like the other BFFs (`tsx` is a development dependency only). That version is separate from the Node.js 22 contract job.
 
 `security_test.sh` and `performance_test.sh` test the image named by `IMAGE_REF`: in CI, the image `release-dev` has just published, the same artifact that is then promoted to staging and prod. When `IMAGE_REF` is empty (local use), they first build `bff-calendar:local` from `development.Dockerfile`, which needs `NODE_AUTH_TOKEN` and `./.npmrc`.
 

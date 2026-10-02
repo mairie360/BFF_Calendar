@@ -34,7 +34,7 @@ Calendar API supplies every event operation: the events themselves, their metada
 
 ## Scope and limitations
 
-Operation depends on consistent user identifiers between Core and Calendar and the expected SQL schema. The Docker stack uses the database shared with BFF User; start that stack first. Metadata and direct SQL access remain current BFF responsibilities.
+Operation depends on consistent user identifiers between Core and Calendar. The BFF writes nothing to a database: every write goes through Calendar API. Dates and times exchanged with the interface are wall-clock values in the instance time zone (`CALENDAR_TIME_ZONE`, Europe/Paris by default); the BFF converts them to and from the UTC instants Calendar API stores.
 
 ## Developing or operating this module
 

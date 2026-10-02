@@ -13,7 +13,8 @@ import {
   createCalendarEvent,
   deleteCalendarEvent,
   fetchCalendarEvents,
-  isQueryDate,
+  MAX_DATE_RANGE_DAYS,
+  parseDateRange,
   parseEventIdParam,
   patchCalendarEvent,
   badRequest,
@@ -51,7 +52,7 @@ registry.registerPath({
         },
       },
     },
-    400: apiErrorResponse('Invalid parameters'),
+    400: apiErrorResponse(`Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than ${MAX_DATE_RANGE_DAYS} days apart`),
     401: apiErrorResponse('Missing or invalid session'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
@@ -194,18 +195,14 @@ registry.registerPath({
 
 // GET /calendar/events
 router.get('/', async (req: Request, res: Response) => {
-  const from = typeof req.query.from === 'string' ? req.query.from : undefined;
-  const to = typeof req.query.to === 'string' ? req.query.to : undefined;
   const token = req.headers.authorization;
-  
-  if (!from || !to) {
+
+  if (req.query.from === undefined || req.query.to === undefined) {
     throw badRequest('The from and to parameters are required.');
   }
 
-  if (!isQueryDate(from) || !isQueryDate(to)) {
-    throw badRequest('The from and to parameters must be YYYY-MM-DD dates.');
-  }
-  
+  const { from, to } = parseDateRange(req.query.from, req.query.to);
+
   try {
     const events = await fetchCalendarEvents(from, to, token);
     return res.status(200).json(events);
