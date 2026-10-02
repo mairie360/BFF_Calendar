@@ -32,6 +32,6 @@ USER node
 ENV NODE_OPTIONS="--max-old-space-size=180"
 
 EXPOSE 4002
-# dist/index.js importe les clients Orval publiés en .ts : tsx les transpile au vol.
-# Binaire local plutôt que npx pour ne jamais télécharger de paquet au démarrage.
-CMD ["/app/node_modules/.bin/tsx", "dist/index.js"]
+# dist/index.js is a self-contained esbuild bundle (the @mairie360/*-openapi clients are inlined), run by
+# plain node like the other BFFs: tsx is a development dependency only.
+CMD ["node", "dist/index.js"]
