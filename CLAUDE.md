@@ -39,20 +39,25 @@ environment (see `.npmrc`).
 
 ### Request flow
 
-`src/index.ts` builds the Express app, mounts Swagger UI at `/docs`, serves the spec at `/openapi.json`
-and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calendar`. `import 'dotenv/config'` is its first line;
-started directly, it exits at once (`assertConfigured(UPSTREAMS)`) when `CALENDAR_API_URL` or `CORE_API_URL`
-is missing or invalid.
+Same layout as `Bff_Template_Repo`. `src/app.ts` builds and exports the Express app (tests import it):
+`trust proxy` from `TRUST_PROXY`, the lib's `securityHeaders` + `apiOnlyHeaders()` (strict CSP everywhere but
+`/docs`), Swagger UI at `/docs`, the spec at `/openapi.json` and `/swagger.json`, the routers `/health`,
+`/check_apis`, `/calendar`, then `notFoundHandler` + `errorHandler()`. `src/index.ts` is the entry point:
+`import 'dotenv/config'` on its first line and, started directly, `assertConfigured(UPSTREAMS)` (exits at once
+when `CALENDAR_API_URL` or `CORE_API_URL` is missing or invalid) then `listen` on `PORT` (default 4002).
 
 `/calendar` (`src/routes/calendar/index.ts`) fans out to sub-routers: `bootstrap`, `events`,
 `assignees`, `categories`, `services`. `bootstrap`, `events` and `assignees` sit behind the lib's
 `noStore` + `requireBearer`: `Cache-Control: no-store`, and a 401 before any upstream call unless the request
-carries `Authorization: Bearer <token>` (the only credential; cookies are ignored). Helpers take the request
-(`Caller`) and forward `authorization(req)` per call; Calendar API and Core API verify the token.
-`categories` and `services` are static and public. `TRUST_PROXY` feeds `app.set('trust proxy', ...)`. Each
+carries `Authorization: Bearer <token>` (the only credential; cookies are ignored). Helpers take a
+`CallContext` (`src/clients/callContext.ts`: the request + the upstream 4xx the route declares) and run every
+upstream call through the lib's `callUpstream(service, () => api.op(..., asCaller(service, req)), { declared })`
+(`retry` on idempotent GETs only); Calendar API and Core API verify the token.
+`categories` and `services` are static and public. Each
 sub-route file does two things:
 1. calls `registry.registerPath(...)` at module load to declare its OpenAPI operation, and
-2. defines the Express handler, which validates input with a Zod schema then delegates.
+2. defines the Express handler, which validates input with the lib's `parseRequest(schema, value, 'body')`
+   (400 `Validation failed`, `body.<field>` details) then delegates.
 
 Almost all real logic lives in **`src/routes/calendar/calendar_helpers.ts`** — mapping between the BFF
 event shape and the Calendar API models, typed with the installed `@mairie360/calendar-api-openapi`
@@ -62,21 +67,23 @@ API's PATCH names the dates `event_start_time` / `event_end_time`, unlike creati
 `MAX_DATE_RANGE_DAYS` = 1096 days because BFF_Message reads a three-year window), orchestrating
 multi-call operations (authorize everything → create/patch → sync members → re-fetch; a create whose
 member sync fails is deleted again), bounded upstream fan-out (`mapWithConcurrency`, 5 at a time; the
-bootstrap reads each distinct event once then resolves all members with one directory call), and the
-error helpers `badRequest`, `validationError` and
-`calendarError(error, declared)`, which keeps only the upstream 4xx a route declares and turns any other
-upstream failure into a 502. Routes throw them; `notFoundHandler` + `errorHandler()` from
-`@mairie360/bffs-lib` close `src/index.ts` and answer every error in the shared envelope
+bootstrap reads each distinct event once then resolves all members with one directory call), and
+`calendarCall`, the Calendar API binding of `callUpstream` (no answer → 502 `The CALENDAR_API service is
+unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpError`s; `notFoundHandler` +
+`errorHandler()` from `@mairie360/bffs-lib` close `src/app.ts` and answer every error in the shared envelope
 `{ error: { code, message, details } }` (schema `ErrorResponse` in the contract).
 
 ### The layers behind the helpers
 
 - **`src/clients/calendarClient.ts`** — Calendar API HTTP client: the generated
   `@mairie360/calendar-api-openapi` client on a dedicated axios instance without `baseURL`: each call
-  passes `baseUrl('CALENDAR_API')` (lib, `CALENDAR_API_URL` + optional `CALENDAR_API_PORT`, read per call,
-  no localhost default, 503 when missing) and the caller's `Authorization`. Outgoing URLs are not logged.
+  passes the lib's `asCaller('CALENDAR_API', req)` (base URL from `CALENDAR_API_URL` + optional
+  `CALENDAR_API_PORT`, read per call, no localhost default, 503 when missing; the caller's `Authorization`).
+  Outgoing URLs are not logged.
 - **`src/clients/coreDirectory.ts`** — the directory through Core API's `GET /api/v1/user/`
-  (`baseUrl('CORE_API')`: `CORE_API_URL`/`CORE_API_PORT`, no default), filtered by ids or groups.
+  (`asCaller('CORE_API', req)`: `CORE_API_URL`/`CORE_API_PORT`, no default), filtered by ids or groups.
+- **`src/routes/check_apis.ts`** — the lib's `checkApis` probing both `/health` operations with
+  `withoutSession('<SERVICE>', 5_000)`; answer `{ status, core_api, calendar_api }` (`CheckApisResponse`).
 - **`src/services/calendarAccessPolicy.ts`** — reads the caller id with the lib's `unverifiedSubject` (only
   to select its directory entry, fetched from Core API with the same token), resolves the current user, computes `assigneeScope` (`all` for
   Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event

@@ -6,7 +6,7 @@
 
 Serveur Express 5.2.1 écrit en TypeScript. Les schémas Zod et leur registre OpenAPI décrivent les objets échangés; les routeurs adaptent les services amont aux besoins des interfaces.
 
-`src/index.ts` monte `/calendar`. Les routeurs délèguent aux helpers pour les conversions et à `calendarAccessPolicy.ts` pour les règles de rôle, d’affectation et de validation. Le client Calendar cible la racine de Calendar API donnée par `CALENDAR_API_URL` / `CALENDAR_API_PORT` (le client généré ajoute `/api/v1`), et le client d’annuaire Core API via `CORE_API_URL` / `CORE_API_PORT`. Les deux sont relues à chaque appel, sans repli sur localhost : une route qui a besoin d’une variable absente répond 503, et le serveur refuse de démarrer sans elles.
+`src/app.ts` construit l’application Express et monte `/calendar` ; `src/index.ts` est le point d’entrée (charge `.env`, vérifie la configuration amont, écoute). Les routeurs délèguent aux helpers pour les conversions et à `calendarAccessPolicy.ts` pour les règles de rôle, d’affectation et de validation. Le client Calendar cible la racine de Calendar API donnée par `CALENDAR_API_URL` / `CALENDAR_API_PORT` (le client généré ajoute `/api/v1`), et le client d’annuaire Core API via `CORE_API_URL` / `CORE_API_PORT`. Les deux sont relues à chaque appel, sans repli sur localhost : une route qui a besoin d’une variable absente répond 503, et le serveur refuse de démarrer sans elles.
 
 ## Données et persistance
 
@@ -42,7 +42,7 @@ En Docker, lancer d’abord le stack BFF User. `USER_BACKEND_NETWORK` raccorde C
 npm run start
 ```
 
-`PORT` est optionnel; le repli de `src/index.ts` est `4002`.
+`PORT` est optionnel; le repli de `src/index.ts` est `4002`. Sans `CALENDAR_API_URL` ou `CORE_API_URL`, le serveur refuse de démarrer et nomme les variables manquantes.
 
 Vérifier le processus puis consulter la documentation interactive:
 
@@ -87,7 +87,7 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 
 Les routes métier attendent l’autorisation de l’appelant : `/calendar/bootstrap`, `/calendar/events*` et `/calendar/assignees` répondent 401 avant tout appel amont sauf si la requête porte `Authorization: Bearer <token>` (seul identifiant accepté : cookies et autres schémas sont ignorés ; le jeton est transmis tel quel à Calendar API et Core API, qui le vérifient), et ne sont jamais mises en cache (`Cache-Control: no-store`) ; `/calendar/categories` et `/calendar/services` restent publiques. L’identifiant de l’appelant est le `sub` du jeton, lu sans vérification uniquement pour choisir son entrée d’annuaire, que Core API renvoie ensuite pour ce même jeton. La politique d’accès résout son identité et ses rôles dans Core API, puis limite les affectations et modifications, et toutes les autorisations (dont le périmètre des nouvelles personnes assignées) sont vérifiées avant la première écriture ; si l’affectation des membres d’un nouvel événement échoue, le BFF le supprime (au mieux). Seul le créateur peut supprimer un événement, après validation de la session par Calendar API. Les statuts exposés `pending`, `approved`, `rejected` sont adaptés aux valeurs de validation du backend.
 
-`from` et `to` doivent être des dates `YYYY-MM-DD` (jours de Paris, envoyés à Calendar API comme bornes UTC), avec `from` au plus tard égal à `to` et au plus 1096 jours (trois ans) d’écart, et les identifiants d’événement des entiers positifs, sinon le BFF répond 400 sans appeler Calendar API. Toutes les erreurs utilisent l’enveloppe commune à tous les BFFs (`@mairie360/bffs-lib`), le schéma `ErrorResponse` du contrat : `{ "error": { "code", "message", "details" } }`, où `code` découle du statut (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`…) et `details` liste les champs invalides d’un corps refusé (`{ "path": "body.title", "message" }`), vide sinon. Un 4xx amont n’est conservé que si la route déclare ce statut dans le contrat (avec un message générique) ; tout autre statut amont et les pannes réseau deviennent 502, une route inconnue répond une enveloppe 404, un corps JSON illisible une enveloppe 400 et une erreur inattendue un 500 générique. Aucun message d’erreur de Calendar API, de Core API ou de la base n’est renvoyé au client.
+`from` et `to` doivent être des dates `YYYY-MM-DD` (jours de Paris, envoyés à Calendar API comme bornes UTC), avec `from` au plus tard égal à `to` et au plus 1096 jours (trois ans) d’écart, et les identifiants d’événement des entiers positifs, sinon le BFF répond 400 sans appeler Calendar API. Toutes les erreurs utilisent l’enveloppe commune à tous les BFFs (`@mairie360/bffs-lib`), le schéma `ErrorResponse` du contrat : `{ "error": { "code", "message", "details" } }`, où `code` découle du statut (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`…) et `details` liste les champs invalides d’un corps refusé (message `Validation failed`, `{ "path": "body.title", "message" }`), vide sinon. Un 4xx amont n’est conservé que si la route déclare ce statut dans le contrat (avec un message générique) ; tout autre statut amont et les pannes réseau deviennent 502 (une lecture idempotente est retentée une fois après une absence de réponse, un 502, 503 ou 504 ; jamais une écriture), une configuration amont absente donne 503, une route inconnue répond une enveloppe 404, un corps JSON illisible une enveloppe 400 et une erreur inattendue un 500 générique. Aucun message d’erreur de Calendar API, de Core API ou de la base n’est renvoyé au client.
 
 ## Synchronisation et vérifications
 
@@ -129,6 +129,7 @@ En cas d’événements absents ou d’affectations refusées, contrôler l’ut
 
 ## Repères dans le dépôt
 
+- [src/app.ts](../../src/app.ts)
 - [src/index.ts](../../src/index.ts)
 - [src/routes/calendar-routes.ts](../../src/routes/calendar-routes.ts)
 - [src/routes/calendar/calendar_helpers.ts](../../src/routes/calendar/calendar_helpers.ts)

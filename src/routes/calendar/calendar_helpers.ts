@@ -1,4 +1,4 @@
-import { HttpError, addDays, authorization, baseUrl, mapUpstreamError, type ErrorDetail } from '@mairie360/bffs-lib';
+import { HttpError, addDays, asCaller, callUpstream, type UpstreamRequestOptions } from '@mairie360/bffs-lib';
 import type {
   EventRecurrence,
   EventView,
@@ -8,11 +8,10 @@ import type {
   PostEventView,
   UpdateEventValidationView,
 } from '@mairie360/calendar-api-openapi/model';
-import axios from 'axios';
-import type { AxiosRequestConfig } from 'axios';
-import { z } from 'zod';
+import type { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
-import { type Caller, listCalendarDirectoryUsers } from '../../clients/coreDirectory';
+import type { CallContext } from '../../clients/callContext';
+import { listCalendarDirectoryUsers } from '../../clients/coreDirectory';
 import {
   CalendarDirectoryUser,
   CalendarEventAccess,
@@ -180,19 +179,19 @@ function toEventAccess(event: GetEventResultView, directory: CalendarDirectoryUs
 /** Directory entries of the members of `events`, in one Core API call. */
 function loadMembersDirectory(
   events: GetEventResultView[],
-  caller: Caller,
+  context: CallContext,
 ): Promise<CalendarDirectoryUser[]> {
   const ids = [...new Set(events.flatMap((event) => event.members.map((member) => member.id)))];
-  return listCalendarDirectoryUsers({ ids }, caller);
+  return listCalendarDirectoryUsers({ ids }, context);
 }
 
 /** Event read from Calendar API, with its members and the caller's rights. */
 async function loadCalendarEvent(
   eventId: number,
-  caller: Caller,
+  context: CallContext,
 ): Promise<{ event: GetEventResultView; access: CalendarEventAccess }> {
-  const { data: event } = await calendarApi.getEvent(eventId, authOptions(caller));
-  const directory = await loadMembersDirectory([event], caller);
+  const { data: event } = await calendarCall(context, (options) => calendarApi.getEvent(eventId, options), true);
+  const directory = await loadMembersDirectory([event], context);
 
   return { event, access: toEventAccess(event, directory) };
 }
@@ -247,12 +246,16 @@ function mapEventToPatchBody(event: BffCalendarEvent): PatchEventView {
 }
 
 /**
- * Options of a Calendar API call made with the caller's session: 401 without a Bearer token (checked
- * first), then the root read now from CALENDAR_API_URL / CALENDAR_API_PORT (503 when missing).
+ * A Calendar API call made with the caller's session (lib `asCaller`: 401 without a Bearer token, 503 when
+ * CALENDAR_API_URL is missing), its failures mapped by the lib's `callUpstream`: the 4xx the route declares
+ * are relayed, anything else becomes a 502. `retry` only for idempotent reads.
  */
-function authOptions(caller: Caller): AxiosRequestConfig {
-  const Authorization = authorization(caller);
-  return { baseURL: baseUrl('CALENDAR_API'), headers: { Authorization } };
+function calendarCall<T>(
+  context: CallContext,
+  call: (options: UpstreamRequestOptions) => Promise<T>,
+  retry = false,
+): Promise<T> {
+  return callUpstream('CALENDAR_API', () => call(asCaller('CALENDAR_API', context.req)), { declared: context.declared, retry });
 }
 
 const QUERY_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -290,48 +293,19 @@ export function parseEventIdParam(value: string | undefined): number | null {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-/** 400 for an invalid path or query parameter. */
-export function badRequest(message: string): HttpError {
-  return new HttpError(400, message);
-}
-
-/** 400 for a body rejected by its Zod schema, one detail per issue (`path` like `body.title`). */
-export function validationError(issues: z.core.$ZodIssue[]): HttpError {
-  const details: ErrorDetail[] = issues.map((issue) => ({
-    path: ['body', ...issue.path.map(String)].join('.'),
-    message: issue.message,
-  }));
-  return new HttpError(400, 'Validation failed', { details });
-}
-
-/**
- * Error to throw for a failed route. HttpErrors raised by the BFF itself are kept. For a failed upstream
- * call (Calendar API, Core API), only the upstream 4xx the route declares in its contract (`declared`) are
- * kept, with a generic message; any other status and a network failure become a 502. Upstream messages
- * and bodies are never relayed.
- */
-export function calendarError(error: unknown, declared: readonly number[]): unknown {
-  if (!axios.isAxiosError(error)) {
-    // HttpErrors keep their status; anything else is a bug, answered as a generic 500 by errorHandler().
-    return error;
-  }
-  if (error.response === undefined) return new HttpError(502, 'The calendar service is unavailable.');
-  return mapUpstreamError(error, declared);
-}
-
 /**
  * Validated `from`..`to` range of a read: both `YYYY-MM-DD`, `from` not after `to`, and at most
  * MAX_DATE_RANGE_DAYS apart. Throws a 400 otherwise, before any upstream call.
  */
 export function parseDateRange(from: unknown, to: unknown): { from: string; to: string } {
   if (!isQueryDate(from) || !isQueryDate(to)) {
-    throw badRequest('The from and to parameters must be YYYY-MM-DD dates.');
+    throw new HttpError(400, 'The from and to parameters must be YYYY-MM-DD dates.');
   }
   if (from > to) {
-    throw badRequest('The from date must not be after the to date.');
+    throw new HttpError(400, 'The from date must not be after the to date.');
   }
   if (addDays(from, MAX_DATE_RANGE_DAYS) < to) {
-    throw badRequest(`The from and to dates must be at most ${MAX_DATE_RANGE_DAYS} days apart.`);
+    throw new HttpError(400, `The from and to dates must be at most ${MAX_DATE_RANGE_DAYS} days apart.`);
   }
   return { from, to };
 }
@@ -350,70 +324,67 @@ export async function mapWithConcurrency<T, R>(items: readonly T[], limit: numbe
   return results;
 }
 
-async function listCalendarEventViews(from: string, to: string, caller: Caller): Promise<EventView[]> {
+async function listCalendarEventViews(from: string, to: string, context: CallContext): Promise<EventView[]> {
   // Calendar API returns the events owned by or assigned to the caller over the period, including those
   // whose recurrence rule overlaps it, and tells whether the caller is a member.
   const params: GetCalendarParams = { start: toApiDateTime(from, 'start'), end: toApiDateTime(to, 'end') };
-  const { data } = await calendarApi.getCalendar(params, authOptions(caller));
+  const { data } = await calendarCall(context, (options) => calendarApi.getCalendar(params, options), true);
   return data.events.filter((event) => event.is_member);
 }
 
 export async function fetchCalendarEvents(
   from: string,
   to: string,
-  caller: Caller,
+  context: CallContext,
 ): Promise<BffCalendarEvent[]> {
-  const events = await listCalendarEventViews(from, to, caller);
+  const events = await listCalendarEventViews(from, to, context);
   return events.map(mapEventListItemToBff);
 }
 
 export async function fetchCalendarEvent(
   eventId: number,
-  caller: Caller,
+  context: CallContext,
 ): Promise<BffCalendarEvent> {
-  const { event, access } = await loadCalendarEvent(eventId, caller);
+  const { event, access } = await loadCalendarEvent(eventId, context);
 
   return enrichCalendarEvent(mapEventDetailsToBff(event), access);
 }
 
 export async function createCalendarEvent(
   event: BffCalendarEvent,
-  caller: Caller,
+  context: CallContext,
 ): Promise<BffCalendarEvent> {
   // Every authorization is checked before the first write: an assignee out of scope creates nothing.
-  const currentUser = await getCurrentCalendarUser(caller);
+  const currentUser = await getCurrentCalendarUser(context);
   const assigneeIds = await resolveAuthorizedAssigneeIds(
     currentUser,
     event.assigneeIds ?? [],
-    caller,
+    context,
   );
-  const response = await calendarApi.createEvent(
-    mapEventToCreateBody(event),
-    authOptions(caller),
-  );
+  const response = await calendarCall(context, (options) => calendarApi.createEvent(mapEventToCreateBody(event), options));
   const eventId = response.data.event_id;
 
   try {
     // Calendar API recomputes the validation on every member change.
-    await syncEventMembers(eventId, [], assigneeIds, caller);
+    await syncEventMembers(eventId, [], assigneeIds, context);
   } catch (error) {
     // Creation and member assignment are separate upstream calls: undo the creation (best effort) so a
     // failed request does not leave a half-assigned event behind, then report the original failure.
-    await calendarApi.deleteEvent(eventId, authOptions(caller)).catch((rollbackError: unknown) => {
+    await calendarCall(context, (options) => calendarApi.deleteEvent(eventId, options)).catch((rollbackError: unknown) => {
       console.error(`[BFF Calendar] Could not delete event ${eventId} after a failed member assignment`, rollbackError);
     });
     throw error;
   }
 
-  return fetchCalendarEvent(eventId, caller);
+  return fetchCalendarEvent(eventId, context);
 }
 
 export async function patchCalendarEvent(
   eventId: number,
   event: BffCalendarEventPatch,
-  caller: Caller,
+  context: CallContext,
 ): Promise<BffCalendarEvent> {
-  const { event: current, access } = await loadCalendarEvent(eventId, caller);
+  const { event: current, access } = await loadCalendarEvent(eventId, context);
   if (!canCurrentUserEditEvent(access)) {
     throw new HttpError(403, 'Only the creator, or an assigned manager, mayor or administrator, can edit this event.');
   }
@@ -421,37 +392,33 @@ export async function patchCalendarEvent(
   // Every authorization is checked before the first write: an assignee out of scope modifies nothing.
   let assigneeIds: number[] | undefined;
   if (event.assigneeIds) {
-    const currentUser = await getCurrentCalendarUser(caller);
-    assigneeIds = await resolveAuthorizedAssigneeIds(currentUser, event.assigneeIds, caller);
+    const currentUser = await getCurrentCalendarUser(context);
+    assigneeIds = await resolveAuthorizedAssigneeIds(currentUser, event.assigneeIds, context);
   }
 
   const mergedEvent = { ...mapEventDetailsToBff(current), ...event };
-  await calendarApi.patchEvent(
-    eventId,
-    mapEventToPatchBody(mergedEvent),
-    authOptions(caller),
-  );
+  await calendarCall(context, (options) => calendarApi.patchEvent(eventId, mapEventToPatchBody(mergedEvent), options));
 
   if (assigneeIds) {
     await syncEventMembers(
       eventId,
       current.members.map((member) => member.id),
       assigneeIds,
-      caller,
+      context,
     );
   }
 
-  return fetchCalendarEvent(eventId, caller);
+  return fetchCalendarEvent(eventId, context);
 }
 
-export async function deleteCalendarEvent(eventId: number, caller: Caller): Promise<void> {
-  const { access } = await loadCalendarEvent(eventId, caller);
+export async function deleteCalendarEvent(eventId: number, context: CallContext): Promise<void> {
+  const { access } = await loadCalendarEvent(eventId, context);
 
   if (!canCurrentUserDeleteEvent(access)) {
     throw new HttpError(403, 'Only the creator of the event can delete it.');
   }
 
-  await calendarApi.deleteEvent(eventId, authOptions(caller));
+  await calendarCall(context, (options) => calendarApi.deleteEvent(eventId, options));
 }
 
 export function getCalendarCategories(): BffCalendarCategory[] {
@@ -465,58 +432,58 @@ export function getCalendarServices(): BffCalendarService[] {
 export async function updateCalendarEventApproval(
   eventId: number,
   approvalStatus: NonNullable<BffCalendarEvent['approvalStatus']>,
-  caller: Caller,
+  context: CallContext,
 ): Promise<BffCalendarEvent> {
-  const { access } = await loadCalendarEvent(eventId, caller);
+  const { access } = await loadCalendarEvent(eventId, context);
 
   if (!canCurrentUserValidateEvent(access)) {
     throw new HttpError(403, 'Only an assigned manager of the group can approve this event.');
   }
 
   const body: UpdateEventValidationView = { status: approvalStatus };
-  await calendarApi.updateEventValidation(eventId, body, authOptions(caller));
+  await calendarCall(context, (options) => calendarApi.updateEventValidation(eventId, body, options));
 
-  return fetchCalendarEvent(eventId, caller);
+  return fetchCalendarEvent(eventId, context);
 }
 
 export async function fetchKnownAssignees(
   from: string,
   to: string,
-  caller: Caller,
+  context: CallContext,
 ): Promise<BffCalendarAssignee[]> {
-  await fetchCalendarEvents(from, to, caller);
-  const currentUser = await getCurrentCalendarUser(caller);
-  const users = await listAssignableCalendarUsers(currentUser, caller);
+  await fetchCalendarEvents(from, to, context);
+  const currentUser = await getCurrentCalendarUser(context);
+  const users = await listAssignableCalendarUsers(currentUser, context);
   return users.map(mapDirectoryUserToAssignee);
 }
 
 export async function fetchCalendarBootstrap(
   from: string,
   to: string,
-  caller: Caller,
+  context: CallContext,
 ): Promise<{
   events: BffCalendarEvent[];
   assignees: BffCalendarAssignee[];
   currentUser: { id: string; name: string; email: string; role: string; groupIds: number[] };
   assigneeScope: 'all' | 'groups' | 'self';
 }> {
-  const calendarEvents = await listCalendarEventViews(from, to, caller);
-  const currentUser = await getCurrentCalendarUser(caller);
+  const calendarEvents = await listCalendarEventViews(from, to, context);
+  const currentUser = await getCurrentCalendarUser(context);
 
   // One detail call per distinct event, a bounded number at a time, then a single directory call for
   // the members of all of them (instead of a detail call plus a directory call per event, all at once).
   const eventIds = [...new Set(calendarEvents.map((event) => event.id))];
   const details = await mapWithConcurrency(eventIds, UPSTREAM_CONCURRENCY, async (eventId) => {
-    const { data } = await calendarApi.getEvent(eventId, authOptions(caller));
+    const { data } = await calendarCall(context, (options) => calendarApi.getEvent(eventId, options), true);
     return data;
   });
-  const directory = await loadMembersDirectory(details, caller);
+  const directory = await loadMembersDirectory(details, context);
   const detailsById = new Map(details.map((event) => [event.id, event]));
   const events = calendarEvents.map((listed) => {
     const event = detailsById.get(listed.id)!;
     return enrichCalendarEvent(mapEventDetailsToBff(event), toEventAccess(event, directory));
   });
-  const assignableUsers = await listAssignableCalendarUsers(currentUser, caller);
+  const assignableUsers = await listAssignableCalendarUsers(currentUser, context);
 
   return {
     events,
@@ -542,7 +509,7 @@ async function syncEventMembers(
   eventId: number,
   currentUserIds: number[],
   nextUserIds: number[],
-  caller: Caller,
+  context: CallContext,
 ): Promise<void> {
   const current = new Set(currentUserIds);
   const next = new Set(nextUserIds);
@@ -550,12 +517,12 @@ async function syncEventMembers(
   await mapWithConcurrency(
     [...current].filter((userId) => !next.has(userId)),
     UPSTREAM_CONCURRENCY,
-    (userId) => calendarApi.removeEventMember(eventId, userId, authOptions(caller)),
+    (userId) => calendarCall(context, (options) => calendarApi.removeEventMember(eventId, userId, options)),
   );
 
   await mapWithConcurrency(
     [...next].filter((userId) => !current.has(userId)),
     UPSTREAM_CONCURRENCY,
-    (userId) => calendarApi.addEventMember(eventId, { user_id: userId }, authOptions(caller)),
+    (userId) => calendarCall(context, (options) => calendarApi.addEventMember(eventId, { user_id: userId }, options)),
   );
 }

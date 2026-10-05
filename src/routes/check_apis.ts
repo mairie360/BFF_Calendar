@@ -1,62 +1,43 @@
+import { checkApis, checkApisResponseSchema, withoutSession } from '@mairie360/bffs-lib';
 import { Router } from 'express';
-import { baseUrl } from '@mairie360/bffs-lib';
 import calendarApi from '../clients/calendarClient';
-import { checkCoreApi } from '../clients/coreDirectory';
-import { CheckApiResponse, CheckApiResponseSchema } from '../views/check_api_view';
+import { coreApi } from '../clients/coreDirectory';
 import { registry } from '../openapi-registry';
 
 const router = Router();
+
+// Every upstream API the BFF calls, probed through the /health operation of its contract with the same
+// <SERVICE>_URL / _PORT as the real calls (an unconfigured one is reported unreachable).
+const PROBE_TIMEOUT_MS = 5_000;
+const UPSTREAMS = {
+  core_api: () => coreApi.health(withoutSession('CORE_API', PROBE_TIMEOUT_MS)),
+  calendar_api: () => calendarApi.health(withoutSession('CALENDAR_API', PROBE_TIMEOUT_MS)),
+};
+
+export const CheckApisResponseSchema = registry.register(
+  'CheckApisResponse',
+  checkApisResponseSchema(['core_api', 'calendar_api']),
+);
 
 registry.registerPath({
   method: 'get',
   path: '/check_apis',
   security: [],
   tags: ['Connectivity'],
-  summary: "Vérifie la connexion avec l'API Core et Calendar (Rust)",
+  summary: 'Checks that Core API and Calendar API are reachable',
   responses: {
     200: {
-      description: 'Connexion réussie',
-      content: {
-        'application/json': {
-          schema: CheckApiResponseSchema,
-        },
-      },
+      description: 'Every upstream API is reachable',
+      content: { 'application/json': { schema: CheckApisResponseSchema } },
     },
     502: {
-      description: 'API Core ou Calendar injoignable',
-      content: {
-        'application/json': {
-          schema: CheckApiResponseSchema,
-        },
-      },
+      description: 'Core API or Calendar API is unreachable',
+      content: { 'application/json': { schema: CheckApisResponseSchema } },
     },
   },
 });
 
-// Chaque API est sondée par l'opération /health de son contrat.
-// A missing configuration (baseUrl throws) counts as unreachable.
-async function isReachable(probe: () => Promise<unknown>): Promise<boolean> {
-  try {
-    await probe();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-router.get('/', async (_, res) => {
-  // Les deux API sont sondées indépendamment : une panne de l'une ne masque pas l'état de l'autre.
-  const [coreReachable, calendarReachable] = await Promise.all([
-    isReachable(checkCoreApi),
-    isReachable(() => calendarApi.health({ baseURL: baseUrl('CALENDAR_API'), timeout: 5_000 })),
-  ]);
-  const result: CheckApiResponse = {
-    status: coreReachable && calendarReachable ? 'OK' : 'Error',
-    core_api: coreReachable ? 'Connected' : 'Unreachable',
-    calendar_api: calendarReachable ? 'Connected' : 'Unreachable',
-  };
-
-  res.status(coreReachable && calendarReachable ? 200 : 502).json(result);
-});
+// Both APIs are probed independently: one failing does not hide the state of the other.
+router.get('/', checkApis(UPSTREAMS));
 
 export default router;

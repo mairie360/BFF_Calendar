@@ -41,7 +41,7 @@ let app: Express;
 beforeAll(async () => {
   await Promise.all(mocks.map((mock) => mock.start()));
   // The upstream URLs are read on each call (beforeEach sets <SERVICE>_URL / _PORT).
-  ({ app } = await import('../src/index'));
+  ({ app } = await import('../src/app'));
 });
 afterAll(async () => { await Promise.all(mocks.map((mock) => mock.stop())); });
 
@@ -560,7 +560,44 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(502);
       expectBffContract('post', '/calendar/events', response);
-      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'The calendar service is unavailable.', details: [] } });
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'The CALENDAR_API service is unavailable.', details: [] } });
+    });
+
+    test('names Core API when its connection drops', async () => {
+      mockCalendarApi({ list: [eventView(5)], details: [eventDetails(5)] });
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      coreApi.on('get', CORE.directory, { dropConnection: true });
+
+      const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(502);
+      expectBffContract('get', '/calendar/bootstrap', response);
+      expect(response.body).toEqual({ error: { code: 'BAD_GATEWAY', message: 'The CORE_API service is unavailable.', details: [] } });
+    });
+
+    test('retries an idempotent Calendar API read once after a transient 503', async () => {
+      mockCalendarApi();
+      let attempts = 0;
+      calendarApi.on('get', CALENDAR.calendar, () => (++attempts === 1
+        ? { status: 503, raw: 'Unavailable', contentType: 'text/plain', outOfContract: true }
+        : { body: calendarResult([]) }));
+
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(200);
+      expect(calendarApi.calls(CALENDAR.calendar, 'GET')).toHaveLength(2);
+    });
+
+    test('never retries a Calendar API write', async () => {
+      mockCalendarApi();
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      calendarApi.on('post', CALENDAR.events, { status: 503, raw: 'Unavailable', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id)).send({ title: 'Atelier', date: '2026-09-20' });
+
+      expect(response.status).toBe(502);
+      expectBffContract('post', '/calendar/events', response);
+      expect(calendarApi.calls(CALENDAR.events, 'POST')).toHaveLength(1);
     });
 
     test('maps a Core API directory failure to 502 without leaking its body', async () => {

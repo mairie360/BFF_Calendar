@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { apiErrorResponse, dateQueryParameter, registry } from '../../openapi-registry';
-import { MAX_DATE_RANGE_DAYS, defaultDateRange, fetchKnownAssignees, calendarError, parseDateRange } from './calendar_helpers';
+import { MAX_DATE_RANGE_DAYS, defaultDateRange, fetchKnownAssignees, parseDateRange } from './calendar_helpers';
 
 const router = Router();
 
@@ -46,12 +46,8 @@ router.get('/', async (req: Request, res: Response) => {
   const defaults = defaultDateRange();
   const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
-  try {
-    const assignees = await fetchKnownAssignees(from, to, req);
-    return res.status(200).json(assignees);
-  } catch (error) {
-    throw calendarError(error, [400, 401]);
-  }
+  const assignees = await fetchKnownAssignees(from, to, { req, declared: [400, 401] });
+  return res.status(200).json(assignees);
 });
 
 export default router;

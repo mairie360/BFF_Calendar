@@ -1,3 +1,4 @@
+import { HttpError, parseRequest } from '@mairie360/bffs-lib';
 import { Router, Request, Response } from 'express';
 import {
   apiErrorResponse,
@@ -17,10 +18,7 @@ import {
   parseDateRange,
   parseEventIdParam,
   patchCalendarEvent,
-  badRequest,
-  calendarError,
   updateCalendarEventApproval,
-  validationError,
 } from './calendar_helpers';
 
 const router = Router();
@@ -198,96 +196,56 @@ registry.registerPath({
 // Implémentation
 // ========================================
 
+/** Event id of the path: a positive integer, otherwise a 400 before any upstream call. */
+function eventIdOf(req: Request): number {
+  const eventId = parseEventIdParam(req.params.id as string | undefined);
+  if (eventId === null) {
+    throw new HttpError(400, 'The event id must be a positive integer.');
+  }
+  return eventId;
+}
+
+// Each route relays only the upstream 4xx its contract declares (`declared`): any other upstream failure is a 502.
+
 // GET /calendar/events
 router.get('/', async (req: Request, res: Response) => {
   if (req.query.from === undefined || req.query.to === undefined) {
-    throw badRequest('The from and to parameters are required.');
+    throw new HttpError(400, 'The from and to parameters are required.');
   }
 
   const { from, to } = parseDateRange(req.query.from, req.query.to);
-
-  try {
-    const events = await fetchCalendarEvents(from, to, req);
-    return res.status(200).json(events);
-  } catch (error) {
-    throw calendarError(error, [400, 401]);
-  }
+  const events = await fetchCalendarEvents(from, to, { req, declared: [400, 401] });
+  return res.status(200).json(events);
 });
 
 // POST /calendar/events
 router.post('/', async (req: Request, res: Response) => {
-  const bodyResult = CreateCalendarEventBodySchema.safeParse(req.body);
-
-  if (!bodyResult.success) {
-    throw validationError(bodyResult.error.issues);
-  }
-
-  try {
-    const event = await createCalendarEvent(bodyResult.data, req);
-    return res.status(201).json(event);
-  } catch (error) {
-    throw calendarError(error, [400, 401, 403]);
-  }
+  const body = parseRequest(CreateCalendarEventBodySchema, req.body, 'body');
+  const event = await createCalendarEvent(body, { req, declared: [400, 401, 403] });
+  return res.status(201).json(event);
 });
 
 // PATCH /calendar/events/:id
 router.patch('/:id', async (req: Request, res: Response) => {
-  const eventId = parseEventIdParam(req.params.id);
-
-  if (eventId === null) {
-    throw badRequest('The event id must be a positive integer.');
-  }
-
-  const bodyResult = UpdateCalendarEventBodySchema.safeParse(req.body);
-  
-  if (!bodyResult.success) {
-    throw validationError(bodyResult.error.issues);
-  }
-
-  try {
-    const event = await patchCalendarEvent(eventId, bodyResult.data, req);
-    return res.status(200).json(event);
-  } catch (error) {
-    throw calendarError(error, [400, 401, 403, 404]);
-  }
+  const eventId = eventIdOf(req);
+  const body = parseRequest(UpdateCalendarEventBodySchema, req.body, 'body');
+  const event = await patchCalendarEvent(eventId, body, { req, declared: [400, 401, 403, 404] });
+  return res.status(200).json(event);
 });
 
 // PATCH /calendar/events/:id/approval
 router.patch('/:id/approval', async (req: Request, res: Response) => {
-  const eventId = parseEventIdParam(req.params.id);
-
-  if (eventId === null) {
-    throw badRequest('The event id must be a positive integer.');
-  }
-
-  const bodyResult = UpdateCalendarEventApprovalBodySchema.safeParse(req.body);
-
-  if (!bodyResult.success) {
-    throw validationError(bodyResult.error.issues);
-  }
-
-  try {
-    const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus, req);
-    return res.status(200).json(event);
-  } catch (error) {
-    throw calendarError(error, [400, 401, 403, 404]);
-  }
+  const eventId = eventIdOf(req);
+  const { approvalStatus } = parseRequest(UpdateCalendarEventApprovalBodySchema, req.body, 'body');
+  const event = await updateCalendarEventApproval(eventId, approvalStatus, { req, declared: [400, 401, 403, 404] });
+  return res.status(200).json(event);
 });
 
 // DELETE /calendar/events/:id
 router.delete('/:id', async (req: Request, res: Response) => {
-  const eventId = parseEventIdParam(req.params.id);
-
-  if (eventId === null) {
-    throw badRequest('The event id must be a positive integer.');
-  }
-  
-  try {
-    await deleteCalendarEvent(eventId, req);
-    return res.status(204).send();
-  } catch (error) {
-    throw calendarError(error, [400, 401, 403, 404]);
-  }
+  const eventId = eventIdOf(req);
+  await deleteCalendarEvent(eventId, { req, declared: [400, 401, 403, 404] });
+  return res.status(204).send();
 });
 
 export default router;

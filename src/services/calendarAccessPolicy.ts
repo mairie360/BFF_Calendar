@@ -1,6 +1,6 @@
 import { HttpError, authorization, unverifiedSubject } from '@mairie360/bffs-lib';
+import type { CallContext } from '../clients/callContext';
 import {
-  type Caller,
   CalendarDirectoryUser,
   getCalendarDirectoryUser,
   listCalendarDirectoryUsers,
@@ -40,17 +40,17 @@ export function primaryCalendarRole(user: CalendarDirectoryUser): string {
  * the signature, so a forged `sub` gets the call refused. 401 when there is no Bearer token or no
  * readable `sub`.
  */
-export function currentUserId(caller: Caller): number {
-  const userId = unverifiedSubject(authorization(caller));
+export function currentUserId(context: CallContext): number {
+  const userId = unverifiedSubject(authorization(context.req));
   if (userId === undefined) {
     throw new HttpError(401, 'The session token has no user id.');
   }
   return userId;
 }
 
-export async function getCurrentCalendarUser(caller: Caller): Promise<CalendarDirectoryUser> {
-  const userId = currentUserId(caller);
-  const user = await getCalendarDirectoryUser(userId, caller);
+export async function getCurrentCalendarUser(context: CallContext): Promise<CalendarDirectoryUser> {
+  const userId = currentUserId(context);
+  const user = await getCalendarDirectoryUser(userId, context);
 
   if (!user) {
     throw new HttpError(401, 'Unknown user.');
@@ -69,19 +69,19 @@ export function calendarAssigneeScope(user: CalendarDirectoryUser): 'all' | 'gro
 
 export async function listAssignableCalendarUsers(
   currentUser: CalendarDirectoryUser,
-  caller: Caller,
+  context: CallContext,
 ): Promise<CalendarDirectoryUser[]> {
   const scope = calendarAssigneeScope(currentUser);
 
   if (scope === 'all') {
-    return listCalendarDirectoryUsers({}, caller);
+    return listCalendarDirectoryUsers({}, context);
   }
 
   if (scope === 'self') {
     return [currentUser];
   }
 
-  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds }, caller);
+  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds }, context);
 }
 
 function parseUserAssigneeId(value: string | number): number | null {
@@ -102,9 +102,9 @@ function parseUserAssigneeId(value: string | number): number | null {
 export async function resolveAuthorizedAssigneeIds(
   currentUser: CalendarDirectoryUser,
   requestedAssigneeIds: Array<string | number>,
-  caller: Caller,
+  context: CallContext,
 ): Promise<number[]> {
-  const assignableUsers = await listAssignableCalendarUsers(currentUser, caller);
+  const assignableUsers = await listAssignableCalendarUsers(currentUser, context);
   const assignableIds = new Set(assignableUsers.map((user) => user.id));
   const requestedIds = requestedAssigneeIds.map(parseUserAssigneeId);
 
