@@ -1,5 +1,5 @@
-import { Router, type NextFunction, type Request, type Response } from 'express';
-import { currentUserIdFromAuthorization } from '../../services/calendarAccessPolicy';
+import { Router } from 'express';
+import { noStore, requireBearer } from '@mairie360/bffs-lib';
 import bootstrapRoutes from './bootstrap';
 import eventsRoutes from './events';
 import assigneesRoutes from './assignees';
@@ -8,19 +8,12 @@ import servicesRoutes from './services';
 
 const router = Router();
 
-/**
- * Refuses a request without a usable session token (missing header, unreadable JWT, no user id) with a 401
- * before any upstream call. Calendar API still verifies the signature on every call the BFF makes.
- */
-function requireSession(req: Request, _res: Response, next: NextFunction): void {
-  currentUserIdFromAuthorization(req.headers.authorization);
-  next();
-}
-
-// All the calendar sub-routes. Categories and services are static lists and stay public.
-router.use('/bootstrap', requireSession, bootstrapRoutes);
-router.use('/events', requireSession, eventsRoutes);
-router.use('/assignees', requireSession, assigneesRoutes);
+// Session-bound sub-routes: never cached, and refused with a 401 before any upstream call when the request
+// carries no `Authorization: Bearer <token>` (Calendar API and Core API verify the token on every call).
+// Categories and services are static lists and stay public.
+router.use('/bootstrap', noStore, requireBearer, bootstrapRoutes);
+router.use('/events', noStore, requireBearer, eventsRoutes);
+router.use('/assignees', noStore, requireBearer, assigneesRoutes);
 router.use('/categories', categoriesRoutes);
 router.use('/services', servicesRoutes);
 

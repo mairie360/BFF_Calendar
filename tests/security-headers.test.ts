@@ -15,3 +15,10 @@ describe('security headers (helmet)', () => {
     expect(res.headers['content-security-policy']).not.toContain('upgrade-insecure-requests');
   });
 });
+
+describe('trust proxy', () => {
+  test('trusts no proxy when TRUST_PROXY is unset', () => {
+    expect(process.env.TRUST_PROXY).toBeUndefined();
+    expect(app.get('trust proxy')).toBe(false);
+  });
+});

@@ -1,17 +1,17 @@
-import { HttpError } from '@mairie360/bffs-lib';
+import { HttpError, authorization, unverifiedSubject } from '@mairie360/bffs-lib';
 import {
+  type Caller,
   CalendarDirectoryUser,
   getCalendarDirectoryUser,
   listCalendarDirectoryUsers,
 } from '../clients/coreDirectory';
-import { getAuthorizationHeader } from '../config/token';
 
 export type { CalendarDirectoryUser };
 
-/** Statut de validation d'un événement, calculé par Calendar API à partir de ses membres. */
+/** Approval status of an event, computed by Calendar API from its members. */
 export type CalendarApprovalStatus = 'pending' | 'approved' | 'rejected';
 
-/** Membres d'un événement, résolus dans l'annuaire, et droits calculés par Calendar API. */
+/** Members of an event, resolved in the directory, and the rights Calendar API computed for the caller. */
 export type CalendarEventAccess = {
   eventId: number;
   createdById: number | null;
@@ -34,41 +34,23 @@ export function primaryCalendarRole(user: CalendarDirectoryUser): string {
   return priority.find((role) => hasCalendarRole(user, role)) ?? user.roles[0] ?? 'Guest';
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const encodedPayload = token.split('.')[1];
-  if (!encodedPayload) {
-    throw new HttpError(401, 'Invalid session token.');
-  }
-
-  try {
-    return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as Record<string, unknown>;
-  } catch {
-    throw new HttpError(401, 'Invalid session token.');
-  }
-}
-
-export function currentUserIdFromAuthorization(incomingRequestToken?: string): number {
-  const authorization = getAuthorizationHeader(incomingRequestToken);
-  if (!authorization) {
-    throw new HttpError(401, 'Authentication required.');
-  }
-
-  const payload = decodeJwtPayload(authorization.replace(/^Bearer\s+/i, ''));
-  const rawUserId = payload.sub ?? payload.user_id ?? payload.id;
-  const userId = Number(rawUserId);
-
-  if (!Number.isInteger(userId) || userId <= 0) {
+/**
+ * Id of the caller, read from the `sub` of its session token **without verifying it**. It only selects
+ * the caller's directory entry, which is then read from Core API with that same token: Core API verifies
+ * the signature, so a forged `sub` gets the call refused. 401 when there is no Bearer token or no
+ * readable `sub`.
+ */
+export function currentUserId(caller: Caller): number {
+  const userId = unverifiedSubject(authorization(caller));
+  if (userId === undefined) {
     throw new HttpError(401, 'The session token has no user id.');
   }
-
   return userId;
 }
 
-export async function getCurrentCalendarUser(
-  incomingRequestToken?: string,
-): Promise<CalendarDirectoryUser> {
-  const userId = currentUserIdFromAuthorization(incomingRequestToken);
-  const user = await getCalendarDirectoryUser(userId, incomingRequestToken);
+export async function getCurrentCalendarUser(caller: Caller): Promise<CalendarDirectoryUser> {
+  const userId = currentUserId(caller);
+  const user = await getCalendarDirectoryUser(userId, caller);
 
   if (!user) {
     throw new HttpError(401, 'Unknown user.');
@@ -87,19 +69,19 @@ export function calendarAssigneeScope(user: CalendarDirectoryUser): 'all' | 'gro
 
 export async function listAssignableCalendarUsers(
   currentUser: CalendarDirectoryUser,
-  incomingRequestToken?: string,
+  caller: Caller,
 ): Promise<CalendarDirectoryUser[]> {
   const scope = calendarAssigneeScope(currentUser);
 
   if (scope === 'all') {
-    return listCalendarDirectoryUsers({}, incomingRequestToken);
+    return listCalendarDirectoryUsers({}, caller);
   }
 
   if (scope === 'self') {
     return [currentUser];
   }
 
-  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds }, incomingRequestToken);
+  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds }, caller);
 }
 
 function parseUserAssigneeId(value: string | number): number | null {
@@ -120,9 +102,9 @@ function parseUserAssigneeId(value: string | number): number | null {
 export async function resolveAuthorizedAssigneeIds(
   currentUser: CalendarDirectoryUser,
   requestedAssigneeIds: Array<string | number>,
-  incomingRequestToken?: string,
+  caller: Caller,
 ): Promise<number[]> {
-  const assignableUsers = await listAssignableCalendarUsers(currentUser, incomingRequestToken);
+  const assignableUsers = await listAssignableCalendarUsers(currentUser, caller);
   const assignableIds = new Set(assignableUsers.map((user) => user.id));
   const requestedIds = requestedAssigneeIds.map(parseUserAssigneeId);
 
@@ -138,8 +120,8 @@ export async function resolveAuthorizedAssigneeIds(
   return [...new Set([currentUser.id, ...requestedIds as number[]])];
 }
 
-// Les droits sur un événement (validation, modification, suppression) et son statut d'approbation sont
-// calculés par Calendar API, qui les applique aussi côté serveur : le BFF relaie ses réponses.
+// The rights on an event (validate, edit, delete) and its approval status are computed by Calendar API,
+// which also enforces them server-side: the BFF relays its answers.
 export function calendarEventApprovalStatus(eventAccess: CalendarEventAccess): CalendarApprovalStatus {
   return eventAccess.approvalStatus;
 }

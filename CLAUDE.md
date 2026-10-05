@@ -44,9 +44,11 @@ and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calen
 `CALENDAR_API_BASE_PATH` is missing.
 
 `/calendar` (`src/routes/calendar/index.ts`) fans out to sub-routers: `bootstrap`, `events`,
-`assignees`, `categories`, `services`. `bootstrap`, `events` and `assignees` sit behind `requireSession`,
-which answers 401 before any upstream call when the `Authorization` header carries no readable user id
-(Calendar API still checks the signature); `categories` and `services` are static and public. Each
+`assignees`, `categories`, `services`. `bootstrap`, `events` and `assignees` sit behind the lib's
+`noStore` + `requireBearer`: `Cache-Control: no-store`, and a 401 before any upstream call unless the request
+carries `Authorization: Bearer <token>` (the only credential; cookies are ignored). Helpers take the request
+(`Caller`) and forward `authorization(req)` per call; Calendar API and Core API verify the token.
+`categories` and `services` are static and public. `TRUST_PROXY` feeds `app.set('trust proxy', ...)`. Each
 sub-route file does two things:
 1. calls `registry.registerPath(...)` at module load to declare its OpenAPI operation, and
 2. defines the Express handler, which validates input with a Zod schema then delegates.
@@ -74,8 +76,8 @@ upstream failure into a 502. Routes throw them; `notFoundHandler` + `errorHandle
   unset) and normalizes the caller's `Authorization` header. Outgoing URLs are not logged.
 - **`src/clients/coreDirectory.ts`** — the directory through Core API's `GET /api/v1/user/`
   (`CORE_API_URL`/`CORE_API_PORT`), filtered by ids or groups.
-- **`src/services/calendarAccessPolicy.ts`** — decodes the JWT payload (no signature check — Calendar
-  API is trusted to have verified it), resolves the current user, computes `assigneeScope` (`all` for
+- **`src/services/calendarAccessPolicy.ts`** — reads the caller id with the lib's `unverifiedSubject` (only
+  to select its directory entry, fetched from Core API with the same token), resolves the current user, computes `assigneeScope` (`all` for
   Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
   (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
   Its refusals are thrown as the lib's `HttpError(status, message)`.

@@ -464,7 +464,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       ['get', '/calendar/bootstrap', undefined],
       ['get', '/calendar/assignees', undefined],
       ['post', '/calendar/events', 'Bearer not-a-jwt'],
-      ['patch', '/calendar/events/5', 'Bearer null'],
+      ['patch', '/calendar/events/5', 'Basic dXNlcjpwYXNz'],
+      ['patch', '/calendar/events/5/approval', 'Bearer'],
       ['delete', '/calendar/events/5', undefined],
     ] as const)('answers %s %s without a usable session token with 401 before any upstream call', async (method, url, authorization) => {
       mockCalendarApi({ details: [eventDetails(5)] });
@@ -478,6 +479,50 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.body.error.code).toBe('UNAUTHORIZED');
       expect(calendarApi.requests).toHaveLength(0);
       expect(coreApi.requests).toHaveLength(0);
+    });
+
+    test.each([
+      ['/calendar/events?from=2026-09-01&to=2026-09-30', 401],
+      ['/calendar/bootstrap', 401],
+      ['/calendar/assignees', 401],
+    ] as const)('never lets GET %s be cached, even when refused', async (url, status) => {
+      const response = await request(app).get(url);
+
+      expect(response.status).toBe(status);
+      expect(response.headers['cache-control']).toBe('no-store');
+    });
+
+    test('forwards the caller session normalised to "Bearer <token>", whatever the scheme case', async () => {
+      mockCalendarApi({ list: [] });
+      const token = authorizationFor(admin.id).replace(/^Bearer /, '');
+
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', `bearer   ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(calendarApi.calls(CALENDAR.calendar, 'GET')[0].headers.authorization).toBe(`Bearer ${token}`);
+    });
+
+    test('lets Calendar API judge a Bearer token the BFF cannot read, and relays its 401', async () => {
+      mockCalendarApi();
+      calendarApi.on('get', CALENDAR.calendar, { status: 401, raw: 'Unauthorized', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', 'Bearer not-a-jwt');
+
+      expect(response.status).toBe(401);
+      expectBffContract('get', '/calendar/events', response);
+      expect(calendarApi.calls(CALENDAR.calendar, 'GET')[0].headers.authorization).toBe('Bearer not-a-jwt');
+      expect(coreApi.requests).toHaveLength(0);
+    });
+
+    test('ignores the accessToken cookie: only the Authorization header carries the session', async () => {
+      mockCalendarApi();
+
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30')
+        .set('Cookie', `accessToken=${authorizationFor(admin.id).replace(/^Bearer /, '')}`);
+
+      expect(response.status).toBe(401);
+      expect(calendarApi.requests).toHaveLength(0);
     });
 
     test('keeps the static categories and services public', async () => {

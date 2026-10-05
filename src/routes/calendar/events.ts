@@ -195,8 +195,6 @@ registry.registerPath({
 
 // GET /calendar/events
 router.get('/', async (req: Request, res: Response) => {
-  const token = req.headers.authorization;
-
   if (req.query.from === undefined || req.query.to === undefined) {
     throw badRequest('The from and to parameters are required.');
   }
@@ -204,7 +202,7 @@ router.get('/', async (req: Request, res: Response) => {
   const { from, to } = parseDateRange(req.query.from, req.query.to);
 
   try {
-    const events = await fetchCalendarEvents(from, to, token);
+    const events = await fetchCalendarEvents(from, to, req);
     return res.status(200).json(events);
   } catch (error) {
     throw calendarError(error, [400, 401]);
@@ -220,7 +218,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const event = await createCalendarEvent(bodyResult.data, req.headers.authorization);
+    const event = await createCalendarEvent(bodyResult.data, req);
     return res.status(201).json(event);
   } catch (error) {
     throw calendarError(error, [400, 401, 403]);
@@ -242,7 +240,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const event = await patchCalendarEvent(eventId, bodyResult.data, req.headers.authorization);
+    const event = await patchCalendarEvent(eventId, bodyResult.data, req);
     return res.status(200).json(event);
   } catch (error) {
     throw calendarError(error, [400, 401, 403, 404]);
@@ -264,7 +262,7 @@ router.patch('/:id/approval', async (req: Request, res: Response) => {
   }
 
   try {
-    const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus, req.headers.authorization);
+    const event = await updateCalendarEventApproval(eventId, bodyResult.data.approvalStatus, req);
     return res.status(200).json(event);
   } catch (error) {
     throw calendarError(error, [400, 401, 403, 404]);
@@ -280,7 +278,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
   
   try {
-    await deleteCalendarEvent(eventId, req.headers.authorization);
+    await deleteCalendarEvent(eventId, req);
     return res.status(204).send();
   } catch (error) {
     throw calendarError(error, [400, 401, 403, 404]);

@@ -7,7 +7,7 @@ extendZodWithOpenApi(z);
 
 export const registry = new OpenAPIRegistry();
 
-// Bearer JWT read from the Authorization header (`getAuthorizationHeader`, src/config/token.ts) and
+// Bearer JWT read from the Authorization header (`authorization(req)` of @mairie360/bffs-lib) and
 // forwarded upstream. The document requires it on every operation (`openapi.ts`); public operations
 // opt out with `security: []`. The ZAP OpenAPI coverage gate reads this to tell which operations
 // must be reached authenticated.
