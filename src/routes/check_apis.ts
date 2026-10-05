@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { baseUrl } from '@mairie360/bffs-lib';
 import calendarApi from '../clients/calendarClient';
 import { checkCoreApi } from '../clients/coreDirectory';
 import { CheckApiResponse, CheckApiResponseSchema } from '../views/check_api_view';
@@ -33,6 +34,7 @@ registry.registerPath({
 });
 
 // Chaque API est sondée par l'opération /health de son contrat.
+// A missing configuration (baseUrl throws) counts as unreachable.
 async function isReachable(probe: () => Promise<unknown>): Promise<boolean> {
   try {
     await probe();
@@ -46,7 +48,7 @@ router.get('/', async (_, res) => {
   // Les deux API sont sondées indépendamment : une panne de l'une ne masque pas l'état de l'autre.
   const [coreReachable, calendarReachable] = await Promise.all([
     isReachable(checkCoreApi),
-    isReachable(() => calendarApi.health({ timeout: 5_000 })),
+    isReachable(() => calendarApi.health({ baseURL: baseUrl('CALENDAR_API'), timeout: 5_000 })),
   ]);
   const result: CheckApiResponse = {
     status: coreReachable && calendarReachable ? 'OK' : 'Error',

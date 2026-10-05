@@ -10,8 +10,8 @@ recurrence, their members, their validation status and the caller's rights) and 
 directory: identity, roles, groups). The BFF has no database access; its job is to merge those sources
 into frontend-shaped payloads and to keep assignment inside the caller's scope.
 
-Runtime: Express 5 + TypeScript (CommonJS), `tsx` in development only. Node 22 is the reference version
-(matches the contracts job). `npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js`
+Runtime: Express 5 + TypeScript (CommonJS), `tsx` in development only. Node 24 is the reference version
+(matches the contracts job, `cicd.yml` and the digest-pinned `node:24-alpine` images). `npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js`
 with esbuild (`scripts/build.mjs`), inlining the `@mairie360/*` clients, which are published as TypeScript;
 the production image runs that bundle with plain `node dist/index.js`, like the other BFFs.
 
@@ -40,8 +40,9 @@ environment (see `.npmrc`).
 ### Request flow
 
 `src/index.ts` builds the Express app, mounts Swagger UI at `/docs`, serves the spec at `/openapi.json`
-and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calendar`. Started directly, it exits at once when
-`CALENDAR_API_BASE_PATH` is missing.
+and `/swagger.json`, and mounts three routers: `/health`, `/check_apis`, `/calendar`. `import 'dotenv/config'` is its first line;
+started directly, it exits at once (`assertConfigured(UPSTREAMS)`) when `CALENDAR_API_URL` or `CORE_API_URL`
+is missing or invalid.
 
 `/calendar` (`src/routes/calendar/index.ts`) fans out to sub-routers: `bootstrap`, `events`,
 `assignees`, `categories`, `services`. `bootstrap`, `events` and `assignees` sit behind the lib's
@@ -71,11 +72,11 @@ upstream failure into a 502. Routes throw them; `notFoundHandler` + `errorHandle
 ### The layers behind the helpers
 
 - **`src/clients/calendarClient.ts`** — Calendar API HTTP client: the generated
-  `@mairie360/calendar-api-openapi` client on a dedicated axios instance whose interceptor resolves the
-  root from `CALENDAR_API_BASE_PATH` on each call (no default: `calendarApiRootUrl()` throws when it is
-  unset) and normalizes the caller's `Authorization` header. Outgoing URLs are not logged.
+  `@mairie360/calendar-api-openapi` client on a dedicated axios instance without `baseURL`: each call
+  passes `baseUrl('CALENDAR_API')` (lib, `CALENDAR_API_URL` + optional `CALENDAR_API_PORT`, read per call,
+  no localhost default, 503 when missing) and the caller's `Authorization`. Outgoing URLs are not logged.
 - **`src/clients/coreDirectory.ts`** — the directory through Core API's `GET /api/v1/user/`
-  (`CORE_API_URL`/`CORE_API_PORT`), filtered by ids or groups.
+  (`baseUrl('CORE_API')`: `CORE_API_URL`/`CORE_API_PORT`, no default), filtered by ids or groups.
 - **`src/services/calendarAccessPolicy.ts`** — reads the caller id with the lib's `unverifiedSubject` (only
   to select its directory entry, fetched from Core API with the same token), resolves the current user, computes `assigneeScope` (`all` for
   Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
@@ -125,8 +126,8 @@ registrations) and generates the document with `@asteasolutions/zod-to-openapi`.
   test against the new contract. Orval output loses error statuses (success is exposed as `2XX`),
   formats and integer-ness, and renames path params (`{eventId}`): any mocked error reply needs
   `outOfContract: true`. Known upstream contract bugs are accepted explicitly with
-  `allowDeviation(pattern, reason)`. `CALENDAR_API_BASE_PATH` is set to the mock before the app is
-  imported (the client reads it on each call). Expected times are Paris wall-clock values of the UTC
+  `allowDeviation(pattern, reason)`. `CALENDAR_API_URL/PORT` and `CORE_API_URL/PORT` point to the mocks
+  in `beforeEach` (read on each call). `tests/startup.test.ts` checks the fail-fast start. Expected times are Paris wall-clock values of the UTC
   fixtures (09:00Z is 11:00 in September).
 - `tests/calendar_dates.test.ts` covers the time zone conversions, `parseDateRange`,
   `mapWithConcurrency` and the missing-URL failure, under a far-off container `TZ`.
@@ -174,8 +175,8 @@ CI: the reusable `BFFs-cicd.yml` `security_tests` / `performance_tests` jobs log
 
 ## Local run
 
-Needs `.env` with `CALENDAR_API_BASE_PATH` (required), `CORE_API_URL/PORT`, `CALENDAR_API_URL/PORT`, and
-optionally `CALENDAR_TIME_ZONE`. The BFF itself uses no database; the databases of the Compose files only
+Needs `.env` with `CALENDAR_API_URL` and `CORE_API_URL` (required, scheme optional, each with an optional
+`_PORT`), and optionally `CALENDAR_TIME_ZONE` and `TRUST_PROXY`. The BFF itself uses no database; the databases of the Compose files only
 serve the upstream API images. With Docker Compose, start the BFF User stack first — it owns the
 external `bff_user_backend` network.
 

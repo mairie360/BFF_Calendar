@@ -9,7 +9,6 @@ import {
   parseDateRange,
   parseEventIdParam,
 } from '../src/routes/calendar/calendar_helpers';
-import { calendarApiRootUrl } from '../src/clients/calendarClient';
 import { monthBounds, utcToWallClock, wallClockToUtc } from '../src/services/calendarTimeZone';
 
 describe('calendar date and id helpers', () => {
@@ -91,23 +90,5 @@ describe('mapWithConcurrency', () => {
     const task = jest.fn();
     await expect(mapWithConcurrency([], 3, task)).resolves.toEqual([]);
     expect(task).not.toHaveBeenCalled();
-  });
-});
-
-describe('calendarApiRootUrl', () => {
-  const saved = process.env.CALENDAR_API_BASE_PATH;
-  afterEach(() => {
-    if (saved === undefined) delete process.env.CALENDAR_API_BASE_PATH;
-    else process.env.CALENDAR_API_BASE_PATH = saved;
-  });
-
-  test('fails explicitly instead of defaulting to localhost when CALENDAR_API_BASE_PATH is missing', () => {
-    delete process.env.CALENDAR_API_BASE_PATH;
-    expect(() => calendarApiRootUrl()).toThrow(/CALENDAR_API_BASE_PATH is not set/);
-  });
-
-  test('drops trailing slashes', () => {
-    process.env.CALENDAR_API_BASE_PATH = 'http://calendar-api:3002//';
-    expect(calendarApiRootUrl()).toBe('http://calendar-api:3002');
   });
 });

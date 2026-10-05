@@ -1,6 +1,6 @@
 import { getCoreAPIMairie360 } from '@mairie360/core-api-openapi/endpoints/coreAPIMairie360';
 import type { DirectoryUser } from '@mairie360/core-api-openapi/model';
-import { authorization } from '@mairie360/bffs-lib';
+import { authorization, baseUrl } from '@mairie360/bffs-lib';
 import axios, { type AxiosRequestConfig } from 'axios';
 import type { Request } from 'express';
 
@@ -22,23 +22,14 @@ export type CalendarDirectoryUser = {
   groupIds: number[];
 };
 
-function normalizeBaseUrl(value: string): string {
-  return /^https?:\/\//i.test(value) ? value : `http://${value}`;
-}
-
 /**
- * Options of a Core API call, URL read on each call. With a caller, its session is forwarded (401 when it
- * has no Bearer token, before the call); without one (availability probe), no credential is sent.
+ * Options of a Core API call, URL read on each call from CORE_API_URL / CORE_API_PORT (503 when missing,
+ * no localhost default). With a caller, its session is forwarded (401 when it has no Bearer token,
+ * checked first); without one (availability probe), no credential is sent.
  */
 function coreOptions(caller?: Caller): AxiosRequestConfig {
   const headers = caller ? { Authorization: authorization(caller) } : undefined;
-  const url = new URL(normalizeBaseUrl(process.env.CORE_API_URL ?? 'localhost'));
-  if (!url.port && process.env.CORE_API_PORT) url.port = process.env.CORE_API_PORT;
-
-  return {
-    baseURL: url.toString().replace(/\/+$/, ''),
-    ...(headers ? { headers } : {}),
-  };
+  return { baseURL: baseUrl('CORE_API'), ...(headers ? { headers } : {}) };
 }
 
 function toDirectoryUser(user: DirectoryUser): CalendarDirectoryUser {

@@ -920,6 +920,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1008,6 +1018,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -1079,6 +1099,16 @@
           },
           "502": {
             "description": "Calendar API or Core API is unavailable or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1189,6 +1219,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -1267,6 +1307,16 @@
           },
           "502": {
             "description": "Calendar API or Core API is unavailable or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1377,6 +1427,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1458,6 +1518,16 @@
           },
           "502": {
             "description": "Calendar API or Core API is unavailable or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Calendar API or Core API is not configured",
             "content": {
               "application/json": {
                 "schema": {
