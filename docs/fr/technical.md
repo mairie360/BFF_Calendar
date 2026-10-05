@@ -125,7 +125,7 @@ Avant un lancement Docker, vérifier les variables de service, les secrets de bu
 
 ## Diagnostic
 
-En cas d’événements absents ou d’affectations refusées, contrôler l’utilisateur et ses groupes dans Core API. `/check_apis` et le client métier utilisent des variables différentes.
+En cas d’événements absents ou d’affectations refusées, contrôler l’utilisateur et ses groupes dans Core API. `/check_apis` sonde Core API et Calendar API avec les mêmes `CORE_API_URL` / `CALENDAR_API_URL` (et `_PORT`) que les appels métier.
 
 ## Repères dans le dépôt
 

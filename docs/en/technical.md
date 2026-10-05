@@ -125,7 +125,7 @@ Before running Docker, check service variables, build secrets and networks in th
 
 ## Troubleshooting
 
-For missing events or rejected assignments, check the user and their group membership in Core API. `/check_apis` and the business client use different variables.
+For missing events or rejected assignments, check the user and their group membership in Core API. `/check_apis` probes Core API and Calendar API with the same `CORE_API_URL` / `CALENDAR_API_URL` (and `_PORT`) as the business calls.
 
 ## Repository reference
 
