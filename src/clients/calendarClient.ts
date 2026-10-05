@@ -2,11 +2,10 @@ import axios from "axios";
 
 import { getCalendarAPIMairie360 } from "@mairie360/calendar-api-openapi/endpoints/calendarAPIMairie360";
 
-// Dedicated axios instance for Calendar API. No baseURL here: every call passes the Calendar API root read
-// from CALENDAR_API_URL / CALENDAR_API_PORT at call time (lib `baseUrl('CALENDAR_API')`, no localhost
-// default; the generated client adds `/api/v1`). The instance only holds the timeout and headers.
+// Dedicated axios instance for Calendar API. No baseURL here: every call passes the lib's asCaller /
+// withoutSession options, which read CALENDAR_API_URL / CALENDAR_API_PORT at call time (no localhost
+// default; the generated client adds `/api/v1`) and set the timeout. The instance only holds the headers.
 const apiClientInstance = axios.create({
-  timeout: 5000,
   headers: {
     "Content-Type": "application/json",
   },

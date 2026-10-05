@@ -7,7 +7,6 @@ import {
   getCalendarServices,
   MAX_DATE_RANGE_DAYS,
   parseDateRange,
-  calendarError,
 } from './calendar_helpers';
 
 const router = Router();
@@ -51,24 +50,17 @@ router.get('/', async (req: Request, res: Response) => {
   const defaults = defaultDateRange();
   const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
-  try {
-    const { events, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(
-      from,
-      to,
-      req,
-    );
+  // Only the upstream 400 and 401 are relayed: any other upstream failure is a 502.
+  const { events, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(from, to, { req, declared: [400, 401] });
 
-    return res.status(200).json({
-      events,
-      assignees,
-      categories: getCalendarCategories(),
-      services: getCalendarServices(),
-      currentUser,
-      assigneeScope,
-    });
-  } catch (error) {
-    throw calendarError(error, [400, 401]);
-  }
+  return res.status(200).json({
+    events,
+    assignees,
+    categories: getCalendarCategories(),
+    services: getCalendarServices(),
+    currentUser,
+    assigneeScope,
+  });
 });
 
 export default router;

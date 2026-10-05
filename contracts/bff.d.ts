@@ -45,7 +45,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Vérifie la connexion avec l'API Core et Calendar (Rust) */
+        /** Checks that Core API and Calendar API are reachable */
         get: {
             parameters: {
                 query?: never;
@@ -55,22 +55,22 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Connexion réussie */
+                /** @description Every upstream API is reachable */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CheckApiResponse"];
+                        "application/json": components["schemas"]["CheckApisResponse"];
                     };
                 };
-                /** @description API Core ou Calendar injoignable */
+                /** @description Core API or Calendar API is unreachable */
                 502: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CheckApiResponse"];
+                        "application/json": components["schemas"]["CheckApisResponse"];
                     };
                 };
             };
@@ -1167,13 +1167,13 @@ export interface components {
                 }[];
             };
         };
-        CheckApiResponse: {
-            /** @example OK */
-            status: string;
-            /** @example Connected */
-            core_api: string;
-            /** @example Connected */
-            calendar_api: string;
+        CheckApisResponse: {
+            /** @enum {string} */
+            status: "OK" | "Error";
+            /** @enum {string} */
+            core_api: "Connected" | "Unreachable";
+            /** @enum {string} */
+            calendar_api: "Connected" | "Unreachable";
         };
     };
     responses: never;

@@ -6,7 +6,7 @@
 
 Express 5.2.1 server written in TypeScript. Zod schemas and their OpenAPI registry describe exchanged objects; routers adapt upstream services to interface needs.
 
-`src/index.ts` mounts `/calendar`. Routers delegate conversion to the helpers and role, assignment and approval rules to `calendarAccessPolicy.ts`. The Calendar client targets the Calendar API root given by `CALENDAR_API_URL` / `CALENDAR_API_PORT` (the generated client adds `/api/v1`), and the directory client Core API through `CORE_API_URL` / `CORE_API_PORT`. Both are read on every call, with no localhost default: a route that needs a missing one answers 503, and the server refuses to start without them.
+`src/app.ts` builds the Express app and mounts `/calendar`; `src/index.ts` is the entry point (loads `.env`, checks the upstream configuration, listens). Routers delegate conversion to the helpers and role, assignment and approval rules to `calendarAccessPolicy.ts`. The Calendar client targets the Calendar API root given by `CALENDAR_API_URL` / `CALENDAR_API_PORT` (the generated client adds `/api/v1`), and the directory client Core API through `CORE_API_URL` / `CORE_API_PORT`. Both are read on every call, with no localhost default: a route that needs a missing one answers 503, and the server refuses to start without them.
 
 ## Data and persistence
 
@@ -42,7 +42,7 @@ With Docker, start the BFF User stack first. `USER_BACKEND_NETWORK` connects Cal
 npm run start
 ```
 
-`PORT` is optional; the `src/index.ts` fallback is `4002`.
+`PORT` is optional; the `src/index.ts` fallback is `4002`. Without `CALENDAR_API_URL` or `CORE_API_URL`, the server refuses to start and names the missing variables.
 
 Check the process, then open the interactive documentation:
 
@@ -87,7 +87,7 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 
 Business routes expect the caller’s authorization: `/calendar/bootstrap`, `/calendar/events*` and `/calendar/assignees` answer 401 before any upstream call unless the request carries `Authorization: Bearer <token>` (the only accepted credential: cookies and other schemes are ignored; the token is forwarded as is to Calendar API and Core API, which verify it), and are never cached (`Cache-Control: no-store`); `/calendar/categories` and `/calendar/services` stay public. The caller's id is the token's `sub`, read without verification only to select its directory entry, which Core API then returns for that same token. The access policy resolves identity and Core API roles, then limits assignments and edits, and every authorization (including the scope of new assignees) is checked before the first write; when assigning the members of a new event fails, the BFF deletes it (best effort). Only the creator can delete an event, after Calendar API has validated the session. Exposed `pending`, `approved`, `rejected` statuses are mapped to backend approval values.
 
-`from` and `to` must be `YYYY-MM-DD` dates (Paris days, sent to Calendar API as UTC bounds), with `from` not after `to` and at most 1096 days (three years) apart, and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Every error uses the envelope shared by all the BFFs (`@mairie360/bffs-lib`), the `ErrorResponse` schema of the contract: `{ "error": { "code", "message", "details" } }`, where `code` derives from the status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`...) and `details` lists the invalid fields of a rejected body (`{ "path": "body.title", "message" }`), empty otherwise. An upstream 4xx is kept only when the route declares that status in the contract (with a generic message), any other upstream status and network failures become 502, unknown routes answer a 404 envelope, an unparsable JSON body a 400 one, and an unexpected error a generic 500. Neither Calendar API, Core API nor database error messages are returned to the client.
+`from` and `to` must be `YYYY-MM-DD` dates (Paris days, sent to Calendar API as UTC bounds), with `from` not after `to` and at most 1096 days (three years) apart, and event identifiers positive integers, otherwise the BFF answers 400 without calling Calendar API. Every error uses the envelope shared by all the BFFs (`@mairie360/bffs-lib`), the `ErrorResponse` schema of the contract: `{ "error": { "code", "message", "details" } }`, where `code` derives from the status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_GATEWAY`, `INTERNAL_ERROR`...) and `details` lists the invalid fields of a rejected body (message `Validation failed`, `{ "path": "body.title", "message" }`), empty otherwise. An upstream 4xx is kept only when the route declares that status in the contract (with a generic message), any other upstream status and network failures become 502 (an idempotent read is retried once after no answer, a 502, 503 or 504; writes never are), a missing upstream configuration is a 503, unknown routes answer a 404 envelope, an unparsable JSON body a 400 one, and an unexpected error a generic 500. Neither Calendar API, Core API nor database error messages are returned to the client.
 
 ## Synchronization and verification
 
@@ -129,6 +129,7 @@ For missing events or rejected assignments, check the user and their group membe
 
 ## Repository reference
 
+- [src/app.ts](../../src/app.ts)
 - [src/index.ts](../../src/index.ts)
 - [src/routes/calendar-routes.ts](../../src/routes/calendar-routes.ts)
 - [src/routes/calendar/calendar_helpers.ts](../../src/routes/calendar/calendar_helpers.ts)
