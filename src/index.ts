@@ -1,13 +1,16 @@
-import { openApiDocument as openApiSpec } from './openapi';
+// First: load .env before any module can read the environment.
 import 'dotenv/config';
-import { errorHandler, notFoundHandler, parseTrustProxy } from '@mairie360/bffs-lib';
+import { assertConfigured, errorHandler, notFoundHandler, parseTrustProxy } from '@mairie360/bffs-lib';
 import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import healthRouter from './routes/health';
 import checkApis from './routes/check_apis';
 import calendarRouter from './routes/calendar-routes';
-import { calendarApiRootUrl } from './clients/calendarClient';
+import { openApiDocument as openApiSpec } from './openapi';
+
+/** Every upstream service the BFF calls (`<SERVICE>_URL`, optional `<SERVICE>_PORT`). */
+export const UPSTREAMS = ['CALENDAR_API', 'CORE_API'] as const;
 
 export const app = express();
 
@@ -73,8 +76,8 @@ app.use(errorHandler({ onError: (error) => console.error('[BFF Calendar] Unexpec
 // ========================================
 
 if (require.main === module) {
-  // Fail fast on a missing upstream URL rather than answering every request with an error.
-  calendarApiRootUrl();
+  // Fail fast: refuse to start, naming every missing or invalid upstream URL, instead of answering 503.
+  assertConfigured(UPSTREAMS);
   app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
     console.log(`OpenAPI documentation available at http://localhost:${PORT}/docs`);

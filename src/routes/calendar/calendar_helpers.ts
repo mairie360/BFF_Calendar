@@ -1,4 +1,4 @@
-import { HttpError, addDays, authorization, mapUpstreamError, type ErrorDetail } from '@mairie360/bffs-lib';
+import { HttpError, addDays, authorization, baseUrl, mapUpstreamError, type ErrorDetail } from '@mairie360/bffs-lib';
 import type {
   EventRecurrence,
   EventView,
@@ -246,9 +246,13 @@ function mapEventToPatchBody(event: BffCalendarEvent): PatchEventView {
   };
 }
 
-/** Options of a Calendar API call made with the caller's session (401 without a Bearer token). */
+/**
+ * Options of a Calendar API call made with the caller's session: 401 without a Bearer token (checked
+ * first), then the root read now from CALENDAR_API_URL / CALENDAR_API_PORT (503 when missing).
+ */
 function authOptions(caller: Caller): AxiosRequestConfig {
-  return { headers: { Authorization: authorization(caller) } };
+  const Authorization = authorization(caller);
+  return { baseURL: baseUrl('CALENDAR_API'), headers: { Authorization } };
 }
 
 const QUERY_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;

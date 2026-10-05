@@ -34,6 +34,7 @@ registry.registerPath({
     401: apiErrorResponse('Missing or invalid session'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
+    503: apiErrorResponse('Calendar API or Core API is not configured'),
   },
 });
 

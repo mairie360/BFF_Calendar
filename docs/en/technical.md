@@ -6,7 +6,7 @@
 
 Express 5.2.1 server written in TypeScript. Zod schemas and their OpenAPI registry describe exchanged objects; routers adapt upstream services to interface needs.
 
-`src/index.ts` mounts `/calendar`. Routers delegate conversion to the helpers and role, assignment and approval rules to `calendarAccessPolicy.ts`. The Calendar client targets the Calendar API root given by `CALENDAR_API_BASE_PATH` (the generated client adds `/api/v1`).
+`src/index.ts` mounts `/calendar`. Routers delegate conversion to the helpers and role, assignment and approval rules to `calendarAccessPolicy.ts`. The Calendar client targets the Calendar API root given by `CALENDAR_API_URL` / `CALENDAR_API_PORT` (the generated client adds `/api/v1`), and the directory client Core API through `CORE_API_URL` / `CORE_API_PORT`. Both are read on every call, with no localhost default: a route that needs a missing one answers 503, and the server refuses to start without them.
 
 ## Data and persistence
 
@@ -28,14 +28,13 @@ Create `.env` in the repository root. Local HTTP configuration example to adapt 
 
 ```dotenv
 PORT=4002
-CALENDAR_API_BASE_PATH=http://localhost:3002
 CORE_API_URL=localhost
 CORE_API_PORT=3000
 CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
 ```
 
-Also set `CORE_API_URL` and `CORE_API_PORT` to reach the Core API directory. These variables and any secrets listed below still need to be supplied; the HTTP example prepares no data.
+`CALENDAR_API_URL` and `CORE_API_URL` are required (scheme optional, `http` by default; the `_PORT` is used only when the URL has none). These variables and any secrets listed below still need to be supplied; the HTTP example prepares no data.
 
 With Docker, start the BFF User stack first. `USER_BACKEND_NETWORK` connects Calendar to Core API and BFF User.
 
@@ -60,10 +59,9 @@ Values below are local examples or explicitly described behavior, not production
 | Variable or precedence | Example / stated fallback | Purpose |
 | --- | --- | --- |
 | `PORT` | 4002 | Port used by this local example. |
-| `CALENDAR_API_BASE_PATH` | http://localhost:3002 (required, no fallback) | Calendar API root (its routes are published under `/api/v1` by the generated client). The server refuses to start without it. |
 | `CALENDAR_TIME_ZONE` | Europe/Paris (fallback) | IANA time zone of the instance: typed times are converted from it to UTC before reaching Calendar API, and back. |
-| `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 | Host and port used by `/check_apis`. |
-| `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 | Diagnostic host and port; separate from the client base path. |
+| `CORE_API_URL` / `CORE_API_PORT` | localhost / 3000 (required, no fallback) | Core API (user directory and `/check_apis`). The server refuses to start without the URL; a call without it answers 503. |
+| `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 (required, no fallback) | Calendar API root (its routes are published under `/api/v1` by the generated client), also probed by `/check_apis`. Replaces `CALENDAR_API_BASE_PATH`. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | External network expected by Docker Compose. |
 | `TRUST_PROXY` | unset (no proxy trusted) | Express `trust proxy`: `true`, a hop count or trusted addresses/subnets, so that `req.ip` is the real client behind the ingress. |
 
@@ -75,13 +73,13 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | --- | --- | --- | --- |
 | GET | `/health` | — | 200 |
 | GET | `/check_apis` | — | 200, 502 |
-| GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502 |
-| GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502 |
-| POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502 |
-| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502 |
-| DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502 |
-| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502 |
-| GET | `/calendar/assignees` | `from`, `to` (optional) | 200, 400, 401, 500, 502 |
+| GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
+| PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
+| DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
+| PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
+| GET | `/calendar/assignees` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
 
@@ -127,7 +125,7 @@ Before running Docker, check service variables, build secrets and networks in th
 
 ## Troubleshooting
 
-For missing events or rejected assignments, check the user and their group membership in Core API. `/check_apis` and the business client use different variables.
+For missing events or rejected assignments, check the user and their group membership in Core API. `/check_apis` probes Core API and Calendar API with the same `CORE_API_URL` / `CALENDAR_API_URL` (and `_PORT`) as the business calls.
 
 ## Repository reference
 

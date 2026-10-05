@@ -40,8 +40,7 @@ let app: Express;
 
 beforeAll(async () => {
   await Promise.all(mocks.map((mock) => mock.start()));
-  // calendarClient lit CALENDAR_API_BASE_PATH au chargement : l'application est importée après.
-  process.env.CALENDAR_API_BASE_PATH = calendarApi.url;
+  // The upstream URLs are read on each call (beforeEach sets <SERVICE>_URL / _PORT).
   ({ app } = await import('../src/index'));
 });
 afterAll(async () => { await Promise.all(mocks.map((mock) => mock.stop())); });
@@ -655,6 +654,58 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ error: { code: 'BAD_REQUEST', message: 'Invalid request', details: [] } });
+      expect(calendarApi.requests).toHaveLength(0);
+    });
+  });
+
+  describe('upstream configuration', () => {
+    afterEach(() => { jest.restoreAllMocks(); });
+
+    test.each(['CALENDAR_API', 'CORE_API'])('answers 503 without calling the API whose %s_URL is missing', async (service) => {
+      mockCalendarApi({ list: [eventView(5)], details: [eventDetails(5)] });
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      delete process.env[`${service}_URL`];
+
+      const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(503);
+      expectBffContract('get', '/calendar/bootstrap', response);
+      expect(response.body).toEqual({ error: { code: 'SERVICE_UNAVAILABLE', message: `The ${service} service is not configured.`, details: [] } });
+      expect((service === 'CORE_API' ? coreApi : calendarApi).requests).toHaveLength(0);
+    });
+
+    test('never falls back to localhost: only the port configured, no URL, is a 503', async () => {
+      mockCalendarApi();
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      // The mock listens on localhost at CALENDAR_API_PORT: without CALENDAR_API_URL it must not be reached.
+      delete process.env.CALENDAR_API_URL;
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id)).send({ title: 'Atelier', date: '2026-09-20' });
+
+      expect(response.status).toBe(503);
+      expectBffContract('post', '/calendar/events', response);
+      expect(calendarApi.requests).toHaveLength(0);
+    });
+
+    test('answers 401 before 503 when the caller has no session', async () => {
+      delete process.env.CALENDAR_API_URL;
+      delete process.env.CORE_API_URL;
+
+      const response = await request(app).delete('/calendar/events/5');
+
+      expect(response.status).toBe(401);
+      expectBffContract('delete', '/calendar/events/5', response);
+    });
+
+    test('reports an unconfigured API as unreachable in /check_apis', async () => {
+      coreApi.on('get', CORE.health, { raw: 'OK', contentType: 'text/plain' });
+      delete process.env.CALENDAR_API_URL;
+
+      const response = await request(app).get('/check_apis');
+
+      expect(response.status).toBe(502);
+      expectBffContract('get', '/check_apis', response);
+      expect(response.body).toEqual({ status: 'Error', core_api: 'Connected', calendar_api: 'Unreachable' });
       expect(calendarApi.requests).toHaveLength(0);
     });
   });
