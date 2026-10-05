@@ -1,5 +1,4 @@
 import axios from "axios";
-import { getAuthorizationHeader } from "../config/token";
 
 import { getCalendarAPIMairie360 } from "@mairie360/calendar-api-openapi/endpoints/calendarAPIMairie360";
 
@@ -24,17 +23,10 @@ const apiClientInstance = axios.create({
   },
 });
 
-// Resolves the Calendar API root on each call and normalizes the caller's Authorization header (Bearer
-// prefix); no default token is ever injected.
+// Resolves the Calendar API root on each call. The caller's session is passed per call, already
+// normalised by the lib's `authorization(req)`; no default token is ever injected.
 apiClientInstance.interceptors.request.use((config) => {
   config.baseURL = config.baseURL ?? calendarApiRootUrl();
-
-  const currentAuth = config.headers.Authorization;
-  const authHeader = getAuthorizationHeader(typeof currentAuth === "string" ? currentAuth : undefined);
-  if (authHeader) {
-    config.headers.Authorization = authHeader;
-  }
-
   return config;
 });
 

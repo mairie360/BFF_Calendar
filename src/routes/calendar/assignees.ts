@@ -46,7 +46,7 @@ router.get('/', async (req: Request, res: Response) => {
   const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
   try {
-    const assignees = await fetchKnownAssignees(from, to, req.headers.authorization);
+    const assignees = await fetchKnownAssignees(from, to, req);
     return res.status(200).json(assignees);
   } catch (error) {
     throw calendarError(error, [400, 401]);

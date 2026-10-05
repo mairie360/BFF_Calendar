@@ -54,7 +54,7 @@ router.get('/', async (req: Request, res: Response) => {
     const { events, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(
       from,
       to,
-      req.headers.authorization,
+      req,
     );
 
     return res.status(200).json({

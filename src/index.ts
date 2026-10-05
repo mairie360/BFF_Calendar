@@ -1,6 +1,6 @@
 import { openApiDocument as openApiSpec } from './openapi';
 import 'dotenv/config';
-import { errorHandler, notFoundHandler } from '@mairie360/bffs-lib';
+import { errorHandler, notFoundHandler, parseTrustProxy } from '@mairie360/bffs-lib';
 import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
@@ -12,6 +12,9 @@ import { calendarApiRootUrl } from './clients/calendarClient';
 export const app = express();
 
 export const PORT = Number(process.env.PORT ?? 4002);
+
+// Behind the ingress, TRUST_PROXY makes req.ip the real client instead of the proxy (unset: no proxy trusted).
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 // Security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CORP…) and
 // removal of X-Powered-By, same configuration as the other BFFs. upgrade-insecure-requests is
