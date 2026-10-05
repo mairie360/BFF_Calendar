@@ -298,6 +298,18 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(calendarApi.requests).toHaveLength(0);
     });
 
+    test.each(['1 AND 1=2', 'x-1', 'user-1 ', '01x1'])('POST /calendar/events refuses the malformed assignee id %p with a 400', async (assigneeId) => {
+      mockCalendarApi();
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
+        .send({ title: 'Atelier', date: '2026-09-20', assigneeIds: [assigneeId] });
+
+      expect(response.status).toBe(400);
+      expectBffContract('post', '/calendar/events', response);
+      expect(response.body.error.message).toBe('An assignee has an invalid id.');
+      expect(calendarApi.requests).toHaveLength(0);
+    });
+
     test('POST /calendar/events refuses an assignee outside the user scope without creating the event', async () => {
       mockCalendarApi();
 

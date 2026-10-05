@@ -90,7 +90,8 @@ function parseUserAssigneeId(value: string | number): number | null {
     return null;
   }
 
-  const match = text.match(/(?:user-)?(\d+)$/);
+  // Anchored: "1 AND 1=2" or "x-12" must be refused, not read as the user of their last digits.
+  const match = text.match(/^(?:user-)?(\d+)$/);
   if (!match) {
     return null;
   }
