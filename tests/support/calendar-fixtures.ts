@@ -34,6 +34,7 @@ export function eventView(id: number, overrides: Partial<EventView> = {}): Event
     start: '2026-09-16T09:00:00Z',
     end: '2026-09-16T10:00:00Z',
     is_member: true,
+    visibility: EventVisibility.Private,
     category: EventCategory.other,
     service: null,
     location: null,

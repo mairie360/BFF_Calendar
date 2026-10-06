@@ -2,12 +2,14 @@
 process.env.TZ = 'Pacific/Kiritimati';
 
 import {
+  CALENDAR_API_WINDOW_DAYS,
   MAX_DATE_RANGE_DAYS,
   defaultDateRange,
   isQueryDate,
   mapWithConcurrency,
   parseDateRange,
   parseEventIdParam,
+  splitDateRange,
 } from '../src/routes/calendar/calendar_helpers';
 import { monthBounds, utcToWallClock, wallClockToUtc } from '../src/services/calendarTimeZone';
 
@@ -61,6 +63,24 @@ describe('calendar date and id helpers', () => {
     expect(() => parseDateRange('2026-01-01', '2029-01-02')).toThrow(/at most 1096 days/);
     expect(() => parseDateRange('2026-09-30', '2026-09-01')).toThrow(/must not be after/);
     expect(() => parseDateRange(['2026-09-01'], '2026-09-30')).toThrow(/YYYY-MM-DD/);
+  });
+
+  test('splitDateRange cuts a range into consecutive windows Calendar API accepts (at most 366 days wide)', () => {
+    expect(CALENDAR_API_WINDOW_DAYS).toBe(365);
+    expect(splitDateRange('2026-09-01', '2026-09-30')).toEqual([{ from: '2026-09-01', to: '2026-09-30' }]);
+    expect(splitDateRange('2026-09-01', '2026-09-01')).toEqual([{ from: '2026-09-01', to: '2026-09-01' }]);
+    expect(splitDateRange('2025-01-01', '2025-12-31')).toEqual([{ from: '2025-01-01', to: '2025-12-31' }]);
+    expect(splitDateRange('2028-01-01', '2028-12-31')).toEqual([
+      { from: '2028-01-01', to: '2028-12-30' },
+      { from: '2028-12-31', to: '2028-12-31' },
+    ]);
+    // The widest range a read accepts (BFF_Message's three years).
+    expect(splitDateRange('2025-01-01', '2027-12-31')).toEqual([
+      { from: '2025-01-01', to: '2025-12-31' },
+      { from: '2026-01-01', to: '2026-12-31' },
+      { from: '2027-01-01', to: '2027-12-31' },
+    ]);
+    expect(splitDateRange('2026-01-01', '2029-01-01')).toHaveLength(4);
   });
 
   test.each([

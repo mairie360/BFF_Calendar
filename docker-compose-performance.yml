@@ -32,7 +32,7 @@ x-db-env: &db-env
 
 services:
   postgres:
-    image: ${DB_IMAGE:-ghcr.io/mairie360/database:1.3.0}
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:2.0.0}
     container_name: bff-calendar-perf-db
     environment:
       POSTGRES_USER: postgres
@@ -52,7 +52,7 @@ services:
 
   liquibase:
     # Database >= MAIR-413 only seeds the template admin (users.id = 1) with -Dallow_template_admin=true.
-    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:1.3.0}
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:2.0.0}
     container_name: bff-calendar-perf-liquibase
     depends_on:
       postgres:
@@ -100,7 +100,7 @@ services:
       retries: 5
 
   calendar-api:
-    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:0.6.1}
+    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:1.0.0}
     container_name: bff-calendar-perf-calendar-api
     depends_on:
       liquibase:
@@ -124,8 +124,8 @@ services:
       - "3002"
     networks:
       - backend
-    # L'image publiée est "distroless" (ni shell ni curl) : la disponibilité est
-    # sondée depuis le conteneur calendar-api-ready ci-dessous.
+    # The published image is distroless (no shell, no curl): the calendar-api-ready container below polls
+    # its /ready probe (PostgreSQL and Redis reachable), /health only says the process is up.
 
   calendar-api-ready:
     image: curlimages/curl:latest
@@ -134,13 +134,13 @@ services:
       calendar-api:
         condition: service_started
     command: >
-      sh -c 'until curl -fsS http://calendar-api:3002/health >/dev/null; do
+      sh -c 'until curl -fsS http://calendar-api:3002/ready >/dev/null; do
       echo "waiting for calendar-api..."; sleep 2; done; echo "calendar-api ready"'
     networks:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:1.2.0}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:2.0.0}
     container_name: bff-calendar-perf-core-api
     depends_on:
       liquibase:
@@ -172,8 +172,8 @@ services:
       - "3000"
     networks:
       - backend
-    # L'image publiée est "distroless" (ni shell ni curl) : la disponibilité est
-    # sondée depuis le conteneur core-api-ready ci-dessous.
+    # The published image is distroless (no shell, no curl): the core-api-ready container below polls
+    # its /ready probe (PostgreSQL and Redis reachable), /health only says the process is up.
 
   core-api-ready:
     image: curlimages/curl:latest
@@ -182,7 +182,7 @@ services:
       core-api:
         condition: service_started
     command: >
-      sh -c 'until curl -fsS http://core-api:3000/health >/dev/null; do
+      sh -c 'until curl -fsS http://core-api:3000/ready >/dev/null; do
       echo "waiting for core-api..."; sleep 2; done; echo "core-api ready"'
     networks:
       - backend

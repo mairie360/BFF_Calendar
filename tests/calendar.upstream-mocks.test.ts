@@ -139,6 +139,29 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(upstreamSequence()).toEqual([calendarListed]);
     });
 
+    test('GET /calendar/events reads a range wider than a year window by window, each event once', async () => {
+      // The mock answers every window with the same events, as Calendar API does for a long or recurring event.
+      mockCalendarApi({ list: [eventView(1), eventView(3, { recurrence: { frequency: 'weekly', interval: 1 } })] });
+
+      const response = await request(app).get('/calendar/events?from=2025-01-01&to=2027-12-31').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(200);
+      expectBffContract('get', '/calendar/events', response);
+      expect(response.body.map((event: { id: number }) => event.id)).toEqual([1, 3]);
+      // Calendar API refuses a period wider than 366 days: three consecutive windows cover the three years.
+      const windows = calendarApi.calls(CALENDAR.calendar).map((call) => ({
+        start: call.url.searchParams.get('start'), end: call.url.searchParams.get('end'),
+      }));
+      expect(windows).toEqual([
+        { start: '2024-12-31T23:00:00Z', end: '2025-12-31T22:59:59Z' },
+        { start: '2025-12-31T23:00:00Z', end: '2026-12-31T22:59:59Z' },
+        { start: '2026-12-31T23:00:00Z', end: '2027-12-31T22:59:59Z' },
+      ]);
+      for (const { start, end } of windows) {
+        expect(Date.parse(end!) - Date.parse(start!)).toBeLessThanOrEqual(366 * 24 * 3600 * 1000);
+      }
+    });
+
     test.each([
       ['a missing to', '/calendar/events?from=2026-09-01'],
       ['an impossible date', '/calendar/events?from=2026-02-30&to=2026-03-01'],
@@ -166,7 +189,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       const response = await request(app).get('/calendar/bootstrap?from=2025-01-01&to=2027-12-31').set('Authorization', authorizationFor(admin.id));
 
       expect(response.status).toBe(200);
-      expect(upstreamSequence()).toEqual([calendarListed]);
+      // One Calendar API call per window of at most 366 days.
+      expect(upstreamSequence()).toEqual([calendarListed, calendarListed, calendarListed]);
     });
 
     test('GET /calendar/bootstrap loads event details for the declared from/to range', async () => {
@@ -331,10 +355,10 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.status).toBe(200);
       expectBffContract('patch', '/calendar/events/5', response);
       const [patch] = calendarApi.calls(CALENDAR.event, 'PATCH');
-      // Calendar API's PATCH names the dates event_start_time / event_end_time (singular), and they are UTC.
+      // Calendar API's PATCH names the dates events_start_time / events_end_time, like creation, and they are UTC.
       expect(patch.body).toEqual({
         name: 'Conseil municipal', description: 'Description 5',
-        event_start_time: '2026-09-16T16:30:00Z', event_end_time: '2026-09-16T18:00:00Z',
+        events_start_time: '2026-09-16T16:30:00Z', events_end_time: '2026-09-16T18:00:00Z',
         category: 'other', service: null, location: null, recurrence: null,
       });
       expect(calendarApi.calls(CALENDAR.member, 'DELETE').map((call) => call.url.pathname))
