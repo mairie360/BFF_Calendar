@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { inspect } from 'node:util';
 import type { Express } from 'express';
 import request from 'supertest';
 
@@ -386,6 +387,24 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expectBffContract('post', '/calendar/events', response);
       expect(upstreamSequence()[0]).toBe(called('POST', calendarApiUrls.getCreateEventUrl()));
       expect(upstreamSequence().slice(-1)).toEqual([called('DELETE', calendarApiUrls.getDeleteEventUrl(42))]);
+    });
+
+    test('POST /calendar/events logs a failed rollback without the token nor the bodies (MAIR-290)', async () => {
+      mockCalendarApi({ createdId: 42 });
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      calendarApi.on('post', CALENDAR.members, { status: 500, raw: 'database down', contentType: 'text/plain', outOfContract: true });
+      calendarApi.on('delete', CALENDAR.event, { status: 500, raw: 'still down', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
+        .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00', assigneeIds: ['user-3'] });
+
+      expect(response.status).toBe(502);
+      expect(logged).toHaveBeenCalledWith('[BFF Calendar] Could not delete event 42 after a failed member assignment', { status: 502 });
+      const rollbackLogs = logged.mock.calls.filter(([message]) => String(message).includes('Could not delete event'));
+      const output = rollbackLogs.map((args) => inspect(args, { depth: 10 })).join('\n');
+      expect(output).not.toContain(authorizationFor(alice.id).slice('Bearer '.length));
+      expect(output).not.toContain('Atelier');
+      expect(output).not.toContain('still down');
     });
 
     test.each(['abc', '1.5', '0', '-3'])('rejects the event id %s with 400 before calling Calendar API', async (id) => {

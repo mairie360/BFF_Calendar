@@ -1,4 +1,4 @@
-import { HttpError, addDays, asCaller, callUpstream, type UpstreamRequestOptions } from '@mairie360/bffs-lib';
+import { HttpError, addDays, asCaller, callUpstream, upstreamStatus, type UpstreamRequestOptions } from '@mairie360/bffs-lib';
 import type {
   EventRecurrence,
   EventView,
@@ -371,7 +371,10 @@ export async function createCalendarEvent(
     // Creation and member assignment are separate upstream calls: undo the creation (best effort) so a
     // failed request does not leave a half-assigned event behind, then report the original failure.
     await calendarCall(context, (options) => calendarApi.deleteEvent(eventId, options)).catch((rollbackError: unknown) => {
-      console.error(`[BFF Calendar] Could not delete event ${eventId} after a failed member assignment`, rollbackError);
+      // The id and the status only: the error of the call holds the caller's token and bodies (MAIR-290).
+      console.error(`[BFF Calendar] Could not delete event ${eventId} after a failed member assignment`, {
+        status: upstreamStatus(rollbackError) ?? 'no answer',
+      });
     });
     throw error;
   }
