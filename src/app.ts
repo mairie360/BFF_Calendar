@@ -32,6 +32,8 @@ app.use('/calendar', calendarRouter);
 // (@mairie360/bffs-lib): the status of the error is kept (400 for an unparsable body, 401, 403, 404,
 // 502, 503...) and anything unexpected becomes a 500 without leaking its message.
 app.use(notFoundHandler);
-app.use(errorHandler({ onError: (error) => console.error('[BFF Calendar] Unexpected error', error) }));
+// The 5xx are logged by the handler's default report: never pass it a report that logs the error as is,
+// whose upstream `cause` holds the caller's Bearer token and the request and response bodies (MAIR-290).
+app.use(errorHandler());
 
 export default app;
