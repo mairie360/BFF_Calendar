@@ -64,6 +64,8 @@ Les valeurs ci-dessous sont des exemples locaux ou des comportements expliciteme
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 (obligatoire, sans repli) | Racine de Calendar API (ses routes sont publiées sous `/api/v1` par le client généré), aussi sondée par `/check_apis`. Remplace `CALENDAR_API_BASE_PATH`. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | Réseau externe attendu par Docker Compose. |
 | `TRUST_PROXY` | non défini (aucun proxy de confiance) | `trust proxy` d’Express : `true`, un nombre de sauts ou des adresses/sous-réseaux de confiance, pour que `req.ip` soit le vrai client derrière l’ingress. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | non défini (télémétrie désactivée) | Collecteur OpenTelemetry de l’instance, par ex. `http://otel-collector:4318` : les traces et les métriques HTTP y sont exportées en OTLP (MAIR-504). Seuls la méthode, le statut, la route paramétrée et l’hôte appelé sortent du BFF, jamais une URL, une query string, un en-tête, un identifiant ou une IP. |
+| `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES` | `bff-calendar` ; non défini | Remplacent le nom du service ; attributs de ressource supplémentaires comme `service.version=<tag de l’image>,deployment.environment.name=prod`. `OTEL_SDK_DISABLED=true` désactive la télémétrie. |
 
 ## Routes et contrat de données
 

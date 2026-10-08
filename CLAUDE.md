@@ -107,6 +107,13 @@ assignee scope — run before the first upstream write, so a refused request mod
 `calendarEventApprovalStatus`. An event created by a plain User that assigns a Responsible from the
 same group starts `pending`; only an assigned Responsible sharing a group with the creator can approve.
 
+### Telemetry (MAIR-504)
+
+`src/telemetry.ts` calls the lib's `startTelemetry` and is imported by `src/index.ts` right after `dotenv/config`,
+before the app: the Express instrumentation only hooks Express if it is not loaded yet (Express stays external in
+the esbuild bundle). Off without `OTEL_EXPORTER_OTLP_ENDPOINT`; the lib exports only an attribute allowlist, so
+never add span attributes holding request values (ids, URLs, bodies, headers). Tests export nothing.
+
 ## OpenAPI / contract pipeline
 
 Single source of truth: the Zod schemas in **`src/openapi-registry.ts`** plus the `registry.registerPath`
