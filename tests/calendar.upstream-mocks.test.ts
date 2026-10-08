@@ -400,8 +400,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(502);
       expect(logged).toHaveBeenCalledWith('[BFF Calendar] Could not delete event 42 after a failed member assignment', { status: 502 });
-      const rollbackLogs = logged.mock.calls.filter(([message]) => String(message).includes('Could not delete event'));
-      const output = rollbackLogs.map((args) => inspect(args, { depth: 10 })).join('\n');
+      // Every console.error call is checked, the default error handler of @mairie360/bffs-lib (>= 1.2.1) included.
+      const output = logged.mock.calls.map((args) => inspect(args, { depth: 10 })).join('\n');
       expect(output).not.toContain(authorizationFor(alice.id).slice('Bearer '.length));
       expect(output).not.toContain('Atelier');
       expect(output).not.toContain('still down');
