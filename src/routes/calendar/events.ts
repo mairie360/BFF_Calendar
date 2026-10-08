@@ -54,7 +54,7 @@ registry.registerPath({
     401: apiErrorResponse('Missing or invalid session'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 
@@ -88,7 +88,7 @@ registry.registerPath({
     403: apiErrorResponse('Assignee outside the authorized scope, or refused by Calendar API'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 
@@ -126,7 +126,7 @@ registry.registerPath({
     404: apiErrorResponse('Event not found'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 
@@ -150,7 +150,7 @@ registry.registerPath({
     404: apiErrorResponse('Event not found'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 
@@ -188,7 +188,7 @@ registry.registerPath({
     404: apiErrorResponse('Event not found'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 

@@ -14,8 +14,9 @@ import type { EventView, GetEventResultView } from '@mairie360/calendar-api-open
 import type { ListDirectoryUsersParams } from '@mairie360/core-api-openapi/model';
 import { parisDate } from '@mairie360/bffs-lib';
 import { monthBounds, wallClockToUtc } from '../src/services/calendarTimeZone';
+import { isCalendarDate } from '../src/openapi-registry';
 import {
-  authorizationFor, calendarApiUrls, calendarResult, coreApiUrls, coreDirectory, directoryUsers, eventDetails, eventView, postEventResult,
+  JWT_SECRET, authorizationFor, calendarApiUrls, calendarResult, coreApiUrls, coreDirectory, directoryUsers, eventDetails, eventView, postEventResult,
 } from './support/calendar-fixtures';
 
 const { admin, alice, marie } = directoryUsers;
@@ -47,6 +48,7 @@ afterAll(async () => { await Promise.all(mocks.map((mock) => mock.stop())); });
 
 beforeEach(() => {
   jest.clearAllMocks();
+  process.env.JWT_SECRET = JWT_SECRET;
   jest.spyOn(console, 'log').mockImplementation(() => undefined);
   for (const mock of mocks) mock.reset();
   for (const [service, mock] of [['CORE_API', coreApi], ['CALENDAR_API', calendarApi]] as const) {
@@ -334,6 +336,27 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(calendarApi.requests).toHaveLength(0);
     });
 
+    // MAIR-474: an unchecked date reached the time zone conversion, which threw, and the BFF answered 502.
+    test.each([
+      ['date', 'ZAP'], ['date', '2026-02-30'], ['date', '31-04-2026'], ['date', '0099-01-01'], ['date', '2026-09-20T10:00'],
+      ['endDate', 'tomorrow'], ['startTime', '24:00'], ['endTime', '09:60'], ['startTime', '9:00'],
+    ])('POST and PATCH /calendar/events refuse the %s %p with a 400 before any upstream call', async (field, value) => {
+      mockCalendarApi();
+      const body = { title: 'Atelier', date: '2026-09-20', [field]: value };
+
+      const created = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id)).send(body);
+      const patched = await request(app).patch('/calendar/events/101').set('Authorization', authorizationFor(alice.id)).send({ [field]: value });
+
+      expect([created.status, patched.status]).toEqual([400, 400]);
+      expectBffContract('post', '/calendar/events', created);
+      expect(calendarApi.requests).toHaveLength(0);
+      expect(coreApi.requests).toHaveLength(0);
+    });
+
+    test.each(['2026-09-20', '20-09-2026', '20/09/2026', '2028-02-29'])('isCalendarDate accepts the real day %p', (value) => {
+      expect(isCalendarDate(value)).toBe(true);
+    });
+
     test('POST /calendar/events refuses an assignee outside the user scope without creating the event', async () => {
       mockCalendarApi();
 
@@ -538,16 +561,27 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(calendarApi.calls(CALENDAR.calendar, 'GET')[0].headers.authorization).toBe(`Bearer ${token}`);
     });
 
-    test('lets Calendar API judge a Bearer token the BFF cannot read, and relays its 401', async () => {
+    test('refuses a Bearer token it cannot verify with a 401, without calling an upstream', async () => {
       mockCalendarApi();
-      calendarApi.on('get', CALENDAR.calendar, { status: 401, raw: 'Unauthorized', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', 'Bearer not-a-jwt');
 
       expect(response.status).toBe(401);
       expectBffContract('get', '/calendar/events', response);
-      expect(calendarApi.calls(CALENDAR.calendar, 'GET')[0].headers.authorization).toBe('Bearer not-a-jwt');
+      expect(calendarApi.requests).toHaveLength(0);
       expect(coreApi.requests).toHaveLength(0);
+    });
+
+    test('relays the 401 of Calendar API for a well-signed token it refuses (revoked session)', async () => {
+      mockCalendarApi();
+      calendarApi.on('get', CALENDAR.calendar, { status: 401, raw: 'Unauthorized', contentType: 'text/plain', outOfContract: true });
+
+      const session = authorizationFor(admin.id);
+      const response = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', session);
+
+      expect(response.status).toBe(401);
+      expectBffContract('get', '/calendar/events', response);
+      expect(calendarApi.calls(CALENDAR.calendar, 'GET')[0].headers.authorization).toBe(session);
     });
 
     test('ignores the accessToken cookie: only the Authorization header carries the session', async () => {

@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { getCalendarAPIMairie360 } from '@mairie360/calendar-api-openapi/endpoints/calendarAPIMairie360';
 import {
   ApprovalStatus,
@@ -93,7 +94,16 @@ export function coreDirectory(users: CalendarDirectoryUser[]): DirectoryUsersRes
   return { users: users.map(directoryUser) };
 }
 
-/** JWT non signé : Calendar API (simulée) vérifie la signature, le BFF ne lit que `sub`. */
+/** Secret of the tests: the BFF verifies the session tokens with it (bffs-lib requireSession). */
+export const JWT_SECRET = 'calendar-contract-test-secret';
+
+/** HS256 session token signed with JWT_SECRET, valid one hour (or expired when `expiresIn` is negative). */
+export function sessionToken(userId: number | string, secret = JWT_SECRET, expiresIn = 3_600): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: String(userId), exp: Math.floor(Date.now() / 1000) + expiresIn })).toString('base64url');
+  return `${header}.${payload}.${createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')}`;
+}
+
 export function authorizationFor(userId: number): string {
-  return `Bearer eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: String(userId) })).toString('base64url')}.signature`;
+  return `Bearer ${sessionToken(userId)}`;
 }

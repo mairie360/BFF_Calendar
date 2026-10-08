@@ -21,6 +21,22 @@ export const bearerAuth = registry.registerComponent('securitySchemes', 'bearerA
 // Schémas - Récurrence
 // ========================================
 
+// A real calendar day, `YYYY-MM-DD` or `DD-MM-YYYY` / `DD/MM/YYYY` (MAIR-474): an unchecked value used to
+// reach the time zone conversion and answer a 502 instead of a 400.
+const CALENDAR_DATE = /^(?:(\d{4})-(\d{2})-(\d{2})|(\d{2})[-/](\d{2})[-/](\d{4}))$/;
+
+export function isCalendarDate(value: string): boolean {
+  const match = CALENDAR_DATE.exec(value);
+  if (!match) return false;
+  const [year, month, day] = (match[1] ? [match[1], match[2], match[3]] : [match[6], match[5], match[4]]).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return year >= 1000 && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+const CalendarDate = z.string().regex(CALENDAR_DATE).refine(isCalendarDate, 'Must be a real calendar day');
+// `HH:mm`, 00:00 to 23:59.
+const ClockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
 export const CalendarRecurrenceSchema = z.object({
   frequency: z.enum(['none', 'daily', 'weekly', 'monthly'])
     .openapi({ description: 'Fréquence de récurrence' }),
@@ -28,7 +44,7 @@ export const CalendarRecurrenceSchema = z.object({
     .openapi({ description: 'Intervalle de récurrence (par défaut 1)', example: 1 }),
   daysOfWeek: z.array(z.number().int().min(0).max(6).openapi({ example: 1 })).optional()
     .openapi({ description: 'Jours de la semaine (0=dimanche, 6=samedi). Utilisé pour les récurrences hebdomadaires' }),
-  endsOn: z.string().optional()
+  endsOn: CalendarDate.optional()
     .openapi({ description: 'Date de fin inclusive (format YYYY-MM-DD)', example: '2030-12-31' }),
 }).openapi('CalendarRecurrence', { description: 'Recurrence rule of the event' });
 
@@ -61,16 +77,16 @@ export const CalendarEventSchema = z.object({
     .openapi({ description: 'Identifiant stable. Optionnel en création, obligatoire en lecture.' }),
   title: noMarkup(z.string())
     .openapi({ description: 'Titre de l\'événement', example: 'Scan event' }),
-  date: z.string()
+  date: CalendarDate
     .openapi({ description: 'Date de début (format YYYY-MM-DD ou DD-MM-YYYY)', example: '2030-06-15' }),
-  endDate: z.string().optional()
+  endDate: CalendarDate.optional()
     .openapi({ description: 'Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)', example: '2030-06-15' }),
   category: z.enum(['meeting', 'activity', 'ceremony', 'other']).optional()
     .openapi({ description: 'Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)' }),
   service: noMarkup(z.string()).optional().openapi({ description: 'Service ou département organisateur', example: 'direction' }),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional()
+  startTime: ClockTime.optional()
     .openapi({ description: 'Heure de début au format HH:mm', example: '09:00' }),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional()
+  endTime: ClockTime.optional()
     .openapi({ description: 'Heure de fin au format HH:mm', example: '10:00' }),
   location: noMarkup(z.string()).optional()
     .openapi({ description: 'Lieu de l\'événement', example: 'Town hall' }),
