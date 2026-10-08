@@ -104,6 +104,10 @@ export function sessionToken(userId: number | string, secret = JWT_SECRET, expir
   return `${header}.${payload}.${createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')}`;
 }
 
+// One token per user for the whole run (its `exp` follows the clock): the header sent and the one expected
+// upstream are the same.
+const sessions = new Map<number, string>();
 export function authorizationFor(userId: number): string {
-  return `Bearer ${sessionToken(userId)}`;
+  if (!sessions.has(userId)) sessions.set(userId, `Bearer ${sessionToken(userId)}`);
+  return sessions.get(userId)!;
 }
