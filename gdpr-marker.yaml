@@ -1,0 +1,96 @@
+# GDPR log marker journey (MAIR-290), played by mairie360/CICD tests/gdpr/marker.
+#
+# A calendar event carries personal data in its free-text fields (title, description, location:
+# "meeting with <name>, call <phone>"). The marker's values go there, into query strings and into
+# deliberate errors; the logs of every container of docker-compose-gdpr-marker.yml (the BFF,
+# Calendar API, Core API, BFF User, Postgres, Redis) are then searched for them (see
+# gdpr_marker_test.sh). A log describes an error by its type and context, never by the value it
+# received.
+version: 1
+target: http://bff-calendar:4002
+wait: /health
+# The admin JWT of the stack (sub=1, the seeded Admin), the same one the ZAP scan uses.
+env: [ADMIN_JWT]
+steps:
+  - name: create an event naming the marker
+    request:
+      method: POST
+      path: /calendar/events
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json:
+        title: "Meeting {{marker.first_name}} {{marker.last_name}}"
+        date: "2030-06-15"
+        startTime: "09:00"
+        endTime: "10:00"
+        category: meeting
+        location: "Office of {{marker.last_name}}"
+        description: "Call {{marker.phone}} or write to {{marker.email}}"
+    expect: [201]
+    capture:
+      event_id: body.id
+  - name: create an event with a refused title (deliberate error)
+    request:
+      method: POST
+      path: /calendar/events
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {title: "<{{marker.last_name}}>", date: "2030-06-15", description: "{{marker.email}}"}
+    expect: [400]
+  - name: create an event with a date of the wrong format (deliberate error)
+    request:
+      method: POST
+      path: /calendar/events
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {title: "Meeting {{marker.first_name}}", date: "{{marker.phone}}"}
+    # 502 today: the date passes the schema and fails in the BFF's conversion (RangeError),
+    # answered as an upstream error. It should be a 400; the logs must hold no value either way.
+    expect: [400, 502]
+  - name: create an event with a value of the wrong type (deliberate error)
+    request:
+      method: POST
+      path: /calendar/events
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {title: "Meeting {{marker.first_name}}", date: "2030-06-15", canEdit: "{{marker.email}}"}
+    expect: [400]
+  - name: list the events
+    request: {method: GET, path: "/calendar/events?from=2030-06-01&to=2030-06-30", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+  - name: list the events with a refused range (deliberate error, query string)
+    request: {method: GET, path: "/calendar/events?from={{marker.email}}&to={{marker.phone}}", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [400]
+  - name: read the bootstrap with a refused range (deliberate error, query string)
+    request: {method: GET, path: "/calendar/bootstrap?from={{marker.last_name}}&to=2030-06-30", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [400]
+  - name: list the assignees
+    request: {method: GET, path: "/calendar/assignees?from=2030-06-01&to=2030-06-30", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+  - name: update the event with the marker
+    request:
+      method: PATCH
+      path: "/calendar/events/{{event_id}}"
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {title: "Meeting {{marker.last_name}}", description: "New number {{marker.phone}}, {{marker.email}}"}
+  - name: update an event that does not exist (deliberate error)
+    request:
+      method: PATCH
+      path: /calendar/events/999999
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {title: "Meeting {{marker.last_name}}", description: "{{marker.email}}"}
+    expect: [404]
+  - name: update the event with a refused location (deliberate error)
+    request:
+      method: PATCH
+      path: "/calendar/events/{{event_id}}"
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {location: "<{{marker.email}}>"}
+    expect: [400]
+  - name: approve the event with an unknown status (deliberate error)
+    request:
+      method: PATCH
+      path: "/calendar/events/{{event_id}}/approval"
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {approvalStatus: "{{marker.last_name}}"}
+    expect: [400]
+  - name: delete the event
+    request: {method: DELETE, path: "/calendar/events/{{event_id}}", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [204]
+  - name: list the events with an invalid token (deliberate error)
+    request: {method: GET, path: "/calendar/events?from=2030-06-01&to=2030-06-30", headers: {Authorization: "Bearer {{marker.password}}"}}
+    expect: [401]
