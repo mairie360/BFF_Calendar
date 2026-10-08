@@ -65,7 +65,7 @@ services:
 
   # core:
   #   container_name: core-calendar-bff-developpement
-  #   image: ghcr.io/mairie360/core-api:1.2.0
+  #   image: ghcr.io/mairie360/core-api:2.0.0
   #   ports:
   #     - "3000:3000"
   #   networks:
@@ -100,7 +100,7 @@ services:
       
   calendar-api:
     container_name: calendar-api-bff-calendar-developpement
-    image: ghcr.io/mairie360/calendar-api:0.6.1
+    image: ghcr.io/mairie360/calendar-api:1.0.0
     ports:
       - "3002:3002"
     networks:
@@ -122,6 +122,9 @@ services:
       PUBLIC_URL: http://calendar.development.mairie360.fr
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
+      # mairie360_api_lib >= 2.0 refuses the well-known b"secret" without this flag. Local development
+      # only: a deployment uses a random secret of at least 32 bytes (MAIR-428).
+      JWT_ALLOW_WEAK_SECRET: "true"
     depends_on:
       redis:
         condition: service_healthy

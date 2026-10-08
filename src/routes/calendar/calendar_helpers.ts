@@ -228,16 +228,13 @@ function mapEventToCreateBody(event: BffCalendarEvent): PostEventView {
   };
 }
 
-/**
- * Update body for Calendar API. Its PATCH names the dates `event_start_time` / `event_end_time` (singular),
- * unlike creation and reads (`events_start_time` / `events_end_time`).
- */
+/** Update body for Calendar API (same date field names as creation and reads). */
 function mapEventToPatchBody(event: BffCalendarEvent): PatchEventView {
   return {
     name: event.title,
     description: event.description ?? null,
-    event_start_time: combineDateTime(event.date, event.startTime),
-    event_end_time: combineDateTime(event.endDate ?? event.date, event.endTime),
+    events_start_time: combineDateTime(event.date, event.startTime),
+    events_end_time: combineDateTime(event.endDate ?? event.date, event.endTime),
     category: event.category ?? 'other',
     service: event.service ?? null,
     location: event.location ?? null,
@@ -324,12 +321,38 @@ export async function mapWithConcurrency<T, R>(items: readonly T[], limit: numbe
   return results;
 }
 
+/**
+ * Days covered by one `GET /api/v1/calendar` call. Calendar API refuses a period wider than 366 days
+ * (`end - start`); a window of 365 local days stays below it whatever the DST shifts.
+ */
+export const CALENDAR_API_WINDOW_DAYS = 365;
+
+/** Splits `from`..`to` (inclusive days) into consecutive windows of at most CALENDAR_API_WINDOW_DAYS days. */
+export function splitDateRange(from: string, to: string): { from: string; to: string }[] {
+  const windows: { from: string; to: string }[] = [];
+  for (let start = from; start <= to; start = addDays(start, CALENDAR_API_WINDOW_DAYS)) {
+    const end = addDays(start, CALENDAR_API_WINDOW_DAYS - 1);
+    windows.push({ from: start, to: end < to ? end : to });
+  }
+  return windows;
+}
+
 async function listCalendarEventViews(from: string, to: string, context: CallContext): Promise<EventView[]> {
-  // Calendar API returns the events owned by or assigned to the caller over the period, including those
-  // whose recurrence rule overlaps it, and tells whether the caller is a member.
-  const params: GetCalendarParams = { start: toApiDateTime(from, 'start'), end: toApiDateTime(to, 'end') };
-  const { data } = await calendarCall(context, (options) => calendarApi.getCalendar(params, options), true);
-  return data.events.filter((event) => event.is_member);
+  // Calendar API returns the public events and those owned by or assigned to the caller over the period,
+  // including those whose recurrence rule overlaps it, and tells whether the caller is a member. A range
+  // wider than one Calendar API window is read window by window; an event seen in several windows (long or
+  // recurring) is kept once.
+  const pages = await mapWithConcurrency(splitDateRange(from, to), UPSTREAM_CONCURRENCY, async (window) => {
+    const params: GetCalendarParams = { start: toApiDateTime(window.from, 'start'), end: toApiDateTime(window.to, 'end') };
+    const { data } = await calendarCall(context, (options) => calendarApi.getCalendar(params, options), true);
+    return data.events;
+  });
+  const seen = new Set<number>();
+  return pages.flat().filter((event) => {
+    if (!event.is_member || seen.has(event.id)) return false;
+    seen.add(event.id);
+    return true;
+  });
 }
 
 export async function fetchCalendarEvents(

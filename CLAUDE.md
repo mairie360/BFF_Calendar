@@ -61,10 +61,11 @@ sub-route file does two things:
 
 Almost all real logic lives in **`src/routes/calendar/calendar_helpers.ts`** — mapping between the BFF
 event shape and the Calendar API models, typed with the installed `@mairie360/calendar-api-openapi`
-`model/` types (`PostEventView`, `PatchEventView`, `GetEventResultView`, `EventView`…, no casts: Calendar
-API's PATCH names the dates `event_start_time` / `event_end_time`, unlike creation and reads which use
-`events_*`), the `from`/`to` checks (`parseDateRange`: YYYY-MM-DD, ordered, at most
-`MAX_DATE_RANGE_DAYS` = 1096 days because BFF_Message reads a three-year window), orchestrating
+`model/` types (`PostEventView`, `PatchEventView`, `GetEventResultView`, `EventView`…, no casts; since
+Calendar API 1.0 creation, PATCH and reads all name the dates `events_*`), the `from`/`to` checks
+(`parseDateRange`: YYYY-MM-DD, ordered, at most `MAX_DATE_RANGE_DAYS` = 1096 days because BFF_Message reads a
+three-year window; Calendar API's `GET /calendar` takes at most 366 days, so `splitDateRange` reads longer
+ranges in 365-day windows and dedupes the events by id), orchestrating
 multi-call operations (authorize everything → create/patch → sync members → re-fetch; a create whose
 member sync fails is deleted again), bounded upstream fan-out (`mapWithConcurrency`, 5 at a time; the
 bootstrap reads each distinct event once then resolves all members with one directory call), and
