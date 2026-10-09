@@ -65,7 +65,7 @@ services:
 
   # core:
   #   container_name: core-calendar-bff-developpement
-  #   image: ghcr.io/mairie360/core-api:dev-73b4577
+  #   image: ghcr.io/mairie360/core-api:dev-abaa6c2
   #   ports:
   #     - "3000:3000"
   #   networks:
@@ -100,7 +100,7 @@ services:
       
   calendar-api:
     container_name: calendar-api-bff-calendar-developpement
-    image: ghcr.io/mairie360/calendar-api:dev-a8fee1b
+    image: ghcr.io/mairie360/calendar-api:dev-608d3d3
     ports:
       - "3002:3002"
     networks:

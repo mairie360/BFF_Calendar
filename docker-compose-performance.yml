@@ -32,7 +32,7 @@ x-db-env: &db-env
 
 services:
   postgres:
-    image: ${DB_IMAGE:-ghcr.io/mairie360/database:dev-3c50ecb}
+    image: ${DB_IMAGE:-ghcr.io/mairie360/database:dev-99f6127}
     container_name: bff-calendar-perf-db
     environment:
       POSTGRES_USER: postgres
@@ -52,7 +52,7 @@ services:
 
   liquibase:
     # Database >= MAIR-413 only seeds the template admin (users.id = 1) with -Dallow_template_admin=true.
-    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:dev-3c50ecb}
+    image: ${LIQUIBASE_IMAGE:-ghcr.io/mairie360/liquibase-migrations:dev-99f6127}
     container_name: bff-calendar-perf-liquibase
     depends_on:
       postgres:
@@ -102,7 +102,7 @@ services:
       retries: 5
 
   calendar-api:
-    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:dev-a8fee1b}
+    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:dev-608d3d3}
     container_name: bff-calendar-perf-calendar-api
     depends_on:
       liquibase:
@@ -139,7 +139,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:dev-73b4577}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:dev-abaa6c2}
     container_name: bff-calendar-perf-core-api
     depends_on:
       liquibase:
