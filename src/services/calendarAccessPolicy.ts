@@ -1,4 +1,4 @@
-import { HttpError, authorization, unverifiedSubject } from '@mairie360/bffs-lib';
+import { HttpError, sessionUserId } from '@mairie360/bffs-lib';
 import type { CallContext } from '../clients/callContext';
 import {
   CalendarDirectoryUser,
@@ -35,17 +35,11 @@ export function primaryCalendarRole(user: CalendarDirectoryUser): string {
 }
 
 /**
- * Id of the caller, read from the `sub` of its session token **without verifying it**. It only selects
- * the caller's directory entry, which is then read from Core API with that same token: Core API verifies
- * the signature, so a forged `sub` gets the call refused. 401 when there is no Bearer token or no
- * readable `sub`.
+ * Id of the caller, from the session token `requireSession` verified (signature, expiry). 401 when the request
+ * did not go through it, so a route mounted without the check fails closed.
  */
 export function currentUserId(context: CallContext): number {
-  const userId = unverifiedSubject(authorization(context.req));
-  if (userId === undefined) {
-    throw new HttpError(401, 'The session token has no user id.');
-  }
-  return userId;
+  return sessionUserId(context.req);
 }
 
 export async function getCurrentCalendarUser(context: CallContext): Promise<CalendarDirectoryUser> {

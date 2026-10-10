@@ -153,7 +153,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -242,7 +242,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -325,7 +325,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -429,7 +429,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -525,7 +525,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -634,7 +634,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -717,7 +717,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
