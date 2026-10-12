@@ -185,6 +185,24 @@ function loadMembersDirectory(
   return listCalendarDirectoryUsers({ ids }, context);
 }
 
+/**
+ * Detail of a listed event, or null when Calendar API answers 404: the event was deleted between the
+ * listing and this call (Calendar API deletes rows for good), which must not fail the whole read.
+ */
+async function loadListedEventDetails(eventId: number, context: CallContext): Promise<GetEventResultView | null> {
+  try {
+    const { data } = await calendarCall(
+      { ...context, declared: [...context.declared, 404] },
+      (options) => calendarApi.getEvent(eventId, options),
+      true,
+    );
+    return data;
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) return null;
+    throw error;
+  }
+}
+
 /** Event read from Calendar API, with its members and the caller's rights. */
 async function loadCalendarEvent(
   eventId: number,
@@ -495,16 +513,15 @@ export async function fetchCalendarBootstrap(
 
   // One detail call per distinct event, a bounded number at a time, then a single directory call for
   // the members of all of them (instead of a detail call plus a directory call per event, all at once).
+  // An event deleted since the listing (detail 404, MAIR-517) is left out of the response.
   const eventIds = [...new Set(calendarEvents.map((event) => event.id))];
-  const details = await mapWithConcurrency(eventIds, UPSTREAM_CONCURRENCY, async (eventId) => {
-    const { data } = await calendarCall(context, (options) => calendarApi.getEvent(eventId, options), true);
-    return data;
-  });
+  const details = (await mapWithConcurrency(eventIds, UPSTREAM_CONCURRENCY, (eventId) => loadListedEventDetails(eventId, context)))
+    .filter((event): event is GetEventResultView => event !== null);
   const directory = await loadMembersDirectory(details, context);
   const detailsById = new Map(details.map((event) => [event.id, event]));
-  const events = calendarEvents.map((listed) => {
-    const event = detailsById.get(listed.id)!;
-    return enrichCalendarEvent(mapEventDetailsToBff(event), toEventAccess(event, directory));
+  const events = calendarEvents.flatMap((listed) => {
+    const event = detailsById.get(listed.id);
+    return event ? [enrichCalendarEvent(mapEventDetailsToBff(event), toEventAccess(event, directory))] : [];
   });
   const assignableUsers = await listAssignableCalendarUsers(currentUser, context);
 

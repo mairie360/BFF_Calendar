@@ -234,6 +234,18 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.body.assignees).toHaveLength(3);
     });
 
+    test('GET /calendar/bootstrap leaves out an event deleted between the listing and its detail call', async () => {
+      // Event 6 is listed but its detail answers 404 (deleted by another user in the meantime, MAIR-517).
+      mockCalendarApi({ list: [eventView(5), eventView(6)], details: [eventDetails(5)] });
+
+      const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(response.status).toBe(200);
+      expectBffContract('get', '/calendar/bootstrap', response);
+      expect(upstreamSequence().slice(1).sort()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(5)), called('GET', calendarApiUrls.getGetEventUrl(6))].sort());
+      expect(response.body.events.map((event: { id: number }) => event.id)).toEqual([5]);
+    });
+
     test('GET /calendar/bootstrap without from/to uses the current Paris month', async () => {
       mockCalendarApi();
       const { from, to } = monthBounds(parisDate());

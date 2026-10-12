@@ -70,7 +70,7 @@ three-year window; Calendar API's `GET /calendar` takes at most 366 days, so `sp
 ranges in 365-day windows and dedupes the events by id), orchestrating
 multi-call operations (authorize everything → create/patch → sync members → re-fetch; a create whose
 member sync fails is deleted again), bounded upstream fan-out (`mapWithConcurrency`, 5 at a time; the
-bootstrap reads each distinct event once then resolves all members with one directory call), and
+bootstrap reads each distinct event once then resolves all members with one directory call; an event whose detail answers 404 was deleted since the listing and is left out, MAIR-517), and
 `calendarCall`, the Calendar API binding of `callUpstream` (no answer → 502 `The CALENDAR_API service is
 unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpError`s; `notFoundHandler` +
 `errorHandler()` from `@mairie360/bffs-lib` close `src/app.ts` and answer every error in the shared envelope
