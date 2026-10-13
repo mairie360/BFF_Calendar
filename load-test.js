@@ -155,6 +155,18 @@ const handlers = {
       'events lists the agent event': (r) => r.status === 200 && hasEvent(json(r), agent.eventId),
     });
   },
+  // MAIR-525: the period alone, normalized: the agent's event is listed and its members are in `users`.
+  'GET /calendar/period': ({ request }) => {
+    const agent = randomAgentMonth();
+    check(request({ query: agent.range, headers: agent.headers }), {
+      'period 200': (r) => r.status === 200,
+      'period lists the agent event and indexes its members': (r) => {
+        const body = json(r) || {};
+        const event = Array.isArray(body.events) ? body.events.find((entry) => Number(entry.id) === agent.eventId) : undefined;
+        return r.status === 200 && event !== undefined && (event.assigneeIds || []).every((id) => body.users && body.users[id]);
+      },
+    });
+  },
   // The seeded agents belong to no group: they may only assign themselves.
   'GET /calendar/assignees': ({ request }) => {
     const agent = randomAgentMonth();

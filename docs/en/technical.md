@@ -75,6 +75,7 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | GET | `/check_apis` | — | 200, 502 |
 | GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/period` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
 | POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
@@ -82,6 +83,15 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | GET | `/calendar/assignees` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
+
+## Reads, cache and parallel calls (MAIR-525)
+
+- `/calendar/bootstrap` reads the events of the period and, at the same time, the caller's directory entry then the people they may assign. The events still cost one detail call per event (5 at a time) and one directory call for all their members, because the list view of Calendar API `GET /api/v1/calendar` has no members yet.
+- `/calendar/period` reads the events of a period only, normalized (`assigneeIds` + `users`), without the assignable people nor the current user: the front calls it when the displayed period changes.
+- `/calendar/bootstrap` also answers `users`, the people of the answer indexed by `user-<id>`; `assignees` in each event is deprecated.
+- The caller's directory entry and the people they may assign are kept 30 seconds in memory, per caller. Writes read them again before authorizing and then clear the cache; another replica sees a change once the 30 seconds are over.
+- `/calendar/assignees` no longer reads the events of the period: they never changed its answer.
+- Wall clock <-> UTC conversion comes from `@mairie360/bffs-lib`, shared with the BFFs that read Calendar API directly.
 
 ## Session, permissions and errors
 

@@ -1,4 +1,4 @@
-import { HttpError, sessionUserId } from '@mairie360/bffs-lib';
+import { HttpError, MemoryCache, callerKey, sessionUserId } from '@mairie360/bffs-lib';
 import type { CallContext } from '../clients/callContext';
 import {
   CalendarDirectoryUser,
@@ -42,15 +42,35 @@ export function currentUserId(context: CallContext): number {
   return sessionUserId(context.req);
 }
 
-export async function getCurrentCalendarUser(context: CallContext): Promise<CalendarDirectoryUser> {
+/**
+ * Short in-memory cache of the directory reads every page load repeats (MAIR-525): the caller's own entry and the
+ * people they may assign. Keyed by caller, so an answer is never served to someone else. Reads use it; writes read
+ * fresh data (they authorize with it) and clear it, and another replica sees a change once the TTL ends.
+ */
+export const DIRECTORY_CACHE_TTL_MS = 30_000;
+const currentUserCache = new MemoryCache<CalendarDirectoryUser>({ ttlMs: DIRECTORY_CACHE_TTL_MS });
+const assignableCache = new MemoryCache<CalendarDirectoryUser[]>({ ttlMs: DIRECTORY_CACHE_TTL_MS });
+
+/** Drops every cached directory read: called after each write of the BFF (and between tests). */
+export function clearDirectoryCache(): void {
+  currentUserCache.clear();
+  assignableCache.clear();
+}
+
+/** Options of a directory read: `fresh` skips the cache (writes authorize with fresh data). */
+type DirectoryRead = { fresh?: boolean };
+
+export async function getCurrentCalendarUser(context: CallContext, { fresh = false }: DirectoryRead = {}): Promise<CalendarDirectoryUser> {
   const userId = currentUserId(context);
-  const user = await getCalendarDirectoryUser(userId, context);
+  const load = async () => {
+    const user = await getCalendarDirectoryUser(userId, context);
+    if (!user) {
+      throw new HttpError(401, 'Unknown user.');
+    }
+    return user;
+  };
 
-  if (!user) {
-    throw new HttpError(401, 'Unknown user.');
-  }
-
-  return user;
+  return fresh ? load() : currentUserCache.getOrLoad(callerKey(userId, 'me'), load);
 }
 
 export function calendarAssigneeScope(user: CalendarDirectoryUser): 'all' | 'groups' | 'self' {
@@ -64,18 +84,18 @@ export function calendarAssigneeScope(user: CalendarDirectoryUser): 'all' | 'gro
 export async function listAssignableCalendarUsers(
   currentUser: CalendarDirectoryUser,
   context: CallContext,
+  { fresh = false }: DirectoryRead = {},
 ): Promise<CalendarDirectoryUser[]> {
   const scope = calendarAssigneeScope(currentUser);
-
-  if (scope === 'all') {
-    return listCalendarDirectoryUsers({}, context);
-  }
 
   if (scope === 'self') {
     return [currentUser];
   }
 
-  return listCalendarDirectoryUsers({ groupIds: currentUser.groupIds }, context);
+  const load = () => listCalendarDirectoryUsers(scope === 'all' ? {} : { groupIds: currentUser.groupIds }, context);
+  if (fresh) return load();
+  // The scope and the groups are part of the key: a role or group change read from Core is a new entry.
+  return assignableCache.getOrLoad(callerKey(currentUser.id, 'assignable', scope, currentUser.groupIds.join(',')), load);
 }
 
 function parseUserAssigneeId(value: string | number): number | null {
@@ -99,7 +119,8 @@ export async function resolveAuthorizedAssigneeIds(
   requestedAssigneeIds: Array<string | number>,
   context: CallContext,
 ): Promise<number[]> {
-  const assignableUsers = await listAssignableCalendarUsers(currentUser, context);
+  // Fresh read: the assignment scope is enforced here, before any write.
+  const assignableUsers = await listAssignableCalendarUsers(currentUser, context, { fresh: true });
   const assignableIds = new Set(assignableUsers.map((user) => user.id));
   const requestedIds = requestedAssigneeIds.map(parseUserAssigneeId);
 

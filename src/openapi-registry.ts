@@ -95,7 +95,7 @@ export const CalendarEventSchema = z.object({
   assigneeIds: z.array(z.string().or(z.number()).openapi({ example: 1 })).optional()
     .openapi({ description: 'Liste des identifiants des personnes assignées' }),
   assignees: z.array(CalendarAssigneeSchema).optional()
-    .openapi({ description: 'Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)' }),
+    .openapi({ description: 'Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it.' }),
   // No field-level description: it would publish an allOf, which generated requests (ZAP) fill as a string.
   recurrence: CalendarRecurrenceSchema.optional(),
   approvalStatus: z.enum(['pending', 'approved', 'rejected']).optional().openapi({ description: 'Statut d\'approbation de l\'événement' }),
@@ -137,9 +137,14 @@ export const CalendarServiceSchema = z.object({
 // Schémas - Bootstrap Response
 // ========================================
 
+/** People referenced by an answer, indexed by their public id (`user-<id>`), MAIR-525. */
+export const CalendarUsersSchema = z.record(z.string(), CalendarAssigneeSchema)
+  .openapi('CalendarUsers', { description: 'People referenced by the answer (event members, assignable people), indexed by their id (`user-<id>`): each one is sent once.' });
+
 export const CalendarBootstrapResponseSchema = z.object({
   events: z.array(CalendarEventSchema)
     .openapi({ description: 'Liste des événements de la période' }),
+  users: CalendarUsersSchema,
   assignees: z.array(CalendarAssigneeSchema)
     .openapi({ description: 'Référentiel des personnes assignables' }),
   categories: z.array(CalendarCategorySchema)
@@ -158,6 +163,12 @@ export const CalendarBootstrapResponseSchema = z.object({
     .openapi({ description: 'Périmètre du référentiel des personnes assignables' }),
 }).openapi('CalendarBootstrapResponse');
 
+export const CalendarPeriodResponseSchema = z.object({
+  events: z.array(CalendarEventSchema.omit({ assignees: true }))
+    .openapi({ description: 'Events of the period, each with its `assigneeIds` and no embedded people' }),
+  users: CalendarUsersSchema,
+}).openapi('CalendarPeriodResponse');
+
 // ========================================
 // Enregistrement des schémas dans le registre
 // ========================================
@@ -168,6 +179,8 @@ registry.register('CalendarEvent', CalendarEventSchema);
 registry.register('CalendarCategory', CalendarCategorySchema);
 registry.register('CalendarService', CalendarServiceSchema);
 registry.register('CalendarBootstrapResponse', CalendarBootstrapResponseSchema);
+registry.register('CalendarUsers', CalendarUsersSchema);
+registry.register('CalendarPeriodResponse', CalendarPeriodResponseSchema);
 
 // ========================================
 // Schémas - Statistics

@@ -44,9 +44,10 @@ registry.registerPath({
 
 router.get('/', async (req: Request, res: Response) => {
   const defaults = defaultDateRange();
-  const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
+  // The range is still validated (400 on a bad one), though the answer no longer depends on it.
+  parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
-  const assignees = await fetchKnownAssignees(from, to, { req, declared: [400, 401] });
+  const assignees = await fetchKnownAssignees({ req, declared: [400, 401] });
   return res.status(200).json(assignees);
 });
 
