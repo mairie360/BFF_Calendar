@@ -51,10 +51,11 @@ router.get('/', async (req: Request, res: Response) => {
   const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
   // Only the upstream 400 and 401 are relayed: any other upstream failure is a 502.
-  const { events, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(from, to, { req, declared: [400, 401] });
+  const { events, users, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(from, to, { req, declared: [400, 401] });
 
   return res.status(200).json({
     events,
+    users,
     assignees,
     categories: getCalendarCategories(),
     services: getCalendarServices(),

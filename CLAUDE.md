@@ -46,8 +46,8 @@ Same layout as `Bff_Template_Repo`. `src/app.ts` builds and exports the Express 
 `import 'dotenv/config'` on its first line and, started directly, `assertConfigured(UPSTREAMS)` (exits at once
 when `CALENDAR_API_URL` or `CORE_API_URL` is missing or invalid) then `listen` on `PORT` (default 4002).
 
-`/calendar` (`src/routes/calendar/index.ts`) fans out to sub-routers: `bootstrap`, `events`,
-`assignees`, `categories`, `services`. `bootstrap`, `events` and `assignees` sit behind the lib's
+`/calendar` (`src/routes/calendar/index.ts`) fans out to sub-routers: `bootstrap`, `events`, `period`,
+`assignees`, `categories`, `services`. `bootstrap`, `events`, `period` and `assignees` sit behind the lib's
 `noStore` + `requireSession` (bffs-lib >= 1.2.0, MAIR-474): `Cache-Control: no-store`, and a 401 before any
 upstream call unless the request carries `Authorization: Bearer <token>` (the only credential; cookies are
 ignored) **verified** with `JWT_SECRET` (HS256, `exp`, positive integer `sub`). `src/index.ts` refuses to
@@ -69,8 +69,13 @@ Calendar API 1.0 creation, PATCH and reads all name the dates `events_*`), the `
 three-year window; Calendar API's `GET /calendar` takes at most 366 days, so `splitDateRange` reads longer
 ranges in 365-day windows and dedupes the events by id), orchestrating
 multi-call operations (authorize everything → create/patch → sync members → re-fetch; a create whose
-member sync fails is deleted again), bounded upstream fan-out (`mapWithConcurrency`, 5 at a time; the
-bootstrap reads each distinct event once then resolves all members with one directory call; an event whose detail answers 404 was deleted since the listing and is left out, MAIR-517), and
+member sync fails is deleted again), bounded upstream fan-out (the lib's `mapWithConcurrency`, 5 at a time;
+`readPeriodEvents` reads each distinct event once then resolves all members with one directory call, because the
+list view of Calendar API has no members yet; an event whose detail answers 404 was deleted since the listing and
+is left out, MAIR-517). MAIR-525: the bootstrap reads the events and the caller → assignable people in parallel and
+answers `users` (people indexed by `user-<id>`; `assignees` in each event is deprecated); `GET /calendar/period`
+(`fetchCalendarPeriod`) reads a period only, normalized, without the assignable people; `/calendar/assignees` no
+longer reads the events. And
 `calendarCall`, the Calendar API binding of `callUpstream` (no answer → 502 `The CALENDAR_API service is
 unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpError`s; `notFoundHandler` +
 `errorHandler()` from `@mairie360/bffs-lib` close `src/app.ts` and answer every error in the shared envelope
@@ -91,11 +96,13 @@ unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpE
   `sessionUserId`, 401 when the route skipped the check) to select its directory entry, resolves the current user, computes `assigneeScope` (`all` for
   Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
   (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
-  Its refusals are thrown as the lib's `HttpError(status, message)`.
+  Its refusals are thrown as the lib's `HttpError(status, message)`. MAIR-525: the caller's directory entry and the
+  assignable people are cached 30 s per caller (lib `MemoryCache` + `callerKey`); writes read them `fresh` before
+  authorizing and call `clearDirectoryCache()` afterwards; the tests clear it in `beforeEach`.
 - **`src/services/calendarTimeZone.ts`** — users type wall-clock times in the instance time zone
   (`CALENDAR_TIME_ZONE`, default Europe/Paris from `@mairie360/bffs-lib`), Calendar API stores UTC
-  instants: `wallClockToUtc` / `utcToWallClock` (Intl, DST-aware) convert every date/time crossing the
-  boundary, and query days are sent as their UTC first/last second. The container time zone never matters.
+  instants: `wallClockToUtc` / `utcToWallClock` (the lib's, DST-aware, since MAIR-525) convert every date/time
+  crossing the boundary, and query days are sent as their UTC first/last second. The container time zone never matters.
 
 ### Writes
 
@@ -121,7 +128,7 @@ registrations) and generates the document with `@asteasolutions/zod-to-openapi`.
 - `contracts/` is the versioned contract consumed by `Calendars_Web_Service`; ship BFF and web-service
   contract changes together.
 
-`eslint.config.cjs` is the lint config; `openapi-typescript` 7.10.1 is the type generator.
+`eslint.config.cjs` is the lint config (`no-await-in-loop` is an error, MAIR-525); `openapi-typescript` 7.10.1 is the type generator.
 
 ## Tests
 
@@ -139,8 +146,8 @@ registrations) and generates the document with `@asteasolutions/zod-to-openapi`.
   `allowDeviation(pattern, reason)`. `CALENDAR_API_URL/PORT` and `CORE_API_URL/PORT` point to the mocks
   in `beforeEach` (read on each call). `tests/startup.test.ts` checks the fail-fast start. Expected times are Paris wall-clock values of the UTC
   fixtures (09:00Z is 11:00 in September).
-- `tests/calendar_dates.test.ts` covers the time zone conversions, `parseDateRange`,
-  `mapWithConcurrency` and the missing-URL failure, under a far-off container `TZ`.
+- `tests/calendar_dates.test.ts` covers the time zone conversions, `parseDateRange` and the missing-URL failure,
+  under a far-off container `TZ` (`mapWithConcurrency` is tested in the lib).
 
 `jest.config.ts` lets ts-jest compile `node_modules/@mairie360/*` (orval ships raw ESM TypeScript).
 Auth is an HS256 JWT signed with the tests' `JWT_SECRET` (`sessionToken` / `authorizationFor(userId)` in

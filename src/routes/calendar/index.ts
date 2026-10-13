@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { noStore, requireSession } from '@mairie360/bffs-lib';
 import bootstrapRoutes from './bootstrap';
 import eventsRoutes from './events';
+import periodRoutes from './period';
 import assigneesRoutes from './assignees';
 import categoriesRoutes from './categories';
 import servicesRoutes from './services';
@@ -14,6 +15,7 @@ const router = Router();
 // Categories and services are static lists and stay public.
 router.use('/bootstrap', noStore, requireSession, bootstrapRoutes);
 router.use('/events', noStore, requireSession, eventsRoutes);
+router.use('/period', noStore, requireSession, periodRoutes);
 router.use('/assignees', noStore, requireSession, assigneesRoutes);
 router.use('/categories', categoriesRoutes);
 router.use('/services', servicesRoutes);
