@@ -1,4 +1,13 @@
-import { HttpError, addDays, asCaller, callUpstream, mapWithConcurrency, type UpstreamRequestOptions } from '@mairie360/bffs-lib';
+import {
+  HttpError,
+  addDays,
+  asCaller,
+  callUpstream,
+  describeError,
+  mapWithConcurrency,
+  requestId,
+  type UpstreamRequestOptions,
+} from '@mairie360/bffs-lib';
 import type {
   EventRecurrence,
   EventView,
@@ -12,6 +21,7 @@ import type { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
 import type { CallContext } from '../../clients/callContext';
 import { listCalendarDirectoryUsers } from '../../clients/coreDirectory';
+import { logger } from '../../logger';
 import {
   CalendarDirectoryUser,
   CalendarEventAccess,
@@ -401,7 +411,11 @@ export async function createCalendarEvent(
     // Creation and member assignment are separate upstream calls: undo the creation (best effort) so a
     // failed request does not leave a half-assigned event behind, then report the original failure.
     await calendarCall(context, (options) => calendarApi.deleteEvent(eventId, options)).catch((rollbackError: unknown) => {
-      console.error(`[BFF Calendar] Could not delete event ${eventId} after a failed member assignment`, rollbackError);
+      logger.error('event rollback failed after a failed member assignment', {
+        request_id: requestId(context.req),
+        event_id: eventId,
+        error: describeError(rollbackError),
+      });
     });
     throw error;
   } finally {
