@@ -19,6 +19,7 @@ import { clearDirectoryCache } from '../src/services/calendarAccessPolicy';
 import {
   JWT_SECRET, authorizationFor, calendarApiUrls, calendarResult, coreApiUrls, coreDirectory, directoryUsers, eventDetails, eventView, postEventResult,
 } from './support/calendar-fixtures';
+import { captureLogs } from './support/logs';
 
 const { admin, alice, marie } = directoryUsers;
 
@@ -50,7 +51,7 @@ afterAll(async () => { await Promise.all(mocks.map((mock) => mock.stop())); });
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.JWT_SECRET = JWT_SECRET;
-  jest.spyOn(console, 'log').mockImplementation(() => undefined);
+  captureLogs();
   for (const mock of mocks) mock.reset();
   // The directory reads are cached a short time per caller (MAIR-525): every test starts from an empty cache.
   clearDirectoryCache();
@@ -544,7 +545,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test('POST /calendar/events deletes the created event when assigning its members fails', async () => {
       mockCalendarApi({ createdId: 42 });
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      captureLogs();
       calendarApi.on('post', CALENDAR.members, { status: 500, raw: 'database down', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
@@ -755,7 +756,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test('names Core API when its connection drops', async () => {
       mockCalendarApi({ list: [eventView(5)], details: [eventDetails(5)] });
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      captureLogs();
       coreApi.on('get', CORE.directory, { dropConnection: true });
 
       const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
@@ -780,7 +781,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test('never retries a Calendar API write', async () => {
       mockCalendarApi();
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      captureLogs();
       calendarApi.on('post', CALENDAR.events, { status: 503, raw: 'Unavailable', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id)).send({ title: 'Atelier', date: '2026-09-20' });
@@ -792,7 +793,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test('maps a Core API directory failure to 502 without leaking its body', async () => {
       mockCalendarApi({ list: [eventView(5)], details: [eventDetails(5)] });
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      captureLogs();
       coreApi.on('get', CORE.directory, {
         status: 500,
         raw: 'An error occurred while accessing the database.',
@@ -856,7 +857,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test('answers an unexpected failure with a generic 500 that leaks nothing', async () => {
       mockCalendarApi();
-      const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const logs = captureLogs();
       // A list without its events array makes the mapping throw a TypeError: a bug, not an upstream status.
       calendarApi.on('get', CALENDAR.calendar, { body: { events: null }, outOfContract: true });
 
@@ -865,7 +866,11 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.status).toBe(500);
       expectBffContract('get', '/calendar/events', response);
       expect(response.body).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error', details: [] } });
-      expect(log).toHaveBeenCalled();
+      expect(logs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ level: 'ERROR', target: 'bff-calendar', message: 'request failed', status: 500, request_id: response.headers['x-request-id'] }),
+        ]),
+      );
     });
 
     test('answers an unknown route with a 404 envelope', async () => {
@@ -890,7 +895,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test.each(['CALENDAR_API', 'CORE_API'])('answers 503 without calling the API whose %s_URL is missing', async (service) => {
       mockCalendarApi({ list: [eventView(5)], details: [eventDetails(5)] });
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      captureLogs();
       delete process.env[`${service}_URL`];
 
       const response = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
@@ -903,7 +908,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
     test('never falls back to localhost: only the port configured, no URL, is a 503', async () => {
       mockCalendarApi();
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      captureLogs();
       // The mock listens on localhost at CALENDAR_API_PORT: without CALENDAR_API_URL it must not be reached.
       delete process.env.CALENDAR_API_URL;
 
