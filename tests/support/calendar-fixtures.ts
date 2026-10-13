@@ -40,6 +40,8 @@ export function eventView(id: number, overrides: Partial<EventView> = {}): Event
     service: null,
     location: null,
     recurrence: null,
+    // MAIR-524: the listing carries the members of each event, like its detail.
+    members: [member(1)],
     ...overrides,
   };
 }
