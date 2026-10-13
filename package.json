@@ -14,8 +14,8 @@
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "9.1.0",
     "@mairie360/bffs-lib": "2.1.1",
-    "@mairie360/calendar-api-openapi": "0.0.0-dev-a7252e8",
-    "@mairie360/core-api-openapi": "0.0.0-dev-2529974",
+    "@mairie360/calendar-api-openapi": "0.0.0-dev-7486387",
+    "@mairie360/core-api-openapi": "0.0.0-dev-95531e2",
     "axios": "1.20.0",
     "dotenv": "17.4.2",
     "express": "5.2.1",
