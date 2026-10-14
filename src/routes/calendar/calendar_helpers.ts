@@ -10,6 +10,7 @@ import {
 } from '@mairie360/bffs-lib';
 import type {
   EventRecurrence,
+  EventValidationStatus,
   EventView,
   GetCalendarParams,
   GetEventResultView,
@@ -189,29 +190,36 @@ function toEventAccess(event: GetEventResultView, directory: CalendarDirectoryUs
 
 /** Directory entries of the members of `events`, in one Core API call. */
 function loadMembersDirectory(
-  events: GetEventResultView[],
+  events: Pick<GetEventResultView | EventView, 'members'>[],
   context: CallContext,
 ): Promise<CalendarDirectoryUser[]> {
   const ids = [...new Set(events.flatMap((event) => event.members.map((member) => member.id)))];
   return listCalendarDirectoryUsers({ ids }, context);
 }
 
+/** Event approval in the vocabulary of the member `validation_status` Calendar API repeats on every member. */
+const APPROVAL_BY_VALIDATION: Record<EventValidationStatus, BffCalendarEvent['approvalStatus']> = {
+  validated: 'approved',
+  refused: 'rejected',
+  pending: 'pending',
+};
+
 /**
- * Detail of a listed event, or null when Calendar API answers 404: the event was deleted between the
- * listing and this call (Calendar API deletes rows for good), which must not fail the whole read.
+ * A listed event with its members resolved in `directory` and its approval status, both taken from the list view
+ * (MAIR-524 members, repeating the event's approval). The caller's rights, the creator and the description are only
+ * in the detail (`GET /calendar/events/{id}`), which the front reads when an event is opened (MAIR-557).
  */
-async function loadListedEventDetails(eventId: number, context: CallContext): Promise<GetEventResultView | null> {
-  try {
-    const { data } = await calendarCall(
-      { ...context, declared: [...context.declared, 404] },
-      (options) => calendarApi.getEvent(eventId, options),
-      true,
-    );
-    return data;
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) return null;
-    throw error;
-  }
+function mapListedEventToBff(event: EventView, directory: CalendarDirectoryUser[]): BffCalendarEvent {
+  const memberIds = new Set(event.members.map((member) => member.id));
+  const assignees = directory.filter((user) => memberIds.has(user.id)).map(mapDirectoryUserToAssignee);
+  const [first] = event.members;
+
+  return {
+    ...mapEventListItemToBff(event),
+    assigneeIds: assignees.map((assignee) => assignee.id),
+    assignees,
+    ...(first ? { approvalStatus: APPROVAL_BY_VALIDATION[first.validation_status] } : {}),
+  };
 }
 
 /** Event read from Calendar API, with its members and the caller's rights. */
@@ -522,22 +530,14 @@ function indexUsers(users: BffCalendarAssignee[]): BffCalendarUsers {
 }
 
 /**
- * The caller's events of `from`..`to` with their members and rights. One listing (per Calendar API window), then
- * one detail call per distinct event, a bounded number at a time (the list view of `GET /api/v1/calendar` has no
- * members yet, MAIR-524), then a single directory call for the members of all of them. An event deleted since the
- * listing (detail 404, MAIR-517) is left out.
+ * The caller's events of `from`..`to` with their members and approval status, in a fixed number of calls whatever the
+ * number of events (MAIR-557): one listing per Calendar API window, whose list view carries the members since
+ * MAIR-524, then a single directory call for the members of all of them. No detail call per event.
  */
 async function readPeriodEvents(from: string, to: string, context: CallContext): Promise<BffCalendarEvent[]> {
   const calendarEvents = await listCalendarEventViews(from, to, context);
-  const eventIds = [...new Set(calendarEvents.map((event) => event.id))];
-  const details = (await mapWithConcurrency(eventIds, UPSTREAM_CONCURRENCY, (eventId) => loadListedEventDetails(eventId, context)))
-    .filter((event): event is GetEventResultView => event !== null);
-  const directory = await loadMembersDirectory(details, context);
-  const detailsById = new Map(details.map((event) => [event.id, event]));
-  return calendarEvents.flatMap((listed) => {
-    const event = detailsById.get(listed.id);
-    return event ? [enrichCalendarEvent(mapEventDetailsToBff(event), toEventAccess(event, directory))] : [];
-  });
+  const directory = await loadMembersDirectory(calendarEvents, context);
+  return calendarEvents.map((event) => mapListedEventToBff(event, directory));
 }
 
 /** `events` without their embedded `assignees`, and the people they reference indexed by id. */

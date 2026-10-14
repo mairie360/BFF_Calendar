@@ -155,6 +155,14 @@ const handlers = {
       'events lists the agent event': (r) => r.status === 200 && hasEvent(json(r), agent.eventId),
     });
   },
+  // MAIR-557: the opened event, with the rights the lists no longer carry.
+  'GET /calendar/events/{id}': ({ request }) => {
+    const agent = randomAgentMonth();
+    check(request({ path: { id: agent.eventId }, headers: agent.headers }), {
+      'event 200': (r) => r.status === 200,
+      'event carries the caller rights': (r) => r.status === 200 && Number((json(r) || {}).id) === agent.eventId && typeof (json(r) || {}).canEdit === 'boolean',
+    });
+  },
   // MAIR-525: the period alone, normalized: the agent's event is listed and its members are in `users`.
   'GET /calendar/period': ({ request }) => {
     const agent = randomAgentMonth();

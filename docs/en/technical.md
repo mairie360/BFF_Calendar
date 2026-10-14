@@ -76,6 +76,7 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/period` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/events/{id}` | — | 200, 400, 401, 403, 404, 500, 502, 503 |
 | POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
@@ -86,7 +87,7 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 
 ## Reads, cache and parallel calls (MAIR-525)
 
-- `/calendar/bootstrap` reads the events of the period and, at the same time, the caller's directory entry then the people they may assign. The events still cost one detail call per event (5 at a time) and one directory call for all their members, because the list view of Calendar API `GET /api/v1/calendar` has no members yet.
+- `/calendar/bootstrap` reads the events of the period and, at the same time, the caller's directory entry then the people they may assign. MAIR-557: the events come from the list view of Calendar API `GET /api/v1/calendar` alone, which carries their members and their approval status, plus one directory call for all their members: a fixed number of calls whatever the number of events, without any detail call. The listed events therefore have no `description`, `createdById`, `canEdit`, `canDelete` nor `canValidate`: `GET /calendar/events/{id}` answers them for the event the user opens.
 - `/calendar/period` reads the events of a period only, normalized (`assigneeIds` + `users`), without the assignable people nor the current user: the front calls it when the displayed period changes.
 - `/calendar/bootstrap` also answers `users`, the people of the answer indexed by `user-<id>`; `assignees` in each event is deprecated.
 - The caller's directory entry and the people they may assign are kept 30 seconds in memory, per caller. Writes read them again before authorizing and then clear the cache; another replica sees a change once the 30 seconds are over.

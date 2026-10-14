@@ -69,10 +69,11 @@ Calendar API 1.0 creation, PATCH and reads all name the dates `events_*`), the `
 three-year window; Calendar API's `GET /calendar` takes at most 366 days, so `splitDateRange` reads longer
 ranges in 365-day windows and dedupes the events by id), orchestrating
 multi-call operations (authorize everything → create/patch → sync members → re-fetch; a create whose
-member sync fails is deleted again), bounded upstream fan-out (the lib's `mapWithConcurrency`, 5 at a time;
-`readPeriodEvents` reads each distinct event once then resolves all members with one directory call, because the
-list view of Calendar API has no members yet; an event whose detail answers 404 was deleted since the listing and
-is left out, MAIR-517). MAIR-525: the bootstrap reads the events and the caller → assignable people in parallel and
+member sync fails is deleted again), bounded upstream fan-out (the lib's `mapWithConcurrency`, 5 at a time, for the
+365-day windows). MAIR-557: `readPeriodEvents` builds the events from the list view alone (its `members`, MAIR-524,
+each repeating the event's approval as `validation_status`) plus one directory call for all members: no detail call
+per event, so listed events carry no `description` / `createdById` / `canEdit` / `canDelete` / `canValidate`;
+`GET /calendar/events/{id}` (`fetchCalendarEvent`) answers them for the opened event. MAIR-525: the bootstrap reads the events and the caller → assignable people in parallel and
 answers `users` (people indexed by `user-<id>`; `assignees` in each event is deprecated); `GET /calendar/period`
 (`fetchCalendarPeriod`) reads a period only, normalized, without the assignable people; `/calendar/assignees` no
 longer reads the events. And

@@ -76,6 +76,7 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | GET | `/calendar/bootstrap` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/period` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/events/{id}` | — | 200, 400, 401, 403, 404, 500, 502, 503 |
 | POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
@@ -86,7 +87,7 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 
 ## Lectures, cache et appels parallèles (MAIR-525)
 
-- `/calendar/bootstrap` lit les événements de la période et, en même temps, la fiche annuaire de l’appelant puis les personnes qu’il peut assigner. Les événements coûtent encore un appel de détail par événement (5 à la fois) et un appel d’annuaire pour tous leurs membres, car la vue liste de Calendar API `GET /api/v1/calendar` ne contient pas encore les membres.
+- `/calendar/bootstrap` lit les événements de la période et, en même temps, la fiche annuaire de l’appelant puis les personnes qu’il peut assigner. MAIR-557 : les événements viennent de la seule vue liste de Calendar API `GET /api/v1/calendar`, qui porte leurs membres et leur statut d’approbation, plus un appel d’annuaire pour tous leurs membres : un nombre fixe d’appels quel que soit le nombre d’événements, sans aucun appel de détail. Les événements listés n’ont donc ni `description`, ni `createdById`, ni `canEdit`, `canDelete` ou `canValidate` : `GET /calendar/events/{id}` les renvoie pour l’événement que l’utilisateur ouvre.
 - `/calendar/period` lit uniquement les événements d’une période, normalisés (`assigneeIds` + `users`), sans les personnes assignables ni l’utilisateur courant : le front l’appelle quand la période affichée change.
 - `/calendar/bootstrap` renvoie aussi `users`, les personnes de la réponse indexées par `user-<id>` ; `assignees` dans chaque événement est déprécié.
 - La fiche annuaire de l’appelant et les personnes qu’il peut assigner sont gardées 30 secondes en mémoire, par appelant. Les écritures les relisent avant d’autoriser puis vident le cache ; une autre réplique voit un changement au bout des 30 secondes.
