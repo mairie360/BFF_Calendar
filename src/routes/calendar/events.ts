@@ -13,6 +13,7 @@ import {
 import {
   createCalendarEvent,
   deleteCalendarEvent,
+  fetchCalendarEvent,
   fetchCalendarEvents,
   MAX_DATE_RANGE_DAYS,
   parseDateRange,
@@ -86,6 +87,35 @@ registry.registerPath({
     400: apiErrorResponse('Invalid data'),
     401: apiErrorResponse('Missing or invalid session'),
     403: apiErrorResponse('Assignee outside the authorized scope, or refused by Calendar API'),
+    500: apiErrorResponse('Unexpected server error'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+  },
+});
+
+// GET /calendar/events/{id}
+registry.registerPath({
+  method: 'get',
+  path: '/calendar/events/{id}',
+  tags: ['Calendar'],
+  summary: 'Reads one event with the caller\'s rights',
+  description: 'The event with its description, members, approval status, creator and the caller\'s rights (`canEdit`, `canDelete`, `canValidate`), which the bootstrap and period lists do not carry (MAIR-557): the front reads it when an event is opened.',
+  parameters: [
+    eventIdPathParameter,
+  ],
+  responses: {
+    200: {
+      description: 'The event',
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/CalendarEvent' },
+        },
+      },
+    },
+    400: apiErrorResponse('Invalid id'),
+    401: apiErrorResponse('Missing or invalid session'),
+    403: apiErrorResponse('The caller is not assigned to this event'),
+    404: apiErrorResponse('Event not found'),
     500: apiErrorResponse('Unexpected server error'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
     503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
@@ -223,6 +253,13 @@ router.post('/', async (req: Request, res: Response) => {
   const body = parseRequest(CreateCalendarEventBodySchema, req.body, 'body');
   const event = await createCalendarEvent(body, { req, declared: [400, 401, 403] });
   return res.status(201).json(event);
+});
+
+// GET /calendar/events/:id
+router.get('/:id', async (req: Request, res: Response) => {
+  const eventId = eventIdOf(req);
+  const event = await fetchCalendarEvent(eventId, { req, declared: [400, 401, 403, 404] });
+  return res.status(200).json(event);
 });
 
 // PATCH /calendar/events/:id
