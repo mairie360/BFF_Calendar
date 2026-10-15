@@ -449,17 +449,18 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
 
       expect(response.status).toBe(201);
       expectBffContract('post', '/calendar/events', response);
-      expect(upstreamSequence()[0]).toBe(called('POST', calendarApiUrls.getCreateEventUrl()));
-      expect(upstreamSequence().slice(-1)).toEqual([called('GET', calendarApiUrls.getGetEventUrl(42))]);
+      // One creation call carrying the members (MAIR-562), then the read of the created event.
+      expect(upstreamSequence()).toEqual([called('POST', calendarApiUrls.getCreateEventUrl()), called('GET', calendarApiUrls.getGetEventUrl(42))]);
       // 14:00-16:00 typed in Paris (UTC+2 in September) is stored as 12:00Z-14:00Z.
-      expect(calendarApi.calls(CALENDAR.events, 'POST')[0].body).toEqual({
+      const { members, ...created } = calendarApi.calls(CALENDAR.events, 'POST')[0].body as { members: number[] };
+      expect(created).toEqual({
         name: 'Atelier', description: null,
         events_start_time: '2026-09-20T12:00:00Z', events_end_time: '2026-09-20T14:00:00Z',
         category: 'activity', service: null, location: 'Salle 2',
         recurrence: { frequency: 'weekly', interval: 2, ends_on: '2026-12-31' },
       });
-      expect(calendarApi.calls(CALENDAR.members, 'POST').map((call) => [call.url.pathname, call.body]))
-        .toEqual(expect.arrayContaining([[calendarApiUrls.getAddEventMemberUrl(42), { user_id: alice.id }], [calendarApiUrls.getAddEventMemberUrl(42), { user_id: marie.id }]]));
+      expect([...members].sort((a, b) => a - b)).toEqual([alice.id, marie.id].sort((a, b) => a - b));
+      expect(calendarApi.calls(CALENDAR.members, 'POST')).toHaveLength(0);
       expect(response.body).toMatchObject({
         id: 42, title: 'Atelier', startTime: '14:00', endTime: '16:00', approvalStatus: 'pending', canDelete: true,
         recurrence: { frequency: 'weekly', interval: 2, endsOn: '2026-12-31' },
@@ -588,18 +589,46 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(upstreamSequence()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(5))]);
     });
 
-    test('POST /calendar/events deletes the created event when assigning its members fails', async () => {
+    test('mair_562 POST /calendar/events relays a refused creation without any compensating DELETE', async () => {
       mockCalendarApi({ createdId: 42 });
-      captureLogs();
-      calendarApi.on('post', CALENDAR.members, { status: 500, raw: 'database down', contentType: 'text/plain', outOfContract: true });
+      // Calendar API writes the event and its members in one transaction: a refused member creates nothing.
+      calendarApi.on('post', CALENDAR.events, { status: 403, raw: 'Forbidden.', contentType: 'text/plain', outOfContract: true });
 
       const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
         .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00', assigneeIds: ['user-3'] });
 
-      expect(response.status).toBe(502);
+      expect(response.status).toBe(403);
       expectBffContract('post', '/calendar/events', response);
-      expect(upstreamSequence()[0]).toBe(called('POST', calendarApiUrls.getCreateEventUrl()));
-      expect(upstreamSequence().slice(-1)).toEqual([called('DELETE', calendarApiUrls.getDeleteEventUrl(42))]);
+      expect(upstreamSequence()).toEqual([called('POST', calendarApiUrls.getCreateEventUrl())]);
+    });
+
+    test('mair_562 POST /calendar/events retries a rate-limited creation after its Retry-After', async () => {
+      mockCalendarApi({ createdId: 42, details: [eventDetails(42, { created_by: alice.id })] });
+      let attempts = 0;
+      calendarApi.on('post', CALENDAR.events, () => (++attempts === 1
+        ? { status: 429, raw: 'Too many requests', contentType: 'text/plain', headers: { 'Retry-After': '0' }, outOfContract: true }
+        : { status: 201, body: postEventResult(42) }));
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
+        .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00' });
+
+      expect(response.status).toBe(201);
+      expect(attempts).toBe(2);
+      expect(calendarApi.calls(CALENDAR.event, 'DELETE')).toHaveLength(0);
+    });
+
+    test('mair_562 a persistent Calendar API 429 is answered 429 with Retry-After, not 502', async () => {
+      mockCalendarApi({ createdId: 42 });
+      calendarApi.on('post', CALENDAR.events, { status: 429, raw: 'Too many requests', contentType: 'text/plain', headers: { 'Retry-After': '30' }, outOfContract: true });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id))
+        .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00' });
+
+      expect(response.status).toBe(429);
+      expect(response.headers['retry-after']).toBe('30');
+      expectBffContract('post', '/calendar/events', response);
+      // A Retry-After beyond the lib's 2 s budget is not waited for: one attempt, no event left to undo.
+      expect(upstreamSequence()).toEqual([called('POST', calendarApiUrls.getCreateEventUrl())]);
     });
 
     test.each(['abc', '1.5', '0', '-3'])('rejects the event id %s with 400 before calling Calendar API', async (id) => {

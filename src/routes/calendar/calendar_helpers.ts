@@ -3,9 +3,7 @@ import {
   addDays,
   asCaller,
   callUpstream,
-  describeError,
   mapWithConcurrency,
-  requestId,
   type UpstreamRequestOptions,
 } from '@mairie360/bffs-lib';
 import type {
@@ -22,7 +20,6 @@ import type { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
 import type { CallContext } from '../../clients/callContext';
 import { listCalendarDirectoryUsers } from '../../clients/coreDirectory';
-import { logger } from '../../logger';
 import {
   CalendarDirectoryUser,
   CalendarEventAccess,
@@ -252,8 +249,9 @@ function enrichCalendarEvent(
 }
 
 /** Creation body for Calendar API. */
-function mapEventToCreateBody(event: BffCalendarEvent): PostEventView {
+function mapEventToCreateBody(event: BffCalendarEvent, members: number[]): PostEventView {
   return {
+    members,
     name: event.title,
     description: event.description ?? null,
     events_start_time: combineDateTime(event.date, event.startTime),
@@ -282,14 +280,20 @@ function mapEventToPatchBody(event: BffCalendarEvent): PatchEventView {
 /**
  * A Calendar API call made with the caller's session (lib `asCaller`: 401 without a Bearer token, 503 when
  * CALENDAR_API_URL is missing), its failures mapped by the lib's `callUpstream`: the 4xx the route declares
- * are relayed, anything else becomes a 502. `retry` only for idempotent reads.
+ * are relayed, a 429 too (with its `Retry-After`), anything else becomes a 502. `retry` (idempotent reads
+ * only) retries transient failures and 429; every other call, writes included, is retried after a 429
+ * within its `Retry-After`, since a rate-limited request was not applied (MAIR-562).
  */
 function calendarCall<T>(
   context: CallContext,
   call: (options: UpstreamRequestOptions) => Promise<T>,
   retry = false,
 ): Promise<T> {
-  return callUpstream('CALENDAR_API', () => call(asCaller('CALENDAR_API', context.req)), { declared: context.declared, retry });
+  return callUpstream('CALENDAR_API', () => call(asCaller('CALENDAR_API', context.req)), {
+    declared: context.declared,
+    retry,
+    retryRateLimited: !retry,
+  });
 }
 
 const QUERY_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -409,23 +413,14 @@ export async function createCalendarEvent(
     event.assigneeIds ?? [],
     context,
   );
-  const response = await calendarCall(context, (options) => calendarApi.createEvent(mapEventToCreateBody(event), options));
-  const eventId = response.data.event_id;
-
+  // One call (MAIR-562): Calendar API writes the event and its members in one transaction, so a refused or
+  // failed assignment leaves no event behind and there is nothing to undo.
+  let eventId: number;
   try {
-    // Calendar API recomputes the validation on every member change.
-    await syncEventMembers(eventId, [], assigneeIds, context);
-  } catch (error) {
-    // Creation and member assignment are separate upstream calls: undo the creation (best effort) so a
-    // failed request does not leave a half-assigned event behind, then report the original failure.
-    await calendarCall(context, (options) => calendarApi.deleteEvent(eventId, options)).catch((rollbackError: unknown) => {
-      logger.error('event rollback failed after a failed member assignment', {
-        request_id: requestId(context.req),
-        event_id: eventId,
-        error: describeError(rollbackError),
-      });
-    });
-    throw error;
+    const response = await calendarCall(context, (options) =>
+      calendarApi.createEvent(mapEventToCreateBody(event, assigneeIds), options),
+    );
+    eventId = response.data.event_id;
   } finally {
     clearDirectoryCache();
   }
