@@ -49,6 +49,7 @@
           },
           "endsOn": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de fin inclusive (format YYYY-MM-DD)",
             "example": "2030-12-31"
           }
@@ -123,11 +124,13 @@
           },
           "date": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
             "example": "2030-06-15"
           },
@@ -149,13 +152,13 @@
           },
           "startTime": {
             "type": "string",
-            "pattern": "^\\d{2}:\\d{2}$",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "description": "Heure de début au format HH:mm",
             "example": "09:00"
           },
           "endTime": {
             "type": "string",
-            "pattern": "^\\d{2}:\\d{2}$",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "description": "Heure de fin au format HH:mm",
             "example": "10:00"
           },
@@ -190,7 +193,7 @@
             "items": {
               "$ref": "#/components/schemas/CalendarAssignee"
             },
-            "description": "Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)"
+            "description": "Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it."
           },
           "recurrence": {
             "$ref": "#/components/schemas/CalendarRecurrence"
@@ -290,6 +293,9 @@
             },
             "description": "Liste des événements de la période"
           },
+          "users": {
+            "$ref": "#/components/schemas/CalendarUsers"
+          },
           "assignees": {
             "type": "array",
             "items": {
@@ -361,9 +367,173 @@
         },
         "required": [
           "events",
+          "users",
           "assignees",
           "categories",
           "services"
+        ]
+      },
+      "CalendarUsers": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CalendarAssignee"
+        },
+        "description": "People referenced by the answer (event members, assignable people), indexed by their id (`user-<id>`): each one is sent once."
+      },
+      "CalendarPeriodResponse": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "description": "Identifiant stable. Optionnel en création, obligatoire en lecture."
+                },
+                "title": {
+                  "type": "string",
+                  "pattern": "^[^<>]*$",
+                  "description": "Titre de l'événement",
+                  "example": "Scan event"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
+                  "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+                  "example": "2030-06-15"
+                },
+                "endDate": {
+                  "type": "string",
+                  "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
+                  "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+                  "example": "2030-06-15"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "meeting",
+                    "activity",
+                    "ceremony",
+                    "other"
+                  ],
+                  "description": "Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)"
+                },
+                "service": {
+                  "type": "string",
+                  "pattern": "^[^<>]*$",
+                  "description": "Service ou département organisateur",
+                  "example": "direction"
+                },
+                "startTime": {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "description": "Heure de début au format HH:mm",
+                  "example": "09:00"
+                },
+                "endTime": {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "description": "Heure de fin au format HH:mm",
+                  "example": "10:00"
+                },
+                "location": {
+                  "type": "string",
+                  "pattern": "^[^<>]*$",
+                  "description": "Lieu de l'événement",
+                  "example": "Town hall"
+                },
+                "description": {
+                  "type": "string",
+                  "pattern": "^[^<>]*$",
+                  "description": "Description détaillée"
+                },
+                "assigneeIds": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "example": 1
+                  },
+                  "description": "Liste des identifiants des personnes assignées"
+                },
+                "recurrence": {
+                  "$ref": "#/components/schemas/CalendarRecurrence"
+                },
+                "approvalStatus": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "approved",
+                    "rejected"
+                  ],
+                  "description": "Statut d'approbation de l'événement"
+                },
+                "createdById": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "description": "Identifiant de l'utilisateur ayant créé l'événement",
+                  "example": 1
+                },
+                "canValidate": {
+                  "type": "boolean",
+                  "description": "Indique si l’utilisateur courant peut valider ou refuser cet événement"
+                },
+                "canEdit": {
+                  "type": "boolean",
+                  "description": "Indique si l’utilisateur courant peut modifier cet événement"
+                },
+                "canDelete": {
+                  "type": "boolean",
+                  "description": "Indique si l’utilisateur courant peut supprimer cet événement"
+                },
+                "visibleToRoles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "responsable",
+                      "mayor"
+                    ]
+                  },
+                  "description": "Liste des rôles pouvant voir l'événement"
+                }
+              },
+              "required": [
+                "title",
+                "date"
+              ]
+            },
+            "description": "Events of the period, each with its `assigneeIds` and no embedded people"
+          },
+          "users": {
+            "$ref": "#/components/schemas/CalendarUsers"
+          }
+        },
+        "required": [
+          "events",
+          "users"
         ]
       },
       "CalendarStatistics": {
@@ -443,11 +613,13 @@
           },
           "date": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
             "example": "2030-06-15"
           },
@@ -469,13 +641,13 @@
           },
           "startTime": {
             "type": "string",
-            "pattern": "^\\d{2}:\\d{2}$",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "description": "Heure de début au format HH:mm",
             "example": "09:00"
           },
           "endTime": {
             "type": "string",
-            "pattern": "^\\d{2}:\\d{2}$",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "description": "Heure de fin au format HH:mm",
             "example": "10:00"
           },
@@ -510,7 +682,7 @@
             "items": {
               "$ref": "#/components/schemas/CalendarAssignee"
             },
-            "description": "Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)"
+            "description": "Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it."
           },
           "recurrence": {
             "$ref": "#/components/schemas/CalendarRecurrence"
@@ -577,11 +749,13 @@
           },
           "date": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
+            "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
             "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
             "example": "2030-06-15"
           },
@@ -603,13 +777,13 @@
           },
           "startTime": {
             "type": "string",
-            "pattern": "^\\d{2}:\\d{2}$",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "description": "Heure de début au format HH:mm",
             "example": "09:00"
           },
           "endTime": {
             "type": "string",
-            "pattern": "^\\d{2}:\\d{2}$",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "description": "Heure de fin au format HH:mm",
             "example": "10:00"
           },
@@ -644,7 +818,7 @@
             "items": {
               "$ref": "#/components/schemas/CalendarAssignee"
             },
-            "description": "Objets complets des personnes assignées (optionnel, peut être reconstruit côté front)"
+            "description": "Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it."
           },
           "recurrence": {
             "$ref": "#/components/schemas/CalendarRecurrence"
@@ -910,6 +1084,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -931,7 +1115,7 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1008,6 +1192,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -1029,7 +1223,7 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1096,6 +1290,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -1117,7 +1321,7 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1130,6 +1334,118 @@
       }
     },
     "/calendar/events/{id}": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "Reads one event with the caller's rights",
+        "description": "The event with its description, members, approval status, creator and the caller's rights (`canEdit`, `canDelete`, `canValidate`), which the bootstrap and period lists do not carry (MAIR-557): the front reads it when an event is opened.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "example": "101"
+            },
+            "description": "Identifiant unique de l'événement"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is not assigned to this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Calendar API or Core API is unavailable or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Calendar"
@@ -1209,6 +1525,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -1230,7 +1556,7 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1304,6 +1630,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -1325,7 +1661,7 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1417,6 +1753,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -1438,7 +1784,112 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/period": {
+      "get": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "Loads the events of a period only",
+        "description": "The events of `from`..`to` with their members and rights, normalized: each event lists its `assigneeIds` and the people come once in `users`. Unlike the bootstrap, it reads neither the assignable people nor the current user, which the front keeps from the bootstrap: use it when the displayed period changes (MAIR-525).",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2030-06-01"
+            },
+            "description": "Start date, YYYY-MM-DD"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2030-06-30"
+            },
+            "description": "End date, YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events of the period and the people they reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarPeriodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Calendar API or Core API is unavailable or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1515,6 +1966,16 @@
               }
             }
           },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Unexpected server error",
             "content": {
@@ -1536,7 +1997,7 @@
             }
           },
           "503": {
-            "description": "Calendar API or Core API is not configured",
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1550,6 +2011,7 @@
     },
     "/calendar/categories": {
       "get": {
+        "security": [],
         "tags": [
           "Calendar"
         ],
@@ -1584,6 +2046,7 @@
     },
     "/calendar/services": {
       "get": {
+        "security": [],
         "tags": [
           "Calendar"
         ],

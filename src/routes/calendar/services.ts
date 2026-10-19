@@ -11,6 +11,8 @@ const router = Router();
 registry.registerPath({
   method: 'get',
   path: '/calendar/services',
+  // A static list: public, no session needed.
+  security: [],
   tags: ['Calendar'],
   summary: 'Récupère le référentiel des services calendrier',
   description: 'Charge la liste des services municipaux utilisables pour qualifier les événements',

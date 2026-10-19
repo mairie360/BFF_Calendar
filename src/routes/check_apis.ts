@@ -2,6 +2,7 @@ import { checkApis, checkApisResponseSchema, withoutSession } from '@mairie360/b
 import { Router } from 'express';
 import calendarApi from '../clients/calendarClient';
 import { coreApi } from '../clients/coreDirectory';
+import { logger } from '../logger';
 import { registry } from '../openapi-registry';
 
 const router = Router();
@@ -38,6 +39,6 @@ registry.registerPath({
 });
 
 // Both APIs are probed independently: one failing does not hide the state of the other.
-router.get('/', checkApis(UPSTREAMS));
+router.get('/', checkApis(UPSTREAMS, { logger }));
 
 export default router;

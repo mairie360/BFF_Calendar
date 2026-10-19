@@ -135,6 +135,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -153,7 +162,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -224,6 +233,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -242,7 +260,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -307,6 +325,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -325,7 +352,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -349,7 +376,105 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Reads one event with the caller's rights
+         * @description The event with its description, members, approval status, creator and the caller's rights (`canEdit`, `canDelete`, `canValidate`), which the bootstrap and period lists do not carry (MAIR-557): the front reads it when an event is opened.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Identifiant unique de l'événement */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The event */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarEvent"];
+                    };
+                };
+                /** @description Invalid id */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description The caller is not assigned to this event */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Event not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unexpected server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API or Core API is unavailable or failed */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
         put?: never;
         post?: never;
         /**
@@ -411,6 +536,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -429,7 +563,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -507,6 +641,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -525,7 +668,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -616,6 +759,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -634,7 +786,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -645,6 +797,104 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/calendar/period": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Loads the events of a period only
+         * @description The events of `from`..`to` with their members and rights, normalized: each event lists its `assigneeIds` and the people come once in `users`. Unlike the bootstrap, it reads neither the assignable people nor the current user, which the front keeps from the bootstrap: use it when the displayed period changes (MAIR-525).
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Start date, YYYY-MM-DD */
+                    from: string;
+                    /** @description End date, YYYY-MM-DD */
+                    to: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Events of the period and the people they reference */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarPeriodResponse"];
+                    };
+                };
+                /** @description Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than 1096 days apart */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unexpected server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API or Core API is unavailable or failed */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/calendar/assignees": {
@@ -699,6 +949,15 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
                 /** @description Unexpected server error */
                 500: {
                     headers: {
@@ -717,7 +976,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API or Core API is not configured */
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -932,7 +1191,7 @@ export interface components {
             description?: string;
             /** @description Liste des identifiants des personnes assignées */
             assigneeIds?: (string | number)[];
-            /** @description Objets complets des personnes assignées (optionnel, peut être reconstruit côté front) */
+            /** @description Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it. */
             assignees?: components["schemas"]["CalendarAssignee"][];
             recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
@@ -969,6 +1228,7 @@ export interface components {
         CalendarBootstrapResponse: {
             /** @description Liste des événements de la période */
             events: components["schemas"]["CalendarEvent"][];
+            users: components["schemas"]["CalendarUsers"];
             /** @description Référentiel des personnes assignables */
             assignees: components["schemas"]["CalendarAssignee"][];
             /** @description Référentiel des catégories */
@@ -989,6 +1249,81 @@ export interface components {
              * @enum {string}
              */
             assigneeScope?: "all" | "groups" | "self";
+        };
+        /** @description People referenced by the answer (event members, assignable people), indexed by their id (`user-<id>`): each one is sent once. */
+        CalendarUsers: {
+            [key: string]: components["schemas"]["CalendarAssignee"];
+        };
+        CalendarPeriodResponse: {
+            /** @description Events of the period, each with its `assigneeIds` and no embedded people */
+            events: {
+                /** @description Identifiant stable. Optionnel en création, obligatoire en lecture. */
+                id?: string | number;
+                /**
+                 * @description Titre de l'événement
+                 * @example Scan event
+                 */
+                title: string;
+                /**
+                 * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+                 * @example 2030-06-15
+                 */
+                date: string;
+                /**
+                 * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+                 * @example 2030-06-15
+                 */
+                endDate?: string;
+                /**
+                 * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
+                 * @enum {string}
+                 */
+                category?: "meeting" | "activity" | "ceremony" | "other";
+                /**
+                 * @description Service ou département organisateur
+                 * @example direction
+                 */
+                service?: string;
+                /**
+                 * @description Heure de début au format HH:mm
+                 * @example 09:00
+                 */
+                startTime?: string;
+                /**
+                 * @description Heure de fin au format HH:mm
+                 * @example 10:00
+                 */
+                endTime?: string;
+                /**
+                 * @description Lieu de l'événement
+                 * @example Town hall
+                 */
+                location?: string;
+                /** @description Description détaillée */
+                description?: string;
+                /** @description Liste des identifiants des personnes assignées */
+                assigneeIds?: (string | number)[];
+                recurrence?: components["schemas"]["CalendarRecurrence"];
+                /**
+                 * @description Statut d'approbation de l'événement
+                 * @enum {string}
+                 */
+                approvalStatus?: "pending" | "approved" | "rejected";
+                /**
+                 * @description Identifiant de l'utilisateur ayant créé l'événement
+                 * @example 1
+                 */
+                createdById?: string | number;
+                /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
+                canValidate?: boolean;
+                /** @description Indique si l’utilisateur courant peut modifier cet événement */
+                canEdit?: boolean;
+                /** @description Indique si l’utilisateur courant peut supprimer cet événement */
+                canDelete?: boolean;
+                /** @description Liste des rôles pouvant voir l'événement */
+                visibleToRoles?: ("user" | "responsable" | "mayor")[];
+            }[];
+            users: components["schemas"]["CalendarUsers"];
         };
         CalendarStatistics: {
             /** @description Nombre d'événements ce mois */
@@ -1060,7 +1395,7 @@ export interface components {
             description?: string;
             /** @description Liste des identifiants des personnes assignées */
             assigneeIds?: (string | number)[];
-            /** @description Objets complets des personnes assignées (optionnel, peut être reconstruit côté front) */
+            /** @description Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it. */
             assignees?: components["schemas"]["CalendarAssignee"][];
             recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
@@ -1127,7 +1462,7 @@ export interface components {
             description?: string;
             /** @description Liste des identifiants des personnes assignées */
             assigneeIds?: (string | number)[];
-            /** @description Objets complets des personnes assignées (optionnel, peut être reconstruit côté front) */
+            /** @description Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it. */
             assignees?: components["schemas"]["CalendarAssignee"][];
             recurrence?: components["schemas"]["CalendarRecurrence"];
             /**

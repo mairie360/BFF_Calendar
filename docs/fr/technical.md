@@ -77,6 +77,8 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | GET | `/check_apis` | — | 200, 502 |
 | GET | `/calendar/bootstrap` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/period` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/events/{id}` | — | 200, 400, 401, 403, 404, 500, 502, 503 |
 | POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
@@ -84,6 +86,15 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | GET | `/calendar/assignees` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
+
+## Lectures, cache et appels parallèles (MAIR-525)
+
+- `/calendar/bootstrap` lit les événements de la période et, en même temps, la fiche annuaire de l’appelant puis les personnes qu’il peut assigner. MAIR-557 : les événements viennent de la seule vue liste de Calendar API `GET /api/v1/calendar`, qui porte leurs membres et leur statut d’approbation, plus un appel d’annuaire pour tous leurs membres : un nombre fixe d’appels quel que soit le nombre d’événements, sans aucun appel de détail. Les événements listés n’ont donc ni `description`, ni `createdById`, ni `canEdit`, `canDelete` ou `canValidate` : `GET /calendar/events/{id}` les renvoie pour l’événement que l’utilisateur ouvre.
+- `/calendar/period` lit uniquement les événements d’une période, normalisés (`assigneeIds` + `users`), sans les personnes assignables ni l’utilisateur courant : le front l’appelle quand la période affichée change.
+- `/calendar/bootstrap` renvoie aussi `users`, les personnes de la réponse indexées par `user-<id>` ; `assignees` dans chaque événement est déprécié.
+- La fiche annuaire de l’appelant et les personnes qu’il peut assigner sont gardées 30 secondes en mémoire, par appelant. Les écritures les relisent avant d’autoriser puis vident le cache ; une autre réplique voit un changement au bout des 30 secondes.
+- `/calendar/assignees` ne lit plus les événements de la période : ils ne changeaient jamais sa réponse.
+- La conversion heure locale <-> UTC vient de `@mairie360/bffs-lib`, partagée avec les BFF qui lisent Calendar API directement.
 
 ## Session, permissions et erreurs
 
@@ -124,6 +135,16 @@ La stack ZAP porte la gate de couverture OpenAPI de `mairie360/CICD` (`tests/zap
 La stack k6 porte l’autre moitié de la gate (`tests/k6/coverage.js`) : `load-test.js` contient un handler par opération de `contracts/openapi.json`, k6 s’arrête à l’init s’il en manque un et échoue sur le seuil `operations_uncovered` si un handler n’envoie pas sa requête. **Ajouter une route implique d’ajouter son handler dans `load-test.js`.** Deux scénarios partagent les handlers. `crud` (2 VUs) appelle chaque handler une fois par itération : l’utilisateur 2 crée un événement assigné à son Responsable (utilisateur 3, même groupe 20 dans `init-test.sql`) et un événement jetable, supprime le jetable, modifie l’autre, l’utilisateur 3 l’approuve, puis il est supprimé en fin d’itération. `reads` (jusqu’à 20 VUs) ne rejoue que les handlers GET sur les fixtures de juin 2030 (événement 110). Chaque opération a un seuil `p(95)` par famille : 50 ms pour `/health`, 150 ms pour `/check_apis`, 400 ms pour les lectures, 800 ms pour les écritures d’événements ; `http_req_failed` doit rester sous 1 %.
 
 Avant un lancement Docker, vérifier les variables de service, les secrets de build et les réseaux dans les fichiers du dépôt. Une CI verte valide ses jobs; elle ne prouve pas la disponibilité des services métier dans un environnement distant.
+
+## Journaux
+
+Chaque journal est un objet JSON par ligne sur la sortie standard (MAIR-531, `createLogger` de `@mairie360/bffs-lib`, `src/logger.ts`), au format des APIs avec `LOG_FORMAT=json` : `timestamp`, `level`, `target` (`bff-calendar`), `message`, puis les champs.
+
+- Une ligne `request completed` par requête (`requestLogger`, premier middleware de `src/app.ts`) : `request_id`, `method`, `path` (la route reconnue, par exemple `/users/:userId` ; jamais la query string), `status`, `duration_ms`. Les 5xx sont écrites en `ERROR` ; `/health` n'est pas journalisé.
+- `request_id` reprend l'en-tête `X-Request-Id` quand l'appelant en envoie un bien formé, sinon il est généré ; il est renvoyé dans `X-Request-Id` et répété sur chaque ligne de la requête (`request failed`, `upstream unreachable`...), une seule recherche les retrouve toutes.
+- `request failed` (5xx) et `upstream unreachable` (`/check_apis`) portent `error` = `describeError(error)` : type, statut, méthode et chemin de l'appel amont, message masqué. Jamais d'en-tête, de jeton, de corps ni de donnée personnelle (MAIR-290).
+- `LOG_LEVEL` (`debug`, `info`, `warn`, `error` ; `info` par défaut) filtre les lignes.
+- `LOG_FORMAT` (`json` ou `text`) : non défini, les lignes sont du texte coloré quand stdout est un terminal (`npm run start`), du JSON sinon (conteneurs, tests). `NO_COLOR` / `FORCE_COLOR` règlent les couleurs (MAIR-555).
 
 ## Diagnostic
 
