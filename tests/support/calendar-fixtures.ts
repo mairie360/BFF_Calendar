@@ -89,7 +89,7 @@ export const directoryUsers = {
 /** Fiche annuaire Core (DirectoryUser) d'un agent des tests. */
 export function directoryUser(user: CalendarDirectoryUser): DirectoryUser {
   // Core >= 2.1.0 (MAIR-564): one role per user in `role`, the deprecated `roles` holds at most that one.
-  return { id: user.id, first_name: user.firstName, last_name: user.lastName, email: user.email, role: user.roles[0] ?? '', roles: user.roles, group_ids: user.groupIds };
+  return { id: user.id, first_name: user.firstName, last_name: user.lastName, email: user.email, role: user.roles[0] ?? '', roles: user.roles.slice(0, 1), group_ids: user.groupIds };
 }
 
 /** Corps de `GET /api/v1/user/` (DirectoryUsersResultView). */
