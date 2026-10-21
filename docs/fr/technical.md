@@ -126,7 +126,7 @@ Le job `contracts.yml` utilise Node.js 22, `actions/checkout@v7` et `actions/set
 
 Le Dockerfile utilise `node:24-alpine` pour la construction et l’exécution et lance le bundle esbuild avec `["node", "dist/index.js"]`, comme les autres BFFs (`tsx` n’est qu’une dépendance de développement). Cette version est distincte du job de contrats Node.js 22.
 
-`security_test.sh` et `performance_test.sh` testent l’image désignée par `IMAGE_REF`: en CI, l’image que `release-dev` vient de publier, soit l’artefact ensuite promu en staging puis en prod. Quand `IMAGE_REF` est vide (usage local), ils construisent d’abord `bff-calendar:local` depuis `development.Dockerfile`, ce qui demande `NODE_AUTH_TOKEN` et `./.npmrc`.
+`security_test.sh` et `performance_test.sh` testent l’image désignée par `IMAGE_REF`: en CI, l’image `dev-<sha>` publiée par `release-dev`, lancés par `promote-staging.yml` avant que ce même artefact soit promu en staging puis en prod (MAIR-494). Quand `IMAGE_REF` est vide (usage local), ils construisent d’abord `bff-calendar:local` depuis `development.Dockerfile`, ce qui demande `NODE_AUTH_TOKEN` et `./.npmrc`.
 
 `security_test.sh` lance la stack OWASP ZAP de `docker-compose-security.yml`: ZAP rejoue chaque opération de `/openapi.json` avec un JWT admin statique (`sub=1`, HS256, `JWT_SECRET=b"secret"` dans tous les services) et remplit corps, requêtes et paramètres de chemin avec les exemples du contrat. `init-test.sql` crée les ressources que ces exemples désignent (utilisateurs 1 et 2, événement 101, et événement 102 pour la route DELETE, en juin 2030); garder exemples et seed alignés en ajoutant une route. Les corps d’événement refusent `<` et `>` dans `title`, `description`, `location` et `service`.
 
