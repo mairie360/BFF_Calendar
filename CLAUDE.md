@@ -27,6 +27,8 @@ npm run lint:fix
 npm run build            # tsc --noEmit then esbuild -> dist/index.js
 npm run contracts:generate   # regenerate contracts/openapi.json + contracts/bff.d.ts from the live registry
 npm run contracts:check      # fails if the committed contract or generated types are stale
+
+./integration_test.sh        # docker-compose-integration.yml: real Calendar API + Core API + newman replaying tests/postman/ (MAIR-262)
 ```
 
 `contracts:check` and `npm test -- --runInBand` are the two gates in `.github/workflows/contracts.yml`.
@@ -217,6 +219,46 @@ tested artifact is the one promoted to staging/prod). With `IMAGE_REF` empty, th
 CI: the reusable `BFFs-cicd.yml` `security_tests` / `performance_tests` jobs log in to GHCR and run
 `./security_test.sh` / `./performance_test.sh` with `IMAGE_REF` set to the image `release-dev` pushed.
 
+## Integration tests on the real stack (MAIR-262)
+
+Jest tests mock Calendar API and Core API; `integration_test.sh` is the only test of the BFF on a real stack. It
+brings up `docker-compose-integration.yml` (the upstream services of the ZAP / k6 stacks: published Calendar API
+and Core API images, database + liquibase + `init-test.sql`, Redis) and a `newman` service that replays
+`tests/postman/collection.json` with `tests/postman/environment.json` against the BFF, `--bail` on the first
+failing request; the exit code of newman is the exit code of the script. Like the other stacks it tests the
+image named by `IMAGE_REF` (`bff-calendar:local` built from `development.Dockerfile` when empty), sources
+`stack_secrets.sh` (random `JWT_SECRET` per run) and drops the volumes before and after. In CI it is the
+`integration_tests` staging gate of `promote-staging.yml` (mairie360/CICD `integration/bffs`) on the
+published `dev-<sha>` image: a failure blocks the promotion; the junit report (`newman-reports/newman.xml`,
+gitignored) is published as job summary and artifact.
+
+The collection is split in two kinds of checks, both on the BFF's own routes:
+
+- **working checks** (folders `Service`, `Session resolution`, `Assignees, categories and services`): the BFF
+  starts, `/health`, `/check_apis` with both upstreams `Connected`, `/openapi.json`, a JSON 404, the session is
+  resolved in the Core API directory (401 without a Bearer, the seeded Admin `sub=1` with `assigneeScope: all` and
+  the agent `sub=2` of group 20 with `assigneeScope: groups` through `/calendar/bootstrap`, which lists their June
+  2030 fixtures), the public categories and services, the assignable people per scope;
+- **the event and invitations journey** the Calendars front relies on: the agent (user 2) creates an event in
+  July 2030 inviting its Responsable (user 3, same group; 403 for an invitee outside the group), reads it in the
+  list, opened by id (description, `createdById`, `canEdit` / `canDelete` / `canValidate`) and in the period view
+  (invitees indexed in `users`), updates it, withdraws and renews the invitation, the approval (403 for the
+  creator and the administrator, approved / rejected / pending by the invited Responsable, visible in the list),
+  and the deletion by the creator only (404 afterwards).
+
+The seeded accounts have no known password: the collection-level pre-request script forges their JWTs
+(HS256 `{ sub, role, exp }`, like `mairie360_api_lib`) with the `jwt_secret` the compose file injects
+(`jwt_admin`, `jwt_agent`, `jwt_responsable`); the committed `environment.json` holds no secret or token. One
+fresh title per run (`run_id`) and the deletion at the end keep the collection replayable. Isolated endpoint
+checks (validation errors, token refusals) stay in jest: the collection only holds journeys and the checks that
+need a real Calendar API and Core API.
+
+`tests/integration-collection.test.ts` guards the collection with the unit tests: every operation of
+`contracts/openapi.json` has at least one request (a new route needs its request), every request has a
+`pm.test`, every request targets a declared route (or `/openapi.json` / the 404 check), and the environment
+commits no secret. The collection is generated for now from a session script; edit the JSON directly
+(Postman v2.1), keeping one folder per journey and English names.
+
 ## Local run
 
 Needs `.env` with `CALENDAR_API_URL` and `CORE_API_URL` (required, scheme optional, each with an optional
@@ -242,5 +284,5 @@ Every PR requests a review from the whole team, minus its author: `CarolinHugo`,
 A push to `main` only releases dev (`cicd.yml` stops at `release-dev`). Staging and prod are manual:
 `gh workflow run promote-staging.yml -R mairie360/BFF_Calendar` (main's newest commit) or `gh workflow run promote-staging.yml -R mairie360/BFF_Calendar -f sha=SHA` (a given commit), then the same with `promote-prod.yml`
 (environments `Staging` / `Prod`). Staging refuses a commit without `dev-<sha>` and a green main run, and runs
-the ZAP and k6 stacks on that image; prod refuses one without `staging-<sha>` and tags the version semantic-release computes
+the integration (newman, MAIR-262), ZAP and k6 stacks on that image; prod refuses one without `staging-<sha>` and tags the version semantic-release computes
 for that commit. `cicd.yml`, `promote-staging.yml` and `promote-prod.yml` pin the same mairie360/CICD release.
