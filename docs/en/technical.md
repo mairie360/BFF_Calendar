@@ -122,11 +122,11 @@ The type generator is pinned to `openapi-typescript@7.10.1` in `scripts/contract
 
 The `contracts.yml` job uses Node.js 22, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
 
-`cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v3.0.0`, with `cicd_version: v3.0.0` and `node_version: "22"`. Reusable steps and GitHub environments determine actual checks, publications and deployments.
+`cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v4.4.0`, with `cicd_version: v4.4.0` and `node_version: "24"`. Reusable steps and GitHub environments determine actual checks, publications and deployments. A push to `main` stops after `release-dev`; staging and prod go through the manual `promote-staging.yml` / `promote-prod.yml` workflows (MAIR-494).
 
 The Dockerfile uses `node:24-alpine` for build and runtime and runs the esbuild bundle with `["node", "dist/index.js"]`, like the other BFFs (`tsx` is a development dependency only). That version is separate from the Node.js 22 contract job.
 
-`security_test.sh` and `performance_test.sh` test the image named by `IMAGE_REF`: in CI, the `dev-<sha>` image `release-dev` published, run by `promote-staging.yml` before that same artifact is promoted to staging and prod (MAIR-494). When `IMAGE_REF` is empty (local use), they first build `bff-calendar:local` from `development.Dockerfile`, which needs `NODE_AUTH_TOKEN` and `./.npmrc`.
+`security_test.sh` and `performance_test.sh` test the image named by `IMAGE_REF`: in CI, `release-dev` publishes the `dev-<sha>` image, and `promote-staging.yml` runs both tests against it before that same artifact is promoted to staging and prod (MAIR-494). When `IMAGE_REF` is empty (local use), they first build `bff-calendar:local` from `development.Dockerfile`, which needs `NODE_AUTH_TOKEN` and `./.npmrc`.
 
 `security_test.sh` runs the OWASP ZAP stack of `docker-compose-security.yml`: ZAP replays every operation of `/openapi.json` with a static admin JWT (`sub=1`, HS256, `JWT_SECRET=b"secret"` in every service) and fills bodies, queries and path parameters from the contract examples. `init-test.sql` seeds the resources those examples name (users 1 and 2, event 101, and event 102 for the DELETE route, in June 2030); keep examples and seed in sync when adding a route. Event bodies refuse `<` and `>` in `title`, `description`, `location` and `service`.
 
