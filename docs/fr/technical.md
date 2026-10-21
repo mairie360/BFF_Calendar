@@ -16,7 +16,7 @@ Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et
 
 ## Installation et lancement local
 
-Utiliser Node.js 22 pour reproduire le job de contrats et npm avec le fichier de verrouillage versionné. Les versions des autres jobs et de Docker sont précisées plus bas.
+Utiliser Node.js 24 pour reproduire le job de contrats et npm avec le fichier de verrouillage versionné. Les versions des autres jobs et de Docker sont précisées plus bas.
 
 Les dépendances privées `@mairie360/*` nécessitent un accès GitHub Packages. Configurer `NODE_AUTH_TOKEN` dans l’environnement avec un jeton autorisé à lire ces packages, conformément à `.npmrc`. Ne pas enregistrer la valeur dans Git.
 
@@ -120,11 +120,11 @@ Le générateur de types est fixé à `openapi-typescript@7.10.1` dans `scripts/
 
 ## CI/CD et exécution Docker
 
-Le job `contracts.yml` utilise Node.js 22, `actions/checkout@v7` et `actions/setup-node@v7`. Il s’exécute sur push, pull request et lancement manuel; il installe avec `npm ci`, contrôle les contrats et lance les tests dédiés.
+Le job `contracts.yml` utilise Node.js 24, `actions/checkout@v7` et `actions/setup-node@v7`. Il s’exécute sur push, pull request et lancement manuel; il installe avec `npm ci`, contrôle les contrats et lance les tests dédiés.
 
 `cicd.yml` appelle `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v4.4.0`, avec `cicd_version: v4.4.0` et `node_version: "24"`. Les étapes réutilisables et les environnements GitHub déterminent les contrôles, publications et déploiements effectifs. Un push sur `main` s’arrête après `release-dev` ; staging et prod passent par les workflows manuels `promote-staging.yml` / `promote-prod.yml` (MAIR-494).
 
-Le Dockerfile utilise `node:24-alpine` pour la construction et l’exécution et lance le bundle esbuild avec `["node", "dist/index.js"]`, comme les autres BFFs (`tsx` n’est qu’une dépendance de développement). Cette version est distincte du job de contrats Node.js 22.
+Le Dockerfile utilise `node:24-alpine` pour la construction et l’exécution et lance le bundle esbuild avec `["node", "dist/index.js"]`, comme les autres BFFs (`tsx` n’est qu’une dépendance de développement). Le job de contrats utilise aussi Node.js 24.
 
 `security_test.sh` et `performance_test.sh` testent l’image désignée par `IMAGE_REF`: en CI, `release-dev` publie l’image `dev-<sha>`, et `promote-staging.yml` lance les deux tests sur cette image avant que ce même artefact soit promu en staging puis en prod (MAIR-494). Quand `IMAGE_REF` est vide (usage local), ils construisent d’abord `bff-calendar:local` depuis `development.Dockerfile`, ce qui demande `NODE_AUTH_TOKEN` et `./.npmrc`.
 
