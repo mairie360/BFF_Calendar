@@ -124,8 +124,11 @@ services:
     depends_on:
       calendar-api:
         condition: service_started
+    # Bounded wait (90 tries, 3 min): an upstream that never answers fails `docker compose up` instead of
+    # blocking the gate until the job timeout.
     command: >
-      sh -c 'until curl -fsS http://calendar-api:3002/ready >/dev/null; do
+      sh -c 'i=0; until curl -fsS http://calendar-api:3002/ready >/dev/null; do
+      i=$$((i+1)); if [ $$i -ge 90 ]; then echo "calendar-api not ready after 3 min"; exit 1; fi;
       echo "waiting for calendar-api..."; sleep 2; done; echo "calendar-api ready"'
     networks:
       - backend
@@ -169,8 +172,11 @@ services:
     depends_on:
       core-api:
         condition: service_started
+    # Bounded wait (90 tries, 3 min): an upstream that never answers fails `docker compose up` instead of
+    # blocking the gate until the job timeout.
     command: >
-      sh -c 'until curl -fsS http://core-api:3000/ready >/dev/null; do
+      sh -c 'i=0; until curl -fsS http://core-api:3000/ready >/dev/null; do
+      i=$$((i+1)); if [ $$i -ge 90 ]; then echo "core-api not ready after 3 min"; exit 1; fi;
       echo "waiting for core-api..."; sleep 2; done; echo "core-api ready"'
     networks:
       - backend
