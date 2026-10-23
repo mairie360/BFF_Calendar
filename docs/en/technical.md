@@ -16,7 +16,7 @@ Operation depends on consistent user identifiers between Core and Calendar. The 
 
 ## Installation and local startup
 
-Use Node.js 24 to reproduce the contract job and npm with the committed lockfile. Other job and Docker versions are detailed below.
+Use Node.js 24.22.1 to reproduce the contract job and npm with the committed lockfile. Other job and Docker versions are detailed below.
 
 Private `@mairie360/*` dependencies require GitHub Packages access. Set `NODE_AUTH_TOKEN` in the environment to a token allowed to read these packages, as configured in `.npmrc`. Do not commit its value.
 
@@ -120,11 +120,11 @@ The type generator is pinned to `openapi-typescript@7.10.1` in `scripts/contract
 
 ## CI/CD and Docker execution
 
-The `contracts.yml` job uses Node.js 24, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
+The `contracts.yml` job uses Node.js 24.22.1, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
 
-`cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v4.5.0`, with `cicd_version: v4.5.0` and `node_version: "24"`. Reusable steps and GitHub environments determine actual checks, publications and deployments. A push to `main` stops after `release-dev`; staging and prod go through the manual `promote-staging.yml` / `promote-prod.yml` workflows (MAIR-494).
+`cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v4.5.0`, with `cicd_version: v4.5.0` and `node_version: "24.22.1"`. Reusable steps and GitHub environments determine actual checks, publications and deployments. A push to `main` stops after `release-dev`; staging and prod go through the manual `promote-staging.yml` / `promote-prod.yml` workflows (MAIR-494).
 
-The Dockerfile uses `node:24-alpine` for build and runtime and runs the esbuild bundle with `["node", "dist/index.js"]`, like the other BFFs (`tsx` is a development dependency only). The contract job also uses Node.js 24.
+The Dockerfile uses `node:24.22.1-alpine` for build and runtime and runs the esbuild bundle with `["node", "dist/index.js"]`, like the other BFFs (`tsx` is a development dependency only). The contract job also uses Node.js 24.
 
 `integration_test.sh` (MAIR-262) runs the stack of `docker-compose-integration.yml`: the published Calendar API and Core API images, the database with its migrations and `init-test.sql`, Redis, the BFF image under test and a `newman` service that replays `tests/postman/collection.json` (environment `tests/postman/environment.json`) against the BFF with `--bail`. Its exit code is the exit code of newman. The collection holds working checks (the BFF starts, `/health`, `/check_apis`, `/openapi.json`, the session resolved in the Core API directory for the seeded Admin, agent and Responsable, the categories, services and assignable people) and the event and invitations journey (the agent creates an event inviting its Responsable, reads it in the list, by id and in the period view, updates it, withdraws and renews the invitation, the Responsable approves, rejects and resets it, the creator deletes it). The seeded accounts are impersonated with JWTs forged from the `JWT_SECRET` of the run (random, `stack_secrets.sh`); the committed environment holds no secret. In CI this stack is the `integration_tests` gate of the staging promotion: it blocks the promotion on failure and publishes the junit report (`newman-reports/newman.xml`) as job summary and artifact. The jest test `tests/integration-collection.test.ts` checks that every operation of `contracts/openapi.json` has a request in the collection and that every request asserts something.
 
