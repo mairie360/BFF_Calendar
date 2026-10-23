@@ -10,8 +10,8 @@ recurrence, their members, their validation status and the caller's rights) and 
 directory: identity, roles, groups). The BFF has no database access; its job is to merge those sources
 into frontend-shaped payloads and to keep assignment inside the caller's scope.
 
-Runtime: Express 5 + TypeScript (CommonJS), `tsx` in development only. Node 24 is the reference version
-(matches the contracts job, `cicd.yml` and the digest-pinned `node:24-alpine` images). `npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js`
+Runtime: Express 5 + TypeScript (CommonJS), `tsx` in development only. Node 24.22.1 is the reference version
+(matches the contracts job, `cicd.yml` and the digest-pinned `node:24.22.1-alpine` images). `npm run build` type-checks with `tsc --noEmit` then bundles `dist/index.js`
 with esbuild (`scripts/build.mjs`), inlining the `@mairie360/*` clients, which are published as TypeScript;
 the production image runs that bundle with plain `node dist/index.js`, like the other BFFs.
 
