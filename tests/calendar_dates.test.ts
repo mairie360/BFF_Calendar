@@ -6,7 +6,6 @@ import {
   MAX_DATE_RANGE_DAYS,
   defaultDateRange,
   isQueryDate,
-  mapWithConcurrency,
   parseDateRange,
   parseEventIdParam,
   splitDateRange,
@@ -87,28 +86,5 @@ describe('calendar date and id helpers', () => {
     ['5', 5], ['0', null], ['1.5', null], ['-3', null], ['abc', null], ['9007199254740993', null], [undefined, null],
   ])('parseEventIdParam(%p) is %p', (value, expected) => {
     expect(parseEventIdParam(value)).toBe(expected);
-  });
-});
-
-describe('mapWithConcurrency', () => {
-  test('keeps the order of the results and never runs more than the limit at once', async () => {
-    let inFlight = 0;
-    let maxInFlight = 0;
-    const results = await mapWithConcurrency(Array.from({ length: 12 }, (_, index) => index), 3, async (value) => {
-      inFlight += 1;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      await new Promise((resolve) => setTimeout(resolve, 5 * (value % 4)));
-      inFlight -= 1;
-      return value * 2;
-    });
-
-    expect(results).toEqual(Array.from({ length: 12 }, (_, index) => index * 2));
-    expect(maxInFlight).toBe(3);
-  });
-
-  test('returns an empty list without calling the task', async () => {
-    const task = jest.fn();
-    await expect(mapWithConcurrency([], 3, task)).resolves.toEqual([]);
-    expect(task).not.toHaveBeenCalled();
   });
 });

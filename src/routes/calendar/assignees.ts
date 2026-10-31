@@ -33,8 +33,9 @@ registry.registerPath({
     400: apiErrorResponse(`Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than ${MAX_DATE_RANGE_DAYS} days apart`),
     401: apiErrorResponse('Missing or invalid session'),
     500: apiErrorResponse('Unexpected server error'),
+    429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 
@@ -44,9 +45,10 @@ registry.registerPath({
 
 router.get('/', async (req: Request, res: Response) => {
   const defaults = defaultDateRange();
-  const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
+  // The range is still validated (400 on a bad one), though the answer no longer depends on it.
+  parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
-  const assignees = await fetchKnownAssignees(from, to, { req, declared: [400, 401] });
+  const assignees = await fetchKnownAssignees({ req, declared: [400, 401] });
   return res.status(200).json(assignees);
 });
 

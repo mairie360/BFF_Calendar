@@ -16,7 +16,7 @@ Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et
 
 ## Installation et lancement local
 
-Utiliser Node.js 22 pour reproduire le job de contrats et npm avec le fichier de verrouillage versionné. Les versions des autres jobs et de Docker sont précisées plus bas.
+Utiliser Node.js 24.22.1 pour reproduire le job de contrats et npm avec le fichier de verrouillage versionné. Les versions des autres jobs et de Docker sont précisées plus bas.
 
 Les dépendances privées `@mairie360/*` nécessitent un accès GitHub Packages. Configurer `NODE_AUTH_TOKEN` dans l’environnement avec un jeton autorisé à lire ces packages, conformément à `.npmrc`. Ne pas enregistrer la valeur dans Git.
 
@@ -64,6 +64,8 @@ Les valeurs ci-dessous sont des exemples locaux ou des comportements expliciteme
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 (obligatoire, sans repli) | Racine de Calendar API (ses routes sont publiées sous `/api/v1` par le client généré), aussi sondée par `/check_apis`. Remplace `CALENDAR_API_BASE_PATH`. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | Réseau externe attendu par Docker Compose. |
 | `TRUST_PROXY` | non défini (aucun proxy de confiance) | `trust proxy` d’Express : `true`, un nombre de sauts ou des adresses/sous-réseaux de confiance, pour que `req.ip` soit le vrai client derrière l’ingress. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | non défini (télémétrie désactivée) | Collecteur OpenTelemetry de l’instance, par ex. `http://otel-collector:4318` : les traces et les métriques HTTP y sont exportées en OTLP (MAIR-504). Seuls la méthode, le statut, la route paramétrée et l’hôte appelé sortent du BFF, jamais une URL, une query string, un en-tête, un identifiant ou une IP. |
+| `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES` | `bff-calendar` ; non défini | Remplacent le nom du service ; attributs de ressource supplémentaires comme `service.version=<tag de l’image>,deployment.environment.name=prod`. `OTEL_SDK_DISABLED=true` désactive la télémétrie. |
 
 ## Routes et contrat de données
 
@@ -75,6 +77,8 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | GET | `/check_apis` | — | 200, 502 |
 | GET | `/calendar/bootstrap` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/period` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/events/{id}` | — | 200, 400, 401, 403, 404, 500, 502, 503 |
 | POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
@@ -82,6 +86,15 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | GET | `/calendar/assignees` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
+
+## Lectures, cache et appels parallèles (MAIR-525)
+
+- `/calendar/bootstrap` lit les événements de la période et, en même temps, la fiche annuaire de l’appelant puis les personnes qu’il peut assigner. MAIR-557 : les événements viennent de la seule vue liste de Calendar API `GET /api/v1/calendar`, qui porte leurs membres et leur statut d’approbation, plus un appel d’annuaire pour tous leurs membres : un nombre fixe d’appels quel que soit le nombre d’événements, sans aucun appel de détail. Les événements listés n’ont donc ni `description`, ni `createdById`, ni `canEdit`, `canDelete` ou `canValidate` : `GET /calendar/events/{id}` les renvoie pour l’événement que l’utilisateur ouvre.
+- `/calendar/period` lit uniquement les événements d’une période, normalisés (`assigneeIds` + `users`), sans les personnes assignables ni l’utilisateur courant : le front l’appelle quand la période affichée change.
+- `/calendar/bootstrap` renvoie aussi `users`, les personnes de la réponse indexées par `user-<id>` ; `assignees` dans chaque événement est déprécié.
+- La fiche annuaire de l’appelant et les personnes qu’il peut assigner sont gardées 30 secondes en mémoire, par appelant. Les écritures les relisent avant d’autoriser puis vident le cache ; une autre réplique voit un changement au bout des 30 secondes.
+- `/calendar/assignees` ne lit plus les événements de la période : ils ne changeaient jamais sa réponse.
+- La conversion heure locale <-> UTC vient de `@mairie360/bffs-lib`, partagée avec les BFF qui lisent Calendar API directement.
 
 ## Session, permissions et erreurs
 
@@ -107,13 +120,17 @@ Le générateur de types est fixé à `openapi-typescript@7.10.1` dans `scripts/
 
 ## CI/CD et exécution Docker
 
-Le job `contracts.yml` utilise Node.js 22, `actions/checkout@v7` et `actions/setup-node@v7`. Il s’exécute sur push, pull request et lancement manuel; il installe avec `npm ci`, contrôle les contrats et lance les tests dédiés.
+Le job `contracts.yml` utilise Node.js 24.22.1, `actions/checkout@v7` et `actions/setup-node@v7`. Il s’exécute sur push, pull request et lancement manuel; il installe avec `npm ci`, contrôle les contrats et lance les tests dédiés.
 
-`cicd.yml` appelle `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v3.0.0`, avec `cicd_version: v3.0.0` et `node_version: "22"`. Les étapes réutilisables et les environnements GitHub déterminent les contrôles, publications et déploiements effectifs.
+`cicd.yml` appelle `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v4.5.0`, avec `cicd_version: v4.5.0` et `node_version: "24.22.1"`. Les étapes réutilisables et les environnements GitHub déterminent les contrôles, publications et déploiements effectifs. Un push sur `main` s’arrête après `release-dev` ; staging et prod passent par les workflows manuels `promote-staging.yml` / `promote-prod.yml` (MAIR-494).
 
-Le Dockerfile utilise `node:24-alpine` pour la construction et l’exécution et lance le bundle esbuild avec `["node", "dist/index.js"]`, comme les autres BFFs (`tsx` n’est qu’une dépendance de développement). Cette version est distincte du job de contrats Node.js 22.
+Le Dockerfile utilise `node:24.22.1-alpine` pour la construction et l’exécution et lance le bundle esbuild avec `["node", "dist/index.js"]`, comme les autres BFFs (`tsx` n’est qu’une dépendance de développement). Le job de contrats utilise aussi Node.js 24.
 
-`security_test.sh` et `performance_test.sh` testent l’image désignée par `IMAGE_REF`: en CI, l’image que `release-dev` vient de publier, soit l’artefact ensuite promu en staging puis en prod. Quand `IMAGE_REF` est vide (usage local), ils construisent d’abord `bff-calendar:local` depuis `development.Dockerfile`, ce qui demande `NODE_AUTH_TOKEN` et `./.npmrc`.
+`integration_test.sh` (MAIR-262) lance la stack de `docker-compose-integration.yml`: les images publiées de Calendar API et de Core API, la base avec ses migrations et `init-test.sql`, Redis, l’image du BFF sous test et un service `newman` qui rejoue `tests/postman/collection.json` (environnement `tests/postman/environment.json`) contre le BFF avec `--bail`. Son code de sortie est celui de newman. La collection contient des vérifications de fonctionnement (le BFF démarre, `/health`, `/check_apis`, `/openapi.json`, la session résolue dans l’annuaire de Core API pour l’Admin, l’agent et le Responsable seedés, les catégories, services et personnes assignables) et le parcours événement et invitations (l’agent crée un événement en invitant son Responsable, le lit dans la liste, par id et dans la vue période, le modifie, retire puis renouvelle l’invitation, le Responsable l’approuve, le refuse et le remet en attente, le créateur le supprime). Les comptes seedés sont incarnés par des JWT forgés à partir du `JWT_SECRET` du run (aléatoire, `stack_secrets.sh`); l’environnement commité ne contient aucun secret. En CI cette stack est la porte `integration_tests` de la promotion staging: elle bloque la promotion en cas d’échec et publie le rapport junit (`newman-reports/newman.xml`) en résumé de job et en artefact. Le test jest `tests/integration-collection.test.ts` vérifie que chaque opération de `contracts/openapi.json` a une requête dans la collection et que chaque requête vérifie quelque chose.
+
+Répartition des tests: jest couvre les routes avec Calendar API et Core API simulés (tests unitaires, tests upstream-mock contre les contrats installés, refus de jetons); la collection newman couvre les parcours sur les vraies APIs; ZAP et k6 couvrent la sécurité et la performance. Une correction de bug ajoute son test de non-régression au niveau le plus bas qui l’observe (jest d’abord, la collection quand seul un vrai upstream le montre).
+
+`security_test.sh` et `performance_test.sh` testent l’image désignée par `IMAGE_REF`: en CI, `release-dev` publie l’image `dev-<sha>`, et `promote-staging.yml` lance les deux tests sur cette image avant que ce même artefact soit promu en staging puis en prod (MAIR-494). Quand `IMAGE_REF` est vide (usage local), ils construisent d’abord `bff-calendar:local` depuis `development.Dockerfile`, ce qui demande `NODE_AUTH_TOKEN` et `./.npmrc`.
 
 `security_test.sh` lance la stack OWASP ZAP de `docker-compose-security.yml`: ZAP rejoue chaque opération de `/openapi.json` avec un JWT admin statique (`sub=1`, HS256, `JWT_SECRET=b"secret"` dans tous les services) et remplit corps, requêtes et paramètres de chemin avec les exemples du contrat. `init-test.sql` crée les ressources que ces exemples désignent (utilisateurs 1 et 2, événement 101, et événement 102 pour la route DELETE, en juin 2030); garder exemples et seed alignés en ajoutant une route. Les corps d’événement refusent `<` et `>` dans `title`, `description`, `location` et `service`.
 
@@ -122,6 +139,16 @@ La stack ZAP porte la gate de couverture OpenAPI de `mairie360/CICD` (`tests/zap
 La stack k6 porte l’autre moitié de la gate (`tests/k6/coverage.js`) : `load-test.js` contient un handler par opération de `contracts/openapi.json`, k6 s’arrête à l’init s’il en manque un et échoue sur le seuil `operations_uncovered` si un handler n’envoie pas sa requête. **Ajouter une route implique d’ajouter son handler dans `load-test.js`.** Deux scénarios partagent les handlers. `crud` (2 VUs) appelle chaque handler une fois par itération : l’utilisateur 2 crée un événement assigné à son Responsable (utilisateur 3, même groupe 20 dans `init-test.sql`) et un événement jetable, supprime le jetable, modifie l’autre, l’utilisateur 3 l’approuve, puis il est supprimé en fin d’itération. `reads` (jusqu’à 20 VUs) ne rejoue que les handlers GET sur les fixtures de juin 2030 (événement 110). Chaque opération a un seuil `p(95)` par famille : 50 ms pour `/health`, 150 ms pour `/check_apis`, 400 ms pour les lectures, 800 ms pour les écritures d’événements ; `http_req_failed` doit rester sous 1 %.
 
 Avant un lancement Docker, vérifier les variables de service, les secrets de build et les réseaux dans les fichiers du dépôt. Une CI verte valide ses jobs; elle ne prouve pas la disponibilité des services métier dans un environnement distant.
+
+## Journaux
+
+Chaque journal est un objet JSON par ligne sur la sortie standard (MAIR-531, `createLogger` de `@mairie360/bffs-lib`, `src/logger.ts`), au format des APIs avec `LOG_FORMAT=json` : `timestamp`, `level`, `target` (`bff-calendar`), `message`, puis les champs.
+
+- Une ligne `request completed` par requête (`requestLogger`, premier middleware de `src/app.ts`) : `request_id`, `method`, `path` (la route reconnue, par exemple `/users/:userId` ; jamais la query string), `status`, `duration_ms`. Les 5xx sont écrites en `ERROR` ; `/health` n'est pas journalisé.
+- `request_id` reprend l'en-tête `X-Request-Id` quand l'appelant en envoie un bien formé, sinon il est généré ; il est renvoyé dans `X-Request-Id` et répété sur chaque ligne de la requête (`request failed`, `upstream unreachable`...), une seule recherche les retrouve toutes.
+- `request failed` (5xx) et `upstream unreachable` (`/check_apis`) portent `error` = `describeError(error)` : type, statut, méthode et chemin de l'appel amont, message masqué. Jamais d'en-tête, de jeton, de corps ni de donnée personnelle (MAIR-290).
+- `LOG_LEVEL` (`debug`, `info`, `warn`, `error` ; `info` par défaut) filtre les lignes.
+- `LOG_FORMAT` (`json` ou `text`) : non défini, les lignes sont du texte coloré quand stdout est un terminal (`npm run start`), du JSON sinon (conteneurs, tests). `NO_COLOR` / `FORCE_COLOR` règlent les couleurs (MAIR-555).
 
 ## Diagnostic
 

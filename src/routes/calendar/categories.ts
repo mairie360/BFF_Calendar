@@ -11,6 +11,8 @@ const router = Router();
 registry.registerPath({
   method: 'get',
   path: '/calendar/categories',
+  // A static list: public, no session needed.
+  security: [],
   tags: ['Calendar'],
   summary: 'Récupère le référentiel des catégories',
   description: 'Charge la liste des catégories d\'événements disponibles',

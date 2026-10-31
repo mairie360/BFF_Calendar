@@ -16,7 +16,7 @@ Operation depends on consistent user identifiers between Core and Calendar. The 
 
 ## Installation and local startup
 
-Use Node.js 22 to reproduce the contract job and npm with the committed lockfile. Other job and Docker versions are detailed below.
+Use Node.js 24.22.1 to reproduce the contract job and npm with the committed lockfile. Other job and Docker versions are detailed below.
 
 Private `@mairie360/*` dependencies require GitHub Packages access. Set `NODE_AUTH_TOKEN` in the environment to a token allowed to read these packages, as configured in `.npmrc`. Do not commit its value.
 
@@ -64,6 +64,8 @@ Values below are local examples or explicitly described behavior, not production
 | `CALENDAR_API_URL` / `CALENDAR_API_PORT` | localhost / 3002 (required, no fallback) | Calendar API root (its routes are published under `/api/v1` by the generated client), also probed by `/check_apis`. Replaces `CALENDAR_API_BASE_PATH`. |
 | `USER_BACKEND_NETWORK` | bff_user_backend | External network expected by Docker Compose. |
 | `TRUST_PROXY` | unset (no proxy trusted) | Express `trust proxy`: `true`, a hop count or trusted addresses/subnets, so that `req.ip` is the real client behind the ingress. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset (telemetry off) | OpenTelemetry collector of the instance, e.g. `http://otel-collector:4318`: traces and HTTP metrics are exported over OTLP (MAIR-504). Only the method, status, parameterised route and upstream host leave the BFF, never a URL, query string, header, id or IP. |
+| `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES` | `bff-calendar`; unset | Override the service name; extra resource attributes such as `service.version=<image tag>,deployment.environment.name=prod`. `OTEL_SDK_DISABLED=true` turns telemetry off. |
 
 ## Routes and data contract
 
@@ -75,6 +77,8 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | GET | `/check_apis` | — | 200, 502 |
 | GET | `/calendar/bootstrap` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/events` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/period` | `from`, `to` | 200, 400, 401, 500, 502, 503 |
+| GET | `/calendar/events/{id}` | — | 200, 400, 401, 403, 404, 500, 502, 503 |
 | POST | `/calendar/events` | application/json | 201, 400, 401, 403, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
@@ -82,6 +86,15 @@ Inventory extracted from `contracts/openapi.json`. Replace brace parameters with
 | GET | `/calendar/assignees` | `from`, `to` (optional) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |
+
+## Reads, cache and parallel calls (MAIR-525)
+
+- `/calendar/bootstrap` reads the events of the period and, at the same time, the caller's directory entry then the people they may assign. MAIR-557: the events come from the list view of Calendar API `GET /api/v1/calendar` alone, which carries their members and their approval status, plus one directory call for all their members: a fixed number of calls whatever the number of events, without any detail call. The listed events therefore have no `description`, `createdById`, `canEdit`, `canDelete` nor `canValidate`: `GET /calendar/events/{id}` answers them for the event the user opens.
+- `/calendar/period` reads the events of a period only, normalized (`assigneeIds` + `users`), without the assignable people nor the current user: the front calls it when the displayed period changes.
+- `/calendar/bootstrap` also answers `users`, the people of the answer indexed by `user-<id>`; `assignees` in each event is deprecated.
+- The caller's directory entry and the people they may assign are kept 30 seconds in memory, per caller. Writes read them again before authorizing and then clear the cache; another replica sees a change once the 30 seconds are over.
+- `/calendar/assignees` no longer reads the events of the period: they never changed its answer.
+- Wall clock <-> UTC conversion comes from `@mairie360/bffs-lib`, shared with the BFFs that read Calendar API directly.
 
 ## Session, permissions and errors
 
@@ -107,13 +120,17 @@ The type generator is pinned to `openapi-typescript@7.10.1` in `scripts/contract
 
 ## CI/CD and Docker execution
 
-The `contracts.yml` job uses Node.js 22, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
+The `contracts.yml` job uses Node.js 24.22.1, `actions/checkout@v7` and `actions/setup-node@v7`. It runs on pushes, pull requests and manual dispatch; it installs with `npm ci`, checks contracts and runs the associated tests.
 
-`cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v3.0.0`, with `cicd_version: v3.0.0` and `node_version: "22"`. Reusable steps and GitHub environments determine actual checks, publications and deployments.
+`cicd.yml` calls `mairie360/CICD/.github/workflows/BFFs-cicd.yml@v4.5.0`, with `cicd_version: v4.5.0` and `node_version: "24.22.1"`. Reusable steps and GitHub environments determine actual checks, publications and deployments. A push to `main` stops after `release-dev`; staging and prod go through the manual `promote-staging.yml` / `promote-prod.yml` workflows (MAIR-494).
 
-The Dockerfile uses `node:24-alpine` for build and runtime and runs the esbuild bundle with `["node", "dist/index.js"]`, like the other BFFs (`tsx` is a development dependency only). That version is separate from the Node.js 22 contract job.
+The Dockerfile uses `node:24.22.1-alpine` for build and runtime and runs the esbuild bundle with `["node", "dist/index.js"]`, like the other BFFs (`tsx` is a development dependency only). The contract job also uses Node.js 24.
 
-`security_test.sh` and `performance_test.sh` test the image named by `IMAGE_REF`: in CI, the image `release-dev` has just published, the same artifact that is then promoted to staging and prod. When `IMAGE_REF` is empty (local use), they first build `bff-calendar:local` from `development.Dockerfile`, which needs `NODE_AUTH_TOKEN` and `./.npmrc`.
+`integration_test.sh` (MAIR-262) runs the stack of `docker-compose-integration.yml`: the published Calendar API and Core API images, the database with its migrations and `init-test.sql`, Redis, the BFF image under test and a `newman` service that replays `tests/postman/collection.json` (environment `tests/postman/environment.json`) against the BFF with `--bail`. Its exit code is the exit code of newman. The collection holds working checks (the BFF starts, `/health`, `/check_apis`, `/openapi.json`, the session resolved in the Core API directory for the seeded Admin, agent and Responsable, the categories, services and assignable people) and the event and invitations journey (the agent creates an event inviting its Responsable, reads it in the list, by id and in the period view, updates it, withdraws and renews the invitation, the Responsable approves, rejects and resets it, the creator deletes it). The seeded accounts are impersonated with JWTs forged from the `JWT_SECRET` of the run (random, `stack_secrets.sh`); the committed environment holds no secret. In CI this stack is the `integration_tests` gate of the staging promotion: it blocks the promotion on failure and publishes the junit report (`newman-reports/newman.xml`) as job summary and artifact. The jest test `tests/integration-collection.test.ts` checks that every operation of `contracts/openapi.json` has a request in the collection and that every request asserts something.
+
+Split of the tests: jest covers the routes with mocked Calendar API and Core API (unit tests, upstream-mock tests against the installed contracts, token refusals); the newman collection covers the journeys on the real APIs; ZAP and k6 cover security and performance. A bug fix adds its non-regression test at the lowest layer that observes it (jest first, the collection when only a real upstream shows it).
+
+`security_test.sh` and `performance_test.sh` test the image named by `IMAGE_REF`: in CI, `release-dev` publishes the `dev-<sha>` image, and `promote-staging.yml` runs both tests against it before that same artifact is promoted to staging and prod (MAIR-494). When `IMAGE_REF` is empty (local use), they first build `bff-calendar:local` from `development.Dockerfile`, which needs `NODE_AUTH_TOKEN` and `./.npmrc`.
 
 `security_test.sh` runs the OWASP ZAP stack of `docker-compose-security.yml`: ZAP replays every operation of `/openapi.json` with a static admin JWT (`sub=1`, HS256, `JWT_SECRET=b"secret"` in every service) and fills bodies, queries and path parameters from the contract examples. `init-test.sql` seeds the resources those examples name (users 1 and 2, event 101, and event 102 for the DELETE route, in June 2030); keep examples and seed in sync when adding a route. Event bodies refuse `<` and `>` in `title`, `description`, `location` and `service`.
 
@@ -122,6 +139,16 @@ The ZAP stack carries the OpenAPI coverage gate of `mairie360/CICD` (`tests/zap/
 The k6 stack carries the other half of the gate (`tests/k6/coverage.js`): `load-test.js` holds one handler per operation of `contracts/openapi.json`, k6 aborts at init when one is missing and fails its `operations_uncovered` threshold when a handler does not send its request. **Adding a route means adding its handler in `load-test.js`.** Two scenarios share the handlers. `crud` (2 VUs) calls every handler once per iteration: user 2 creates an event assigned to its Responsable (user 3, same group 20 in `init-test.sql`) and a disposable one, deletes the disposable event, patches the kept one, user 3 approves it, and the kept event is deleted at the end. `reads` (ramp to 20 VUs) replays only the GET handlers on the June 2030 fixtures (event 110). Every operation has a `p(95)` threshold by family: 50 ms for `/health`, 150 ms for `/check_apis`, 400 ms for reads, 800 ms for event writes; `http_req_failed` must stay below 1 %.
 
 Before running Docker, check service variables, build secrets and networks in the repository files. Green CI validates its jobs; it does not prove business-service availability in a remote environment.
+
+## Logs
+
+Every log is one JSON object per line on stdout (MAIR-531, `@mairie360/bffs-lib` `createLogger`, `src/logger.ts`), the shape of the APIs' `LOG_FORMAT=json`: `timestamp`, `level`, `target` (`bff-calendar`), `message`, then the fields.
+
+- One `request completed` line per request (`requestLogger`, first middleware of `src/app.ts`): `request_id`, `method`, `path` (the matched route, e.g. `/users/:userId`; never the query string), `status`, `duration_ms`. 5xx are written at `ERROR`; `/health` is not logged.
+- `request_id` comes from the `X-Request-Id` header when the caller sends a well-formed one, otherwise it is generated; it is answered in `X-Request-Id` and repeated on every line of the request (`request failed`, `upstream unreachable`...), so one search finds them all.
+- `request failed` (5xx) and `upstream unreachable` (`/check_apis`) carry `error` = `describeError(error)`: type, status, upstream method and path, masked message. Never a header, a token, a body or a personal value (MAIR-290).
+- `LOG_LEVEL` (`debug`, `info`, `warn`, `error`; default `info`) filters the lines.
+- `LOG_FORMAT` (`json` or `text`): unset, the lines are coloured text when stdout is a terminal (`npm run start`), JSON otherwise (containers, tests). `NO_COLOR` / `FORCE_COLOR` control the colours (MAIR-555).
 
 ## Troubleshooting
 
