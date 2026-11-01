@@ -3,13 +3,13 @@
 # A calendar event carries personal data in its free-text fields (title, description, location:
 # "meeting with <name>, call <phone>"). The marker's values go there, into query strings and into
 # deliberate errors; the logs of every container of docker-compose-gdpr-marker.yml (the BFF,
-# Calendar API, Core API, BFF User, Postgres, Redis) are then searched for them (see
+# Calendar API, Core API, Postgres, Redis) are then searched for them (see
 # gdpr_marker_test.sh). A log describes an error by its type and context, never by the value it
 # received.
 version: 1
 target: http://bff-calendar:4002
 wait: /health
-# The admin JWT of the stack (sub=1, the seeded Admin), the same one the ZAP scan uses.
+# The admin JWT of the run (sub=1, the seeded Admin), signed by stack_secrets.sh with its random secret.
 env: [ADMIN_JWT]
 steps:
   - name: create an event naming the marker
@@ -41,9 +41,8 @@ steps:
       path: /calendar/events
       headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
       json: {title: "Meeting {{marker.first_name}}", date: "{{marker.phone}}"}
-    # 502 today: the date passes the schema and fails in the BFF's conversion (RangeError),
-    # answered as an upstream error. It should be a 400; the logs must hold no value either way.
-    expect: [400, 502]
+    # The dates are checked as real days since main's isCalendarDate (a 502 before): 400.
+    expect: [400]
   - name: create an event with a value of the wrong type (deliberate error)
     request:
       method: POST
