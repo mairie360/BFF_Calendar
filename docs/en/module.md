@@ -18,7 +18,7 @@ Business domain: Calendar.
 
 ## Typical workflow
 
-1. Load a date range through `/calendar/bootstrap`.
+1. Load a date range through `/calendar/bootstrap`, then only the events of another period through `/calendar/period`.
 2. Create or update an event and choose authorized assignees.
 3. Inspect approval status and reload the date range after a mutation.
 

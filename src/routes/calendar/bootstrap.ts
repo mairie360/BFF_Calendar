@@ -37,8 +37,9 @@ registry.registerPath({
     400: apiErrorResponse(`Invalid parameters: dates not in the YYYY-MM-DD format, from after to, or more than ${MAX_DATE_RANGE_DAYS} days apart`),
     401: apiErrorResponse('Missing or invalid session'),
     500: apiErrorResponse('Unexpected server error'),
+    429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API or Core API is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
   },
 });
 
@@ -51,10 +52,11 @@ router.get('/', async (req: Request, res: Response) => {
   const { from, to } = parseDateRange(req.query.from ?? defaults.from, req.query.to ?? defaults.to);
 
   // Only the upstream 400 and 401 are relayed: any other upstream failure is a 502.
-  const { events, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(from, to, { req, declared: [400, 401] });
+  const { events, users, assignees, currentUser, assigneeScope } = await fetchCalendarBootstrap(from, to, { req, declared: [400, 401] });
 
   return res.status(200).json({
     events,
+    users,
     assignees,
     categories: getCalendarCategories(),
     services: getCalendarServices(),

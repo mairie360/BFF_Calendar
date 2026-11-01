@@ -2,12 +2,13 @@
 process.env.TZ = 'Pacific/Kiritimati';
 
 import {
+  CALENDAR_API_WINDOW_DAYS,
   MAX_DATE_RANGE_DAYS,
   defaultDateRange,
   isQueryDate,
-  mapWithConcurrency,
   parseDateRange,
   parseEventIdParam,
+  splitDateRange,
 } from '../src/routes/calendar/calendar_helpers';
 import { monthBounds, utcToWallClock, wallClockToUtc } from '../src/services/calendarTimeZone';
 
@@ -63,32 +64,27 @@ describe('calendar date and id helpers', () => {
     expect(() => parseDateRange(['2026-09-01'], '2026-09-30')).toThrow(/YYYY-MM-DD/);
   });
 
+  test('splitDateRange cuts a range into consecutive windows Calendar API accepts (at most 366 days wide)', () => {
+    expect(CALENDAR_API_WINDOW_DAYS).toBe(365);
+    expect(splitDateRange('2026-09-01', '2026-09-30')).toEqual([{ from: '2026-09-01', to: '2026-09-30' }]);
+    expect(splitDateRange('2026-09-01', '2026-09-01')).toEqual([{ from: '2026-09-01', to: '2026-09-01' }]);
+    expect(splitDateRange('2025-01-01', '2025-12-31')).toEqual([{ from: '2025-01-01', to: '2025-12-31' }]);
+    expect(splitDateRange('2028-01-01', '2028-12-31')).toEqual([
+      { from: '2028-01-01', to: '2028-12-30' },
+      { from: '2028-12-31', to: '2028-12-31' },
+    ]);
+    // The widest range a read accepts (BFF_Message's three years).
+    expect(splitDateRange('2025-01-01', '2027-12-31')).toEqual([
+      { from: '2025-01-01', to: '2025-12-31' },
+      { from: '2026-01-01', to: '2026-12-31' },
+      { from: '2027-01-01', to: '2027-12-31' },
+    ]);
+    expect(splitDateRange('2026-01-01', '2029-01-01')).toHaveLength(4);
+  });
+
   test.each([
     ['5', 5], ['0', null], ['1.5', null], ['-3', null], ['abc', null], ['9007199254740993', null], [undefined, null],
   ])('parseEventIdParam(%p) is %p', (value, expected) => {
     expect(parseEventIdParam(value)).toBe(expected);
-  });
-});
-
-describe('mapWithConcurrency', () => {
-  test('keeps the order of the results and never runs more than the limit at once', async () => {
-    let inFlight = 0;
-    let maxInFlight = 0;
-    const results = await mapWithConcurrency(Array.from({ length: 12 }, (_, index) => index), 3, async (value) => {
-      inFlight += 1;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      await new Promise((resolve) => setTimeout(resolve, 5 * (value % 4)));
-      inFlight -= 1;
-      return value * 2;
-    });
-
-    expect(results).toEqual(Array.from({ length: 12 }, (_, index) => index * 2));
-    expect(maxInFlight).toBe(3);
-  });
-
-  test('returns an empty list without calling the task', async () => {
-    const task = jest.fn();
-    await expect(mapWithConcurrency([], 3, task)).resolves.toEqual([]);
-    expect(task).not.toHaveBeenCalled();
   });
 });

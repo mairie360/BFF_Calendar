@@ -12,6 +12,7 @@ Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètr
 | GET | `/check_apis` | 200 CheckApiResponse |
 | GET | `/calendar/bootstrap` | 200 CalendarBootstrapResponse |
 | GET | `/calendar/events` | 200 Liste des événements |
+| GET | `/calendar/period` | 200 CalendarPeriodResponse (événements normalisés + `users`, MAIR-525) |
 | POST | `/calendar/events` | 201 CalendarEvent |
 | PATCH | `/calendar/events/{id}` | 200 CalendarEvent |
 | DELETE | `/calendar/events/{id}` | 204 Événement supprimé avec succès |
@@ -19,6 +20,10 @@ Les chemins sont relatifs au BFF. Les proxies web conservent méthode, paramètr
 | GET | `/calendar/assignees` | 200 Liste des personnes assignables |
 | GET | `/calendar/categories` | 200 Liste des catégories |
 | GET | `/calendar/services` | 200 Liste des services calendrier |
+
+## Réponses normalisées (MAIR-525)
+
+`/calendar/bootstrap` et `/calendar/period` renvoient `users`, un index des personnes citées par la réponse (membres des événements, personnes assignables) par identifiant `user-<id>` : chaque personne n’est envoyée qu’une fois. Dans chaque événement, `assigneeIds` désigne ces personnes. Le champ `assignees` de chaque événement reste dans le bootstrap le temps que le front lise `users` ; il est déprécié et absent de `/calendar/period`. Au changement de période, le front appelle `/calendar/period` : il garde les personnes assignables et l’utilisateur courant reçus du bootstrap.
 
 ## Mise à jour et validation
 

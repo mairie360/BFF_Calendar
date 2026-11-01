@@ -18,7 +18,7 @@ Domaine fonctionnel: Calendrier.
 
 ## Parcours type
 
-1. Charger le calendrier sur une période avec `/calendar/bootstrap`.
+1. Charger le calendrier sur une période avec `/calendar/bootstrap`, puis seulement les événements d’une autre période avec `/calendar/period`.
 2. Créer ou modifier un événement et choisir les personnes autorisées.
 3. Consulter l’état de validation et recharger la période après une mutation.
 

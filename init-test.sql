@@ -5,7 +5,7 @@
 --   * sub = "2": User role only. load-test.js signs a token for it on the fly;
 --   * sub = "3": Responsable, in group 20 with user 2. load-test.js signs a token for it to approve
 --     the events user 2 creates and assigns to it (Calendar API only lets an assigned Responsable
---     sharing a group with the creator validate a pending event).
+--     sharing a group with the creator approve a pending event).
 
 -- Passwords must be argon2id hashes (chk_users_password_hashed, MAIR-169): this is the
 -- Database template hash, nobody signs in with it (the tests use forged JWTs).
@@ -44,11 +44,13 @@ ON CONFLICT DO NOTHING;
 -- Scan fixtures: ZAP fills path parameters with the contract examples, so event 101 is read and
 -- updated, and event 102 is the example of DELETE /calendar/events/{id}. Both are owned by user 1
 -- and fall inside the from/to examples (June 2030).
-INSERT INTO events (id, name, description, start_date, end_date, created_by, owner_id)
+-- Since database 2.0.0 the approval lives on `events.approval_status` (MAIR-392), `pending` by
+-- default: the fixtures are seeded approved, as their `validated` member rows used to make them.
+INSERT INTO events (id, name, description, start_date, end_date, created_by, owner_id, approval_status)
 VALUES
-    (101, 'Scan event', 'Event read and updated by the ZAP scan', '2030-06-15 09:00:00+00', '2030-06-15 10:00:00+00', 1, 1),
-    (102, 'Scan deleted event', 'Event deleted by the ZAP scan', '2030-06-16 09:00:00+00', '2030-06-16 10:00:00+00', 1, 1),
-    (110, 'Perf event', 'Event read by the k6 reads scenario', '2030-06-17 09:00:00+00', '2030-06-17 10:00:00+00', 2, 2)
+    (101, 'Scan event', 'Event read and updated by the ZAP scan', '2030-06-15 09:00:00+00', '2030-06-15 10:00:00+00', 1, 1, 'validated'),
+    (102, 'Scan deleted event', 'Event deleted by the ZAP scan', '2030-06-16 09:00:00+00', '2030-06-16 10:00:00+00', 1, 1, 'validated'),
+    (110, 'Perf event', 'Event read by the k6 reads scenario', '2030-06-17 09:00:00+00', '2030-06-17 10:00:00+00', 2, 2, 'validated')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO event_members (event_id, user_id, validation_status)
