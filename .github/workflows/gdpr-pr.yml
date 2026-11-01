@@ -9,6 +9,12 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+# One run per pull request: ticking the answer (`edited`) right after a push would otherwise start runs on
+# different description snapshots, and an older one finishing last would set the check.
+concurrency:
+  group: gdpr-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
