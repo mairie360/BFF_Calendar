@@ -631,6 +631,36 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(upstreamSequence()).toEqual([called('POST', calendarApiUrls.getCreateEventUrl())]);
     });
 
+    // MAIR-290: the cause of an upstream 502 is the axios error, which holds the caller's Bearer token and the
+    // request and response bodies. Whatever the BFF writes about the failure (JSON log lines on stdout, stderr,
+    // console) describes it by its type and status, never by these values.
+    test('MAIR-290 logs a Calendar API failure without the token, the event sent or the upstream body', async () => {
+      mockCalendarApi();
+      const stdout = captureLogs();
+      const stderr: string[] = [];
+      jest.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+        stderr.push(String(chunk));
+        return true;
+      }) as typeof process.stderr.write);
+      for (const level of ['log', 'info', 'warn', 'error', 'debug'] as const) {
+        jest.spyOn(console, level).mockImplementation((...args: unknown[]) => {
+          stderr.push(args.map((arg) => (arg instanceof Error ? `${arg.stack} ${JSON.stringify(arg)}` : typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' '));
+        });
+      }
+      const authorization = authorizationFor(alice.id);
+      calendarApi.on('post', CALENDAR.events, { status: 500, raw: 'Insert failed for jeanne.marker290@example.org', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorization)
+        .send({ title: 'Meet Jeanne Marker-290', description: 'Call 06 12 34 56 78', date: '2026-09-20', startTime: '14:00', endTime: '16:00', assigneeIds: ['user-3'] });
+
+      expect(response.status).toBe(502);
+      const written = [...stdout.map((line) => JSON.stringify(line)), ...stderr].join('\n');
+      expect(written).toContain('502');
+      for (const value of [authorization.replace(/^Bearer /, ''), 'Marker-290', '06 12 34 56 78', 'jeanne.marker290@example.org']) {
+        expect(written).not.toContain(value);
+      }
+    });
+
     test.each(['abc', '1.5', '0', '-3'])('rejects the event id %s with 400 before calling Calendar API', async (id) => {
       mockCalendarApi();
 
