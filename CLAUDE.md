@@ -52,8 +52,9 @@ when `CALENDAR_API_URL` or `CORE_API_URL` is missing or invalid) then `listen` o
 `assignees`, `categories`, `services`. `bootstrap`, `events`, `period` and `assignees` sit behind the lib's
 `noStore` + `requireSession` (bffs-lib >= 1.2.0, MAIR-474): `Cache-Control: no-store`, and a 401 before any
 upstream call unless the request carries `Authorization: Bearer <token>` (the only credential; cookies are
-ignored) **verified** with `JWT_SECRET` (HS256, `exp`, positive integer `sub`). `src/index.ts` refuses to
-start without `JWT_SECRET`. Helpers take a
+ignored) **verified** with Core's public key `JWT_PUBLIC_KEY` (EdDSA under Core's `kid`, `iss`, `aud`, `exp`, positive
+integer `sub`; MAIR-680, bffs-lib >= 2.7.0; HS256 only while `JWT_SECRET` is still set, transition).
+`assertStartupConfiguration()` (`src/index.ts`) refuses to start without a key or with a malformed one. Helpers take a
 `CallContext` (`src/clients/callContext.ts`: the request + the upstream 4xx the route declares) and run every
 upstream call through the lib's `callUpstream(service, () => api.op(..., asCaller(service, req)), { declared })`
 (`retry` on idempotent GETs only); Calendar API and Core API verify the token again and check revocation.
@@ -160,10 +161,12 @@ registrations) and generates the document with `@asteasolutions/zod-to-openapi`.
   under a far-off container `TZ` (`mapWithConcurrency` is tested in the lib).
 
 `jest.config.ts` lets ts-jest compile `node_modules/@mairie360/*` (orval ships raw ESM TypeScript).
-Auth is an HS256 JWT signed with the tests' `JWT_SECRET` (`sessionToken` / `authorizationFor(userId)` in
-`tests/support/calendar-fixtures.ts`). `tests/token-refusals.test.ts` walks `contracts/openapi.json`: every
+Auth is an EdDSA JWT signed like Core (`tests/support/session-keys.ts`, whose public key `useSessionPublicKey()`
+sets; `sessionToken` / `authorizationFor(userId)` in `tests/support/calendar-fixtures.ts`).
+`tests/mair-680-eddsa-session.test.ts` pins MAIR-680: startup checks, EdDSA accepted, HS256 and another key refused
+without any upstream call, HS256 accepted only while `JWT_SECRET` is set. `tests/token-refusals.test.ts` walks `contracts/openapi.json`: every
 operation that inherits `bearerAuth` must answer 401 to a missing or forged token (other scheme, garbage,
-other secret, expired, `alg: none`, swapped payload, RS256, non-numeric `sub`) without any upstream call, and
+HS256 with the historical secret, another Ed25519 key, no `aud`, expired, `alg: none`, swapped payload, RS256, non-numeric `sub`) without any upstream call, and
 get past the check with a genuine one; the public operations (`/health`, `/check_apis`, `/calendar/categories`,
 `/calendar/services`, all `security: []`) are pinned there.
 
@@ -189,13 +192,15 @@ tested artifact is the one promoted to staging/prod). With `IMAGE_REF` empty, th
 `bff-calendar:local` from `development.Dockerfile` (`NODE_AUTH_TOKEN` + `./.npmrc` needed, same as
 `npm ci`). Upstream image tags are overridable via `DB_IMAGE` / `LIQUIBASE_IMAGE` / `CALENDAR_API_IMAGE`.
 
-- **Secrets** (MAIR-474): both scripts source `stack_secrets.sh`: a random `JWT_SECRET` per run, shared by
-  calendar-api, core-api, the BFF and k6, and `ADMIN_JWT` (`sub=1`, 4 h) signed with it for the ZAP replacer;
+- **Secrets** (MAIR-474): both scripts source `stack_secrets.sh`: a fresh Ed25519 key pair per run (MAIR-680):
+  core-api holds it and signs, calendar-api and the BFF get the public key only; `ADMIN_JWT` (`sub=1`, 4 h) is
+  signed with it like Core for the ZAP replacer;
   the compose files refuse to start without them. They drop the volumes before and after a run, exit 1 when a
   dependency does not start (otherwise `docker compose wait` reports 0 for a test container that never ran),
   and `performance_test.sh` pins every service to the first `min(PERF_CPUS, nproc)` CPUs (4 by default, like
   the CI runner).
-- **k6** (`load-test.js`) mints HS256 JWTs with the run's secret and has **one handler per operation** of
+- **k6** (`load-test.js`) reads the EdDSA tokens `performance_test.sh` signs into `/tokens.json` (k6 cannot sign
+  Ed25519, MAIR-680) and has **one handler per operation** of
   `contracts/openapi.json` through `coverage.js` (a new route without a handler makes k6 abort at init).
   The perf seeder also runs `init-perf.sql`, Calendar_API's volume seed copied as is (2 000 agents
   `300001`-`302000`, 50 000 events over 2026-2027, 500 weekly series; keep it in step with Calendar_API and
@@ -227,7 +232,7 @@ and Core API images, database + liquibase + `init-test.sql`, Redis) and a `newma
 `tests/postman/collection.json` with `tests/postman/environment.json` against the BFF, `--bail` on the first
 failing request; the exit code of newman is the exit code of the script. Like the other stacks it tests the
 image named by `IMAGE_REF` (`bff-calendar:local` built from `development.Dockerfile` when empty), sources
-`stack_secrets.sh` (random `JWT_SECRET` per run) and drops the volumes before and after. In CI it is the
+`stack_secrets.sh` (fresh Ed25519 key pair per run, MAIR-680) and drops the volumes before and after. In CI it is the
 `integration_tests` staging gate of `promote-staging.yml` (mairie360/CICD `integration/bffs`) on the
 published `dev-<sha>` image: a failure blocks the promotion; the junit report (`newman-reports/newman.xml`,
 gitignored) is published as job summary and artifact.
@@ -246,9 +251,10 @@ The collection is split in two kinds of checks, both on the BFF's own routes:
   creator and the administrator, approved / rejected / pending by the invited Responsable, visible in the list),
   and the deletion by the creator only (404 afterwards).
 
-The seeded accounts have no known password: the collection-level pre-request script forges their JWTs
-(HS256 `{ sub, role, exp }`, like `mairie360_api_lib`) with the `jwt_secret` the compose file injects
-(`jwt_admin`, `jwt_agent`, `jwt_responsable`); the committed `environment.json` holds no secret or token. One
+The seeded accounts have no known password and the Postman sandbox cannot sign EdDSA: `integration_test.sh` signs
+their JWTs with the run's key like Core and the compose file injects them (`jwt_admin`, `jwt_agent`,
+`jwt_responsable`, and `jwt_forged`, Core's `kid` with another key); the pre-request script only forges `jwt_hs256`,
+an HS256 Admin token. Both are refused in `Session resolution` and the event journey (MAIR-680); the committed `environment.json` holds no secret or token. One
 fresh title per run (`run_id`) and the deletion at the end keep the collection replayable. Isolated endpoint
 checks (validation errors, token refusals) stay in jest: the collection only holds journeys and the checks that
 need a real Calendar API and Core API.

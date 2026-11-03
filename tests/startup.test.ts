@@ -19,14 +19,14 @@ test('refuses to start when the upstream URLs are missing, naming every variable
   expect(result.stderr).toContain('Missing or invalid upstream configuration: CALENDAR_API_URL, CORE_API_URL');
 });
 
-test('refuses to start without JWT_SECRET, which verifies the session tokens', () => {
+test('MAIR-680 refuses to start without JWT_PUBLIC_KEY (nor JWT_SECRET), which verifies the session tokens', () => {
   const result = spawnSync(process.execPath, [tsx, 'src/index.ts'], {
     cwd: root,
-    env: { ...process.env, CALENDAR_API_URL: 'calendar.test', CORE_API_URL: 'core.test', JWT_SECRET: '', PORT: '0' },
+    env: { ...process.env, CALENDAR_API_URL: 'calendar.test', CORE_API_URL: 'core.test', JWT_PUBLIC_KEY: '', JWT_SECRET: '', PORT: '0' },
     encoding: 'utf8',
     timeout: 30_000,
   });
 
   expect(result.status).not.toBe(0);
-  expect(result.stderr).toContain('Missing configuration: JWT_SECRET');
+  expect(result.stderr).toContain('Missing configuration: JWT_PUBLIC_KEY');
 });

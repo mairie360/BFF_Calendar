@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "BFF Calendar integration tests",
-    "description": "MAIR-262: working checks (the BFF starts, resolves sessions against Core API, reaches Calendar API) and the event and invitations journey the Calendars front relies on, replayed by newman on docker-compose-integration.yml (./integration_test.sh). The seeded Admin (user 1), agent (user 2, role User) and Responsable (user 3, in group 20 with the agent) are impersonated with JWTs forged from the JWT_SECRET of the stack; the event is created by the agent and deleted at the end.",
+    "description": "MAIR-262: working checks (the BFF starts, resolves sessions against Core API, reaches Calendar API) and the event and invitations journey the Calendars front relies on, replayed by newman on docker-compose-integration.yml (./integration_test.sh). The seeded Admin (user 1), agent (user 2, role User) and Responsable (user 3, in group 20 with the agent) are impersonated with EdDSA JWTs signed by integration_test.sh with the run's key, like Core signs them (MAIR-680); the event is created by the agent and deleted at the end.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -14,19 +14,16 @@
           "if (!pm.environment.get('run_id')) {",
           "    pm.environment.set('run_id', String(Date.now()));",
           "}",
-          "// The seeded accounts have no known password: forge their JWT exactly like mairie360_api_lib::jwt_manager",
-          "// does (HS256, claims { sub, role, exp }), signed with the JWT_SECRET of the stack, injected by",
-          "// docker-compose-integration.yml (random per run, MAIR-428). `role` is the claim the BFFs read (MAIR-529).",
+          "// MAIR-680: Core alone signs the session JWTs (EdDSA) and the BFF only holds its public key. The",
+          "// seeded accounts have no known password and the Postman sandbox cannot sign EdDSA, so their JWTs",
+          "// (jwt_admin, jwt_agent, jwt_responsable, and jwt_forged: Core's kid, another key) are signed by",
+          "// integration_test.sh with the run's key and injected by docker-compose-integration.yml. This script",
+          "// only forges jwt_hs256: an HS256 token for the Admin signed with a random secret, which must be refused.",
           "const cryptoJs = require('crypto-js');",
           "const b64url = (words) => cryptoJs.enc.Base64.stringify(words).replace(/=+$/, '').replace(/\\+/g, '-').replace(/\\//g, '_');",
-          "const signJwt = (sub, role) => {",
-          "    const header = b64url(cryptoJs.enc.Utf8.parse(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));",
-          "    const payload = b64url(cryptoJs.enc.Utf8.parse(JSON.stringify({ sub: String(sub), role, exp: Math.floor(Date.now() / 1000) + 3600 })));",
-          "    return `${header}.${payload}.${b64url(cryptoJs.HmacSHA256(`${header}.${payload}`, pm.environment.get('jwt_secret')))}`;",
-          "};",
-          "pm.environment.set('jwt_admin', signJwt(pm.environment.get('admin_user_id'), 'admin'));",
-          "pm.environment.set('jwt_agent', signJwt(pm.environment.get('agent_user_id'), 'user'));",
-          "pm.environment.set('jwt_responsable', signJwt(pm.environment.get('responsable_user_id'), 'responsable'));"
+          "const hsHeader = b64url(cryptoJs.enc.Utf8.parse(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));",
+          "const hsPayload = b64url(cryptoJs.enc.Utf8.parse(JSON.stringify({ sub: String(pm.environment.get('admin_user_id')), role: 'admin', exp: Math.floor(Date.now() / 1000) + 3600 })));",
+          "pm.environment.set('jwt_hs256', `${hsHeader}.${hsPayload}.${b64url(cryptoJs.HmacSHA256(`${hsHeader}.${hsPayload}`, cryptoJs.lib.WordArray.random(32)))}`);"
         ]
       }
     }
@@ -234,7 +231,7 @@
           "response": []
         },
         {
-          "name": "Bootstrap of the seeded administrator",
+          "name": "MAIR-680 Bootstrap of the seeded administrator (EdDSA, Core's key)",
           "request": {
             "method": "GET",
             "header": [
@@ -290,6 +287,113 @@
                   "pm.test(\"The administrator sees its seeded June events\", function () {",
                   "    const events = pm.response.json().events;",
                   "    pm.expect(events.map((e) => String(e.id))).to.include('101');",
+                  "});",
+                  "pm.test(\"The token is an EdDSA token under Core's kid (MAIR-680)\", function () {",
+                  "    const header = JSON.parse(atob(pm.environment.get('jwt_admin').split('.')[0].replace(/-/g, '+').replace(/_/g, '/')));",
+                  "    pm.expect(header.alg).to.eql('EdDSA');",
+                  "    pm.expect(header.kid).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-680 EdDSA JWT signed with another key under Core's kid is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_forged}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/bootstrap?from=2030-06-01&to=2030-06-30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "bootstrap"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2030-06-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-06-30"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"Error envelope, the token is not echoed\", function () {",
+                  "    pm.expect(pm.response.json().error).to.be.an('object');",
+                  "    pm.expect(pm.response.text()).to.not.include(pm.environment.get('jwt_forged'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-680 HS256 JWT of the administrator is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_hs256}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/bootstrap?from=2030-06-01&to=2030-06-30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "bootstrap"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2030-06-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-06-30"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"Error envelope, the token is not echoed\", function () {",
+                  "    pm.expect(pm.response.json().error).to.be.an('object');",
+                  "    pm.expect(pm.response.text()).to.not.include(pm.environment.get('jwt_hs256'));",
                   "});"
                 ]
               }
@@ -639,6 +743,63 @@
                   "    pm.expect(body.error, 'error').to.be.an('object');",
                   "    pm.expect(body.error.code).to.be.a('string');",
                   "    pm.expect(body.error.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-680 The administrator's HS256 JWT cannot create an event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_hs256}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Newman event {{run_id}}\",\n  \"date\": \"2030-07-15\",\n  \"startTime\": \"09:00\",\n  \"endTime\": \"10:00\",\n  \"category\": \"meeting\",\n  \"service\": \"direction\",\n  \"location\": \"Town hall\",\n  \"description\": \"Event created by the integration tests\",\n  \"assigneeIds\": [\n    \"user-{{admin_user_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// MAIR-680 business journey: what the administrator does next with Core's EdDSA token is refused to",
+                  "// an HS256 token for the same administrator, whatever secret signed it.",
+                  "pm.test(\"Status is 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"Error envelope, the token is not echoed\", function () {",
+                  "    pm.expect(pm.response.json().error).to.be.an('object');",
+                  "    pm.expect(pm.response.text()).to.not.include(pm.environment.get('jwt_hs256'));",
                   "});"
                 ]
               }

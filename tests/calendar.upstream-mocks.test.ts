@@ -17,10 +17,11 @@ import { monthBounds, wallClockToUtc } from '../src/services/calendarTimeZone';
 import { isCalendarDate } from '../src/openapi-registry';
 import { clearDirectoryCache } from '../src/services/calendarAccessPolicy';
 import {
-  JWT_SECRET, authorizationFor, calendarApiUrls, calendarResult, coreApiUrls, coreDirectory, directoryUsers, eventDetails, eventView, member,
+  authorizationFor, calendarApiUrls, calendarResult, coreApiUrls, coreDirectory, directoryUsers, eventDetails, eventView, member,
   postEventResult,
 } from './support/calendar-fixtures';
 import { captureLogs } from './support/logs';
+import { useSessionPublicKey } from './support/session-keys';
 
 const { admin, alice, marie } = directoryUsers;
 
@@ -51,7 +52,7 @@ afterAll(async () => { await Promise.all(mocks.map((mock) => mock.stop())); });
 
 beforeEach(() => {
   jest.clearAllMocks();
-  process.env.JWT_SECRET = JWT_SECRET;
+  useSessionPublicKey();
   captureLogs();
   for (const mock of mocks) mock.reset();
   // The directory reads are cached a short time per caller (MAIR-525): every test starts from an empty cache.
