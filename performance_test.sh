@@ -41,9 +41,12 @@ CPUSET_FILE="$(mktemp --suffix=.yml)"
 # EdDSA tokens of the seeded callers for k6, whose WebCrypto cannot sign Ed25519 (MAIR-680): the
 # agent of init-test.sql and the agents of init-perf.sql as `user`, the Responsable of init-test.sql
 # as `responsable`. Mounted read-only at /tokens.json.
-JWT_TOKENS_FILE="$(mktemp --suffix=.json)"
-MANAGER_TOKENS_FILE="$(mktemp --suffix=.json)"
-trap 'rm -f "$CPUSET_FILE" "$JWT_TOKENS_FILE" "$MANAGER_TOKENS_FILE"' EXIT
+# In a private directory (mode 700): the file stays readable by the k6 container user through its bind
+# mount, never by the other users of the host (MAIR-680).
+JWT_TOKENS_DIR="$(mktemp -d)" || { rm -f "$CPUSET_FILE"; exit 1; }
+JWT_TOKENS_FILE="$JWT_TOKENS_DIR/tokens.json"
+MANAGER_TOKENS_FILE="$JWT_TOKENS_DIR/managers.json"
+trap 'rm -f "$CPUSET_FILE"; rm -rf "$JWT_TOKENS_DIR"' EXIT
 sign_jwt_file "$JWT_TOKENS_FILE" user 14400 2 $(seq 300001 302000) || exit 1
 sign_jwt_file "$MANAGER_TOKENS_FILE" responsable 14400 3 || exit 1
 node -e 'const fs = require("node:fs"); const [all, managers] = process.argv.slice(1);
