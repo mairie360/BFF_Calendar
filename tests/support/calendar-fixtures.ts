@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { eddsaToken } from './session-keys';
 import { getCalendarAPIMairie360 } from '@mairie360/calendar-api-openapi/endpoints/calendarAPIMairie360';
 import {
   ApprovalStatus,
@@ -97,11 +98,18 @@ export function coreDirectory(users: CalendarDirectoryUser[]): DirectoryUsersRes
   return { users: users.map(directoryUser) };
 }
 
-/** Secret of the tests: the BFF verifies the session tokens with it (bffs-lib requireSession). */
+/**
+ * The historical shared secret (MAIR-680): the BFF no longer gets it, so a token signed with it must be refused.
+ * The tests verify the session tokens with Core's public key (`useSessionPublicKey`, support/session-keys.ts).
+ */
 export const JWT_SECRET = 'calendar-contract-test-secret';
 
-/** HS256 session token signed with JWT_SECRET, valid one hour (or expired when `expiresIn` is negative). */
-export function sessionToken(userId: number | string, secret = JWT_SECRET, expiresIn = 3_600): string {
+/**
+ * Session token valid one hour (or expired when `expiresIn` is negative): EdDSA signed like Core (MAIR-680), or
+ * HS256 signed with `secret` when one is given (a historical token, refused once JWT_SECRET is gone).
+ */
+export function sessionToken(userId: number | string, secret?: string, expiresIn = 3_600): string {
+  if (secret === undefined) return eddsaToken(userId, { expiresIn });
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({ sub: String(userId), exp: Math.floor(Date.now() / 1000) + expiresIn })).toString('base64url');
   return `${header}.${payload}.${createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')}`;

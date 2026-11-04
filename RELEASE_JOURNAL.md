@@ -1,53 +1,47 @@
 # Journal des releases — BFF_Calendar
 
-<!-- release-journal-state {"dev": "20bafb6578128390e0890d7c0b40a825a9c792c0", "prod": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "prod_tag": "v1.1.0", "staging": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "updated": {"dev": "2026-11-03 00:00 UTC", "prod": "2026-10-21 10:09 UTC", "staging": "2026-10-21 09:40 UTC"}} -->
+<!-- release-journal-state {"dev": "4b8180772a7134e284f83bf6f556693422fc33e3", "prod": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "prod_tag": "v1.1.0", "staging": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "updated": {"dev": "2026-11-03 14:16 UTC", "prod": "2026-10-21 10:09 UTC", "staging": "2026-10-21 09:40 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.1.0 | `3012a41` | 2026-10-21 10:09 UTC |
 | staging | — | `3012a41` | 2026-10-21 09:40 UTC |
-| dev | — | `20bafb6` | 2026-11-03 00:00 UTC |
+| dev | — | `4b81807` | 2026-11-03 14:16 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.1.0)
 
-#### Nouveautés
-- La promotion vers staging exécute désormais une porte `integration_tests` : la collection Postman `tests/postman/collection.json` rejoue le parcours événement et invitations contre les images publiées de Calendar API et Core API, et bloque la promotion en cas d'échec (MAIR-262, [#230](https://github.com/mairie360/BFF_Calendar/pull/230)).
-
 #### Changements de comportement
-- Le check « GDPR checklist » échoue sur une PR dont la section « Personal data » n'a pas exactement une réponse (No ou Yes), ou qui répond Yes sans la ligne `Inventory:` (MAIR-295, [#183](https://github.com/mairie360/BFF_Calendar/pull/183)).
+- Le BFF vérifie désormais les JWT de session avec la clé publique Ed25519 de Core (`JWT_PUBLIC_KEY`, EdDSA sous le `kid` de Core, `iss`, `aud`) au lieu du secret HS256 partagé. Un token HS256 signé avec l'ancien secret reçoit un 401 sans appel amont, et un token signé par une autre clé est refusé. Tant que `JWT_SECRET` est défini, HS256 reste accepté (transition). Les appelants qui émettent encore des tokens HS256 sont cassés. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242))
+- Le démarrage échoue sans `JWT_PUBLIC_KEY` ou si cette clé est mal formée (`assertStartupConfiguration()`). Les déploiements doivent fournir la clé publique. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242))
 
 #### Corrections
-- Les journaux d'erreur ne reprennent plus les valeurs reçues. Avant : une erreur amont 502 journalisait l'erreur Axios complète, donc le Bearer token de l'appelant et les corps de requête et de réponse. Maintenant : seulement le type d'erreur et son contexte (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
-- Échec de rollback d'une création d'événement : journalisé avec l'identifiant de l'événement et le statut seulement (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
-- Date au mauvais format : d'après le scénario du test marqueur, la requête renvoie désormais 400 au lieu d'un 502. Le diff du code correspondant est tronqué dans la PR, à vérifier (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
+- Les journaux d'erreur ne contiennent plus les valeurs reçues. Avant, le handler d'erreur final journalisait l'erreur brute (la cause axios d'un 502 contenait le token Bearer, le corps de la requête et celui de la réponse). Maintenant, il ne décrit que le type d'erreur et son contexte (ids, statut). Un échec de rollback de création d'événement est journalisé par id d'événement et statut seulement. (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177))
 
 #### Technique
-- `cicd.yml`, `gdpr-pr.yml`, `promote-staging.yml` et `promote-prod.yml` appellent CICD v5.2.2, avec `ANTHROPIC_WORKSPACE_ID` transmis, et un test jest garde l'alignement des versions (MAIR-771, [#238](https://github.com/mairie360/BFF_Calendar/pull/238)).
-- Images docker-compose et actions GitHub épinglées par digest par Renovate, sans effet fonctionnel (chore(deps), [#236](https://github.com/mairie360/BFF_Calendar/pull/236)).
-- Node.js 24.22.1 pour le Dockerfile, le development.Dockerfile et la CI ; le conteneur de développement tourne sous l'utilisateur `node` (fix(security), [#231](https://github.com/mairie360/BFF_Calendar/pull/231)).
-- Stack de test marqueur RGPD, `.dockerignore`, `.gitignore` et mise à jour de dépendances de test (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
-- Documentation : versions CICD et Node.js mises à jour (MAIR-612, [#227](https://github.com/mairie360/BFF_Calendar/pull/227)).
+- Tests d'intégration sur stack réelle : `integration_test.sh`, `docker-compose-integration.yml`, collection Postman rejouée par newman avec `--bail`, et tests de non-régression ; les stacks de test utilisent les images dev de Calendar API et Core API. (MAIR-262, [#230](https://github.com/mairie360/BFF_Calendar/pull/230))
+- Stack de marqueur RGPD (`gdpr_marker_test.sh`, `gdpr-marker.yaml`) qui cherche des valeurs de test dans les journaux de tous les conteneurs. (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177))
+- Pipeline CI : appel de mairie360/CICD monté en v5.2.2 (contrôles RGPD), `ANTHROPIC_WORKSPACE_ID` transmis, test jest de version. Checklist RGPD sur les PR (`gdpr-pr.yml`). (MAIR-771, [#238](https://github.com/mairie360/BFF_Calendar/pull/238) ; MAIR-295, [#183](https://github.com/mairie360/BFF_Calendar/pull/183))
+- Images et actions épinglées par digest, Renovate compris. Node.js 24.22.1 pour le Dockerfile, le Dockerfile de développement (qui tourne désormais sous l'utilisateur `node`) et la CI. (MAIR-612 et sécurité, [#231](https://github.com/mairie360/BFF_Calendar/pull/231), [#236](https://github.com/mairie360/BFF_Calendar/pull/236))
+- `stack_secrets.sh` refuse une paire de clés pré-exportée qui n'est pas une paire Ed25519 cohérente ; `performance_test.sh` écrit les tokens k6 dans un dossier privé. (MAIR-680, [#243](https://github.com/mairie360/BFF_Calendar/pull/243))
+- Documentation technique mise à jour (versions CICD et Node.js). (MAIR-612, [#227](https://github.com/mairie360/BFF_Calendar/pull/227))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
-#### Nouveautés
-- La promotion vers staging exécute désormais une porte `integration_tests` : la collection Postman `tests/postman/collection.json` rejoue le parcours événement et invitations contre les images publiées de Calendar API et Core API, et bloque la promotion en cas d'échec (MAIR-262, [#230](https://github.com/mairie360/BFF_Calendar/pull/230)).
-
 #### Changements de comportement
-- Le check « GDPR checklist » échoue sur une PR dont la section « Personal data » n'a pas exactement une réponse (No ou Yes), ou qui répond Yes sans la ligne `Inventory:` (MAIR-295, [#183](https://github.com/mairie360/BFF_Calendar/pull/183)).
+- Le BFF vérifie désormais les JWT de session avec la clé publique Ed25519 de Core (`JWT_PUBLIC_KEY`, EdDSA sous le `kid` de Core, `iss`, `aud`) au lieu du secret HS256 partagé. Un token HS256 signé avec l'ancien secret reçoit un 401 sans appel amont, et un token signé par une autre clé est refusé. Tant que `JWT_SECRET` est défini, HS256 reste accepté (transition). Les appelants qui émettent encore des tokens HS256 sont cassés. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242))
+- Le démarrage échoue sans `JWT_PUBLIC_KEY` ou si cette clé est mal formée (`assertStartupConfiguration()`). Les déploiements doivent fournir la clé publique. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242))
 
 #### Corrections
-- Les journaux d'erreur ne reprennent plus les valeurs reçues. Avant : une erreur amont 502 journalisait l'erreur Axios complète, donc le Bearer token de l'appelant et les corps de requête et de réponse. Maintenant : seulement le type d'erreur et son contexte (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
-- Échec de rollback d'une création d'événement : journalisé avec l'identifiant de l'événement et le statut seulement (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
-- Date au mauvais format : d'après le scénario du test marqueur, la requête renvoie désormais 400 au lieu d'un 502. Le diff du code correspondant est tronqué dans la PR, à vérifier (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
+- Les journaux d'erreur ne contiennent plus les valeurs reçues. Avant, le handler d'erreur final journalisait l'erreur brute (la cause axios d'un 502 contenait le token Bearer, le corps de la requête et celui de la réponse). Maintenant, il ne décrit que le type d'erreur et son contexte (ids, statut). Un échec de rollback de création d'événement est journalisé par id d'événement et statut seulement. (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177))
 
 #### Technique
-- `cicd.yml`, `gdpr-pr.yml`, `promote-staging.yml` et `promote-prod.yml` appellent CICD v5.2.2, avec `ANTHROPIC_WORKSPACE_ID` transmis, et un test jest garde l'alignement des versions (MAIR-771, [#238](https://github.com/mairie360/BFF_Calendar/pull/238)).
-- Images docker-compose et actions GitHub épinglées par digest par Renovate, sans effet fonctionnel (chore(deps), [#236](https://github.com/mairie360/BFF_Calendar/pull/236)).
-- Node.js 24.22.1 pour le Dockerfile, le development.Dockerfile et la CI ; le conteneur de développement tourne sous l'utilisateur `node` (fix(security), [#231](https://github.com/mairie360/BFF_Calendar/pull/231)).
-- Stack de test marqueur RGPD, `.dockerignore`, `.gitignore` et mise à jour de dépendances de test (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)).
-- Documentation : versions CICD et Node.js mises à jour (MAIR-612, [#227](https://github.com/mairie360/BFF_Calendar/pull/227)).
+- Tests d'intégration sur stack réelle : `integration_test.sh`, `docker-compose-integration.yml`, collection Postman rejouée par newman avec `--bail`, et tests de non-régression ; les stacks de test utilisent les images dev de Calendar API et Core API. (MAIR-262, [#230](https://github.com/mairie360/BFF_Calendar/pull/230))
+- Stack de marqueur RGPD (`gdpr_marker_test.sh`, `gdpr-marker.yaml`) qui cherche des valeurs de test dans les journaux de tous les conteneurs. (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177))
+- Pipeline CI : appel de mairie360/CICD monté en v5.2.2 (contrôles RGPD), `ANTHROPIC_WORKSPACE_ID` transmis, test jest de version. Checklist RGPD sur les PR (`gdpr-pr.yml`). (MAIR-771, [#238](https://github.com/mairie360/BFF_Calendar/pull/238) ; MAIR-295, [#183](https://github.com/mairie360/BFF_Calendar/pull/183))
+- Images et actions épinglées par digest, Renovate compris. Node.js 24.22.1 pour le Dockerfile, le Dockerfile de développement (qui tourne désormais sous l'utilisateur `node`) et la CI. (MAIR-612 et sécurité, [#231](https://github.com/mairie360/BFF_Calendar/pull/231), [#236](https://github.com/mairie360/BFF_Calendar/pull/236))
+- `stack_secrets.sh` refuse une paire de clés pré-exportée qui n'est pas une paire Ed25519 cohérente ; `performance_test.sh` écrit les tokens k6 dans un dossier privé. (MAIR-680, [#243](https://github.com/mairie360/BFF_Calendar/pull/243))
+- Documentation technique mise à jour (versions CICD et Node.js). (MAIR-612, [#227](https://github.com/mairie360/BFF_Calendar/pull/227))
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
@@ -58,6 +52,8 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-03 14:16 UTC | dev | — | `4b81807` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41651664215) |
+| 2026-11-03 14:02 UTC | dev | — | `3befe6b` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41648167095) |
 | 2026-11-03 00:00 UTC | dev | — | `20bafb6` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41548488614) |
 | 2026-11-02 18:09 UTC | dev | — | `3cd68fc` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41495445060) |
 | 2026-11-01 12:41 UTC | dev | — | `5591ab6` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41307427149) |

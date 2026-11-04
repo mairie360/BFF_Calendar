@@ -65,7 +65,7 @@ services:
 
   # core:
   #   container_name: core-calendar-bff-developpement
-  #   image: ghcr.io/mairie360/core-api:2.2.0
+  #   image: ghcr.io/mairie360/core-api:dev-3b40c2a
   #   ports:
   #     - "3000:3000"
   #   networks:
@@ -100,7 +100,7 @@ services:
       
   calendar-api:
     container_name: calendar-api-bff-calendar-developpement
-    image: ghcr.io/mairie360/calendar-api:1.2.0
+    image: ghcr.io/mairie360/calendar-api:dev-9c9da5b
     ports:
       - "3002:3002"
     networks:
@@ -121,6 +121,9 @@ services:
       DB_PORT: 5432
       PUBLIC_URL: http://calendar.development.mairie360.fr
       JWT_SECRET: b"secret"
+      # MAIR-680: Core's public key when the shell provides it (stack_secrets.sh); JWT_SECRET is the
+      # HS256 transition of the dev stack only.
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
       JWT_TIMEOUT: 3600
       # mairie360_api_lib >= 2.0 refuses the well-known b"secret" without this flag. Local development
       # only: a deployment uses a random secret of at least 32 bytes (MAIR-428).
