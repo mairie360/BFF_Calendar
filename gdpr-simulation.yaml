@@ -1,0 +1,27 @@
+# GDPR usage simulation (MAIR-497), played by mairie360/CICD tests/gdpr/simulation on the test
+# stack only (docker-compose-gdpr-simulation.yml, gdpr_simulation_test.sh).
+#
+# Fictitious personas with unique values go through the marker journey of MAIR-290 through the BFF:
+# their names, e-mails and phone numbers are written in event titles, descriptions and locations,
+# in query strings and in deliberate errors, then the erased persona's event is deleted. The logs
+# of every container (BFF, Calendar API, Core API, Postgres, Redis), the Redis keys, the database
+# after the purge and a sample of its free-text columns are then checked and reviewed (CICD
+# analyze.mjs).
+version: 1
+journey: gdpr-journey.yaml
+personas: 4
+erased: 1
+# The journey (gdpr-journey.yaml) leaves the event in place for every persona; the erase steps
+# delete it for the erased persona only, then check that the deletion took, so the database checks
+# compare the erased persona with the kept ones. Until the erasure of MAIR-289 reaches this
+# content, the erasure findings of the analysis are expected failures.
+erase:
+  - name: delete the event
+    request: {method: DELETE, path: "/calendar/events/{{event_id}}", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [204]
+  - name: the persona's event is gone after its deletion
+    request:
+      method: GET
+      path: "/calendar/events/{{event_id}}"
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+    expect: [404]
