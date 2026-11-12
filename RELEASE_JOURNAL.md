@@ -1,49 +1,54 @@
 # Journal des releases — BFF_Calendar
 
-<!-- release-journal-state {"dev": "6a4f3fe9b77da8f80e75e043fc7510262205f7a5", "prod": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "prod_tag": "v1.1.0", "staging": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "updated": {"dev": "2026-11-04 18:05 UTC", "prod": "2026-10-21 10:09 UTC", "staging": "2026-10-21 09:40 UTC"}} -->
+<!-- release-journal-state {"dev": "f13ee2ed62fb4a0d21bbad870fbe414a9eab9be9", "prod": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "prod_tag": "v1.1.0", "staging": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "updated": {"dev": "2026-11-12 13:16 UTC", "prod": "2026-10-21 10:09 UTC", "staging": "2026-10-21 09:40 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.1.0 | `3012a41` | 2026-10-21 10:09 UTC |
 | staging | — | `3012a41` | 2026-10-21 09:40 UTC |
-| dev | — | `6a4f3fe` | 2026-11-04 18:05 UTC |
+| dev | — | `f13ee2e` | 2026-11-12 13:16 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.1.0)
 
-#### Changements de comportement
-- Les sessions ne sont plus vérifiées avec le secret HS256 partagé mais avec la clé publique Ed25519 de Core (`JWT_PUBLIC_KEY`, EdDSA, `kid`, `iss`, `aud`). Un jeton HS256 est refusé en 401 sans appel amont dès que `JWT_SECRET` n'est pas défini, ce qui est le cas des stacks de test. Un appelant qui signe encore en HS256 est donc cassé. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242), [#243](https://github.com/mairie360/BFF_Calendar/pull/243))
-- Le BFF refuse de démarrer sans `JWT_PUBLIC_KEY` ou si cette clé est mal formée (`assertStartupConfiguration()`). Les déploiements doivent fournir `JWT_PUBLIC_KEY`. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242))
-
-#### Corrections
-- Les journaux ne contiennent plus les valeurs reçues. Avant, le gestionnaire d'erreurs final journalisait l'erreur brute, y compris le jeton Bearer et les corps de requête et de réponse d'un 502. Maintenant seul le type d'erreur et son contexte (ids, statut) sont journalisés, et un échec de rollback de création d'événement est journalisé par id d'événement et statut. (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177))
-
-#### Technique
-- Tests d'intégration sur stack réelle : `docker-compose-integration.yml`, `integration_test.sh` et la collection Postman rejouée par newman contre le BFF, qui bloque la promotion staging (MAIR-262, [#230](https://github.com/mairie360/BFF_Calendar/pull/230)). Images upstream et digests épinglés (MAIR-262, [#236](https://github.com/mairie360/BFF_Calendar/pull/236)).
-- Pipelines : workflows sur mairie360/CICD v5.2.2 (MAIR-771, [#238](https://github.com/mairie360/BFF_Calendar/pull/238)), checklist RGPD des PR (MAIR-295, [#183](https://github.com/mairie360/BFF_Calendar/pull/183)), marqueur de logs (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)), simulation RGPD MAIR-497 en CI uniquement ([#241](https://github.com/mairie360/BFF_Calendar/pull/241)), Node 24.22.1 et image de dev lancée avec l'utilisateur `node` ([#231](https://github.com/mairie360/BFF_Calendar/pull/231)), docs ([#227](https://github.com/mairie360/BFF_Calendar/pull/227)).
+- fix(deps): MAIR-816 Release dev: align internal versions and deploy (#248) ([#248](https://github.com/mairie360/BFF_Calendar/pull/248))
+- feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#241](https://github.com/mairie360/BFF_Calendar/pull/241))
+- fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#243](https://github.com/mairie360/BFF_Calendar/pull/243))
+- fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#242](https://github.com/mairie360/BFF_Calendar/pull/242))
+- ci: MAIR-771 APIs, BFFs, Database : monter CICD en v5.2.2 pour activer les contrôles RGPD (#238) ([#238](https://github.com/mairie360/BFF_Calendar/pull/238))
+- chore(deps): pin dependencies (#236) ([#236](https://github.com/mairie360/BFF_Calendar/pull/236))
+- ci: MAIR-295 Ajouter une checklist RGPD aux PR et des rappels d'échéances automatiques (#183) ([#183](https://github.com/mairie360/BFF_Calendar/pull/183))
+- fix: MAIR-290 Détecter les données personnelles dans les journaux avec un test du marqueur (#177) ([#177](https://github.com/mairie360/BFF_Calendar/pull/177))
+- fix(security): patch Node.js runtime and toolchain (#231) ([#231](https://github.com/mairie360/BFF_Calendar/pull/231))
+- feat: MAIR-262 Tests d'intégration - Tests de fonctionnement des APIs, tests métier des BFFs et tests de régression (#230) ([#230](https://github.com/mairie360/BFF_Calendar/pull/230))
+- docs: MAIR-612 Release prod: align internal versions and deploy (#227) ([#227](https://github.com/mairie360/BFF_Calendar/pull/227))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
-#### Changements de comportement
-- Les sessions ne sont plus vérifiées avec le secret HS256 partagé mais avec la clé publique Ed25519 de Core (`JWT_PUBLIC_KEY`, EdDSA, `kid`, `iss`, `aud`). Un jeton HS256 est refusé en 401 sans appel amont dès que `JWT_SECRET` n'est pas défini, ce qui est le cas des stacks de test. Un appelant qui signe encore en HS256 est donc cassé. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242), [#243](https://github.com/mairie360/BFF_Calendar/pull/243))
-- Le BFF refuse de démarrer sans `JWT_PUBLIC_KEY` ou si cette clé est mal formée (`assertStartupConfiguration()`). Les déploiements doivent fournir `JWT_PUBLIC_KEY`. (MAIR-680, [#242](https://github.com/mairie360/BFF_Calendar/pull/242))
-
-#### Corrections
-- Les journaux ne contiennent plus les valeurs reçues. Avant, le gestionnaire d'erreurs final journalisait l'erreur brute, y compris le jeton Bearer et les corps de requête et de réponse d'un 502. Maintenant seul le type d'erreur et son contexte (ids, statut) sont journalisés, et un échec de rollback de création d'événement est journalisé par id d'événement et statut. (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177))
-
-#### Technique
-- Tests d'intégration sur stack réelle : `docker-compose-integration.yml`, `integration_test.sh` et la collection Postman rejouée par newman contre le BFF, qui bloque la promotion staging (MAIR-262, [#230](https://github.com/mairie360/BFF_Calendar/pull/230)). Images upstream et digests épinglés (MAIR-262, [#236](https://github.com/mairie360/BFF_Calendar/pull/236)).
-- Pipelines : workflows sur mairie360/CICD v5.2.2 (MAIR-771, [#238](https://github.com/mairie360/BFF_Calendar/pull/238)), checklist RGPD des PR (MAIR-295, [#183](https://github.com/mairie360/BFF_Calendar/pull/183)), marqueur de logs (MAIR-290, [#177](https://github.com/mairie360/BFF_Calendar/pull/177)), simulation RGPD MAIR-497 en CI uniquement ([#241](https://github.com/mairie360/BFF_Calendar/pull/241)), Node 24.22.1 et image de dev lancée avec l'utilisateur `node` ([#231](https://github.com/mairie360/BFF_Calendar/pull/231)), docs ([#227](https://github.com/mairie360/BFF_Calendar/pull/227)).
+- fix(deps): MAIR-816 Release dev: align internal versions and deploy (#248) ([#248](https://github.com/mairie360/BFF_Calendar/pull/248))
+- feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#241](https://github.com/mairie360/BFF_Calendar/pull/241))
+- fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#243](https://github.com/mairie360/BFF_Calendar/pull/243))
+- fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#242](https://github.com/mairie360/BFF_Calendar/pull/242))
+- ci: MAIR-771 APIs, BFFs, Database : monter CICD en v5.2.2 pour activer les contrôles RGPD (#238) ([#238](https://github.com/mairie360/BFF_Calendar/pull/238))
+- chore(deps): pin dependencies (#236) ([#236](https://github.com/mairie360/BFF_Calendar/pull/236))
+- ci: MAIR-295 Ajouter une checklist RGPD aux PR et des rappels d'échéances automatiques (#183) ([#183](https://github.com/mairie360/BFF_Calendar/pull/183))
+- fix: MAIR-290 Détecter les données personnelles dans les journaux avec un test du marqueur (#177) ([#177](https://github.com/mairie360/BFF_Calendar/pull/177))
+- fix(security): patch Node.js runtime and toolchain (#231) ([#231](https://github.com/mairie360/BFF_Calendar/pull/231))
+- feat: MAIR-262 Tests d'intégration - Tests de fonctionnement des APIs, tests métier des BFFs et tests de régression (#230) ([#230](https://github.com/mairie360/BFF_Calendar/pull/230))
+- docs: MAIR-612 Release prod: align internal versions and deploy (#227) ([#227](https://github.com/mairie360/BFF_Calendar/pull/227))
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
 _Rien._
+
+> Résumé Claude indisponible pour ce passage : listes brutes des commits.
 
 ## Historique des passages
 
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-12 13:16 UTC | dev | — | `f13ee2e` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43225004881) |
 | 2026-11-04 18:05 UTC | dev | — | `6a4f3fe` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41882562798) |
 | 2026-11-03 14:16 UTC | dev | — | `4b81807` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41651664215) |
 | 2026-11-03 14:02 UTC | dev | — | `3befe6b` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/41648167095) |
