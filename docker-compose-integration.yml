@@ -94,7 +94,7 @@ services:
       retries: 5
 
   calendar-api:
-    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:dev-9c9da5b}
+    image: ${CALENDAR_API_IMAGE:-ghcr.io/mairie360/calendar-api:dev-89649f7}
     container_name: bff-calendar-int-calendar-api
     depends_on:
       liquibase:
@@ -135,7 +135,7 @@ services:
       - backend
 
   core-api:
-    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:dev-3b40c2a}
+    image: ${CORE_API_IMAGE:-ghcr.io/mairie360/core-api:dev-156a9b9}
     container_name: bff-calendar-int-core-api
     depends_on:
       liquibase:
