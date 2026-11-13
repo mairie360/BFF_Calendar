@@ -1,12 +1,12 @@
 # Journal des releases — BFF_Calendar
 
-<!-- release-journal-state {"dev": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "prod_tag": "v1.1.0", "staging": "f13ee2ed62fb4a0d21bbad870fbe414a9eab9be9", "updated": {"dev": "2026-11-13 00:21 UTC", "prod": "2026-10-21 10:09 UTC", "staging": "2026-11-12 18:58 UTC"}} -->
+<!-- release-journal-state {"dev": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod": "3012a41d23b1f2c2e52ac6a3e39ab97e9c346a00", "prod_tag": "v1.1.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-13 00:21 UTC", "prod": "2026-10-21 10:09 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.1.0 | `3012a41` | 2026-10-21 10:09 UTC |
-| staging | — | `f13ee2e` | 2026-11-12 18:58 UTC |
+| staging | — | `61375a9` | 2026-11-13 00:29 UTC |
 | dev | — | `61375a9` | 2026-11-13 00:21 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.1.0)
@@ -26,10 +26,11 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
-- fix(deps): MAIR-1003 Release prod: align internal versions and deploy ([#253](https://github.com/mairie360/BFF_Calendar/pull/253))
+_Rien._
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
+- fix(deps): MAIR-1003 Release prod: align internal versions and deploy ([#253](https://github.com/mairie360/BFF_Calendar/pull/253))
 - fix(deps): MAIR-816 Release dev: align internal versions and deploy (#248) ([#248](https://github.com/mairie360/BFF_Calendar/pull/248))
 - feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#241](https://github.com/mairie360/BFF_Calendar/pull/241))
 - fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#243](https://github.com/mairie360/BFF_Calendar/pull/243))
@@ -49,6 +50,7 @@
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-13 00:29 UTC | staging | — | `61375a9` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43336532406) |
 | 2026-11-13 00:21 UTC | dev | — | `61375a9` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43334548775) |
 | 2026-11-12 18:58 UTC | staging | — | `f13ee2e` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43284368607) |
 | 2026-11-12 13:16 UTC | dev | — | `f13ee2e` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43225004881) |
