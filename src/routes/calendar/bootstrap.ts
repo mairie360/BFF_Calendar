@@ -19,15 +19,15 @@ registry.registerPath({
   method: 'get',
   path: '/calendar/bootstrap',
   tags: ['Calendar'],
-  summary: 'Charge les données initiales du calendrier',
-  description: 'Charge en une fois les événements de la période, les personnes assignables, les catégories et l\'utilisateur courant',
+  summary: 'Load the initial data of the calendar',
+  description: 'Loads at once the events of the period, the assignable people, the categories and the current user',
   parameters: [
-    dateQueryParameter('from', false, 'Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant)'),
-    dateQueryParameter('to', false, 'Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant)'),
+    dateQueryParameter('from', false, 'Start date as YYYY-MM-DD (default: first day of the current month)'),
+    dateQueryParameter('to', false, 'End date as YYYY-MM-DD (default: last day of the current month)'),
   ],
   responses: {
     200: {
-      description: 'Données bootstrap chargées avec succès',
+      description: 'Bootstrap data loaded',
       content: {
         'application/json': {
           schema: { $ref: '#/components/schemas/CalendarBootstrapResponse' },
@@ -44,7 +44,7 @@ registry.registerPath({
 });
 
 // ========================================
-// Implémentation
+// Implementation
 // ========================================
 
 router.get('/', async (req: Request, res: Response) => {

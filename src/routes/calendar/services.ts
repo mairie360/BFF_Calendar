@@ -14,11 +14,11 @@ registry.registerPath({
   // A static list: public, no session needed.
   security: [],
   tags: ['Calendar'],
-  summary: 'Récupère le référentiel des services calendrier',
-  description: 'Charge la liste des services municipaux utilisables pour qualifier les événements',
+  summary: 'Get the calendar departments',
+  description: 'Loads the municipal departments that can qualify an event',
   responses: {
     200: {
-      description: 'Liste des services calendrier',
+      description: 'Calendar departments',
       content: {
         'application/json': {
           schema: {
@@ -33,7 +33,7 @@ registry.registerPath({
 });
 
 // ========================================
-// Implémentation
+// Implementation
 // ========================================
 
 router.get('/', (req: Request, res: Response) => {

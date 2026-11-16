@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Vérifie la santé du BFF */
+        /** Check the health of the BFF */
         get: {
             parameters: {
                 query?: never;
@@ -91,15 +91,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Charge les données initiales du calendrier
-         * @description Charge en une fois les événements de la période, les personnes assignables, les catégories et l'utilisateur courant
+         * Load the initial data of the calendar
+         * @description Loads at once the events of the period, the assignable people, the categories and the current user
          */
         get: {
             parameters: {
                 query?: {
-                    /** @description Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant) */
+                    /** @description Start date as YYYY-MM-DD (default: first day of the current month) */
                     from?: string;
-                    /** @description Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant) */
+                    /** @description End date as YYYY-MM-DD (default: last day of the current month) */
                     to?: string;
                 };
                 header?: never;
@@ -108,7 +108,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Données bootstrap chargées avec succès */
+                /** @description Bootstrap data loaded */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -189,13 +189,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Récupère les événements sur une plage de dates
-         * @description Charge les événements utiles à la vue mois/semaine/jour
+         * Get the events of a date range
+         * @description Loads the events of the month, week or day view
          */
         get: {
             parameters: {
                 query: {
-                    /** @description Date de début au format YYYY-MM-DD */
+                    /** @description Start date as YYYY-MM-DD */
                     from: string;
                     /** @description Date de fin au format YYYY-MM-DD */
                     to: string;
@@ -206,7 +206,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Liste des événements */
+                /** @description Events */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -273,8 +273,8 @@ export interface paths {
         };
         put?: never;
         /**
-         * Crée un nouvel événement
-         * @description Crée un événement calendrier et retourne l'objet enrichi avec son ID serveur
+         * Create a new event
+         * @description Creates a calendar event and returns it with its server id
          */
         post: {
             parameters: {
@@ -289,7 +289,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Événement créé avec succès */
+                /** @description Event created */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -385,7 +385,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    /** @description Identifiant unique de l'événement */
+                    /** @description Unique id of the event */
                     id: string;
                 };
                 cookie?: never;
@@ -478,22 +478,22 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Supprime un événement
-         * @description Supprime un événement identifié par son ID
+         * Delete an event
+         * @description Deletes an event identified by its id
          */
         delete: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    /** @description Identifiant unique de l'événement */
+                    /** @description Unique id of the event */
                     id: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Événement supprimé avec succès */
+                /** @description Event deleted */
                 204: {
                     headers: {
                         [name: string]: unknown;
@@ -577,15 +577,15 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Modifie un événement existant
-         * @description Met à jour un événement identifié par son ID
+         * Update an existing event
+         * @description Updates an event identified by its id
          */
         patch: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    /** @description Identifiant unique de l'événement */
+                    /** @description Unique id of the event */
                     id: string;
                 };
                 cookie?: never;
@@ -596,7 +596,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Événement modifié avec succès */
+                /** @description Event updated */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -695,15 +695,15 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Met à jour le statut d’approbation d’un événement
-         * @description Valide, refuse ou remet en attente un événement identifié par son ID
+         * Update the approval status of an event
+         * @description Approves, rejects or puts back on hold an event identified by its id
          */
         patch: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    /** @description Identifiant unique de l'événement */
+                    /** @description Unique id of the event */
                     id: string;
                 };
                 cookie?: never;
@@ -714,7 +714,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Statut d’approbation mis à jour */
+                /** @description Approval status updated */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -905,15 +905,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Récupère le référentiel des personnes assignables
-         * @description Charge la liste complète des personnes pouvant être assignées à un événement
+         * Get the assignable people
+         * @description Loads every person who can be assigned to an event
          */
         get: {
             parameters: {
                 query?: {
-                    /** @description Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant) */
+                    /** @description Start date as YYYY-MM-DD (default: first day of the current month) */
                     from?: string;
-                    /** @description Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant) */
+                    /** @description End date as YYYY-MM-DD (default: last day of the current month) */
                     to?: string;
                 };
                 header?: never;
@@ -922,7 +922,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Liste des personnes assignables */
+                /** @description Assignable people */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1003,8 +1003,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Récupère le référentiel des catégories
-         * @description Charge la liste des catégories d'événements disponibles
+         * Get the categories
+         * @description Loads the available event categories
          */
         get: {
             parameters: {
@@ -1015,7 +1015,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Liste des catégories */
+                /** @description Categories */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1051,8 +1051,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Récupère le référentiel des services calendrier
-         * @description Charge la liste des services municipaux utilisables pour qualifier les événements
+         * Get the calendar departments
+         * @description Loads the municipal departments that can qualify an event
          */
         get: {
             parameters: {
@@ -1063,7 +1063,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Liste des services calendrier */
+                /** @description Calendar departments */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1098,16 +1098,16 @@ export interface components {
         /** @description Recurrence rule of the event */
         CalendarRecurrence: {
             /**
-             * @description Fréquence de récurrence
+             * @description Frequency of the recurrence
              * @enum {string}
              */
             frequency: "none" | "daily" | "weekly" | "monthly";
             /**
-             * @description Intervalle de récurrence (par défaut 1)
+             * @description Interval of the recurrence (1 by default)
              * @example 1
              */
             interval?: number;
-            /** @description Jours de la semaine (0=dimanche, 6=samedi). Utilisé pour les récurrences hebdomadaires */
+            /** @description Days of the week (0=Sunday, 6=Saturday). Used by weekly recurrences */
             daysOfWeek?: number[];
             /**
              * @description Date de fin inclusive (format YYYY-MM-DD)
@@ -1117,7 +1117,7 @@ export interface components {
         };
         CalendarAssignee: {
             /**
-             * @description Identifiant unique de la personne
+             * @description Unique id of the person
              * @example 1
              */
             id: string | number;
@@ -1133,7 +1133,7 @@ export interface components {
              */
             email?: string;
             /**
-             * @description Fonction ou rôle métier
+             * @description Job or business role
              * @example Admin
              */
             role?: string;
@@ -1145,35 +1145,35 @@ export interface components {
             avatarUrl?: string;
         };
         CalendarEvent: {
-            /** @description Identifiant stable. Optionnel en création, obligatoire en lecture. */
+            /** @description Stable id. Optional on creation, always present on reads. */
             id?: string | number;
             /**
-             * @description Titre de l'événement
+             * @description Title of the event
              * @example Scan event
              */
             title: string;
             /**
-             * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @description Start date (YYYY-MM-DD or DD-MM-YYYY)
              * @example 2030-06-15
              */
             date: string;
             /**
-             * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @description End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)
              * @example 2030-06-15
              */
             endDate?: string;
             /**
-             * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
+             * @description Category: meeting, activity, ceremony or other
              * @enum {string}
              */
             category?: "meeting" | "activity" | "ceremony" | "other";
             /**
-             * @description Service ou département organisateur
+             * @description Organising department
              * @example direction
              */
             service?: string;
             /**
-             * @description Heure de début au format HH:mm
+             * @description Start time as HH:mm
              * @example 09:00
              */
             startTime?: string;
@@ -1183,59 +1183,59 @@ export interface components {
              */
             endTime?: string;
             /**
-             * @description Lieu de l'événement
+             * @description Location of the event
              * @example Town hall
              */
             location?: string;
-            /** @description Description détaillée */
+            /** @description Detailed description */
             description?: string;
-            /** @description Liste des identifiants des personnes assignées */
+            /** @description Ids of the assigned people */
             assigneeIds?: (string | number)[];
             /** @description Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it. */
             assignees?: components["schemas"]["CalendarAssignee"][];
             recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
-             * @description Statut d'approbation de l'événement
+             * @description Approval status of the event
              * @enum {string}
              */
             approvalStatus?: "pending" | "approved" | "rejected";
             /**
-             * @description Identifiant de l'utilisateur ayant créé l'événement
+             * @description Id of the user who created the event
              * @example 1
              */
             createdById?: string | number;
-            /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
+            /** @description Whether the current user can approve or reject this event */
             canValidate?: boolean;
-            /** @description Indique si l’utilisateur courant peut modifier cet événement */
+            /** @description Whether the current user can edit this event */
             canEdit?: boolean;
-            /** @description Indique si l’utilisateur courant peut supprimer cet événement */
+            /** @description Whether the current user can delete this event */
             canDelete?: boolean;
-            /** @description Liste des rôles pouvant voir l'événement */
+            /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
         CalendarCategory: {
-            /** @description Libellé affiché (ex: Réunion) */
+            /** @description Displayed label (e.g. Réunion) */
             label: string;
             /** @description Valeur interne (ex: meeting) */
             value: string;
         };
         CalendarService: {
-            /** @description Libellé affiché (ex: Direction générale) */
+            /** @description Displayed label (e.g. Direction générale) */
             label: string;
             /** @description Valeur interne (ex: direction) */
             value: string;
         };
         CalendarBootstrapResponse: {
-            /** @description Liste des événements de la période */
+            /** @description Events of the period */
             events: components["schemas"]["CalendarEvent"][];
             users: components["schemas"]["CalendarUsers"];
-            /** @description Référentiel des personnes assignables */
+            /** @description Assignable people */
             assignees: components["schemas"]["CalendarAssignee"][];
-            /** @description Référentiel des catégories */
+            /** @description Categories */
             categories: components["schemas"]["CalendarCategory"][];
-            /** @description Référentiel des services calendrier */
+            /** @description Calendar departments */
             services: components["schemas"]["CalendarService"][];
-            /** @description Utilisateur actuellement authentifié (optionnel) */
+            /** @description Currently authenticated user (optional) */
             currentUser?: {
                 id: string | number;
                 name: string;
@@ -1245,7 +1245,7 @@ export interface components {
                 groupIds: number[];
             };
             /**
-             * @description Périmètre du référentiel des personnes assignables
+             * @description Scope of the assignable people
              * @enum {string}
              */
             assigneeScope?: "all" | "groups" | "self";
@@ -1257,35 +1257,35 @@ export interface components {
         CalendarPeriodResponse: {
             /** @description Events of the period, each with its `assigneeIds` and no embedded people */
             events: {
-                /** @description Identifiant stable. Optionnel en création, obligatoire en lecture. */
+                /** @description Stable id. Optional on creation, always present on reads. */
                 id?: string | number;
                 /**
-                 * @description Titre de l'événement
+                 * @description Title of the event
                  * @example Scan event
                  */
                 title: string;
                 /**
-                 * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+                 * @description Start date (YYYY-MM-DD or DD-MM-YYYY)
                  * @example 2030-06-15
                  */
                 date: string;
                 /**
-                 * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+                 * @description End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)
                  * @example 2030-06-15
                  */
                 endDate?: string;
                 /**
-                 * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
+                 * @description Category: meeting, activity, ceremony or other
                  * @enum {string}
                  */
                 category?: "meeting" | "activity" | "ceremony" | "other";
                 /**
-                 * @description Service ou département organisateur
+                 * @description Organising department
                  * @example direction
                  */
                 service?: string;
                 /**
-                 * @description Heure de début au format HH:mm
+                 * @description Start time as HH:mm
                  * @example 09:00
                  */
                 startTime?: string;
@@ -1295,89 +1295,89 @@ export interface components {
                  */
                 endTime?: string;
                 /**
-                 * @description Lieu de l'événement
+                 * @description Location of the event
                  * @example Town hall
                  */
                 location?: string;
-                /** @description Description détaillée */
+                /** @description Detailed description */
                 description?: string;
-                /** @description Liste des identifiants des personnes assignées */
+                /** @description Ids of the assigned people */
                 assigneeIds?: (string | number)[];
                 recurrence?: components["schemas"]["CalendarRecurrence"];
                 /**
-                 * @description Statut d'approbation de l'événement
+                 * @description Approval status of the event
                  * @enum {string}
                  */
                 approvalStatus?: "pending" | "approved" | "rejected";
                 /**
-                 * @description Identifiant de l'utilisateur ayant créé l'événement
+                 * @description Id of the user who created the event
                  * @example 1
                  */
                 createdById?: string | number;
-                /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
+                /** @description Whether the current user can approve or reject this event */
                 canValidate?: boolean;
-                /** @description Indique si l’utilisateur courant peut modifier cet événement */
+                /** @description Whether the current user can edit this event */
                 canEdit?: boolean;
-                /** @description Indique si l’utilisateur courant peut supprimer cet événement */
+                /** @description Whether the current user can delete this event */
                 canDelete?: boolean;
-                /** @description Liste des rôles pouvant voir l'événement */
+                /** @description Roles allowed to see the event */
                 visibleToRoles?: ("user" | "responsable" | "mayor")[];
             }[];
             users: components["schemas"]["CalendarUsers"];
         };
         CalendarStatistics: {
-            /** @description Nombre d'événements ce mois */
+            /** @description Number of events this month */
             monthCount: number;
-            /** @description Nombre d'événements cette semaine */
+            /** @description Number of events this week */
             weekCount: number;
-            /** @description Nombre d'événements aujourd'hui */
+            /** @description Number of events today */
             todayCount: number;
         };
         CalendarEventParams: {
             /**
-             * @description Identifiant de l'événement
+             * @description Id of the event
              * @example 123
              */
             eventId: string | number;
         };
         CalendarEventsQuery: {
-            /** @description Date de début (YYYY-MM-DD) */
+            /** @description Start date (YYYY-MM-DD) */
             startDate?: string;
             /** @description Date de fin (YYYY-MM-DD) */
             endDate?: string;
-            /** @description Filtre sur une personne assignée */
+            /** @description Filter on an assigned person */
             assigneeId?: string;
-            /** @description Filtre sur une catégorie */
+            /** @description Filter on a category */
             category?: string;
         };
         CreateCalendarEventBody: {
             /**
-             * @description Titre de l'événement
+             * @description Title of the event
              * @example Scan event
              */
             title: string;
             /**
-             * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @description Start date (YYYY-MM-DD or DD-MM-YYYY)
              * @example 2030-06-15
              */
             date: string;
             /**
-             * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @description End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)
              * @example 2030-06-15
              */
             endDate?: string;
             /**
-             * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
+             * @description Category: meeting, activity, ceremony or other
              * @enum {string}
              */
             category?: "meeting" | "activity" | "ceremony" | "other";
             /**
-             * @description Service ou département organisateur
+             * @description Organising department
              * @example direction
              */
             service?: string;
             /**
-             * @description Heure de début au format HH:mm
+             * @description Start time as HH:mm
              * @example 09:00
              */
             startTime?: string;
@@ -1387,64 +1387,64 @@ export interface components {
              */
             endTime?: string;
             /**
-             * @description Lieu de l'événement
+             * @description Location of the event
              * @example Town hall
              */
             location?: string;
-            /** @description Description détaillée */
+            /** @description Detailed description */
             description?: string;
-            /** @description Liste des identifiants des personnes assignées */
+            /** @description Ids of the assigned people */
             assigneeIds?: (string | number)[];
             /** @description Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it. */
             assignees?: components["schemas"]["CalendarAssignee"][];
             recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
-             * @description Statut d'approbation de l'événement
+             * @description Approval status of the event
              * @enum {string}
              */
             approvalStatus?: "pending" | "approved" | "rejected";
             /**
-             * @description Identifiant de l'utilisateur ayant créé l'événement
+             * @description Id of the user who created the event
              * @example 1
              */
             createdById?: string | number;
-            /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
+            /** @description Whether the current user can approve or reject this event */
             canValidate?: boolean;
-            /** @description Indique si l’utilisateur courant peut modifier cet événement */
+            /** @description Whether the current user can edit this event */
             canEdit?: boolean;
-            /** @description Indique si l’utilisateur courant peut supprimer cet événement */
+            /** @description Whether the current user can delete this event */
             canDelete?: boolean;
-            /** @description Liste des rôles pouvant voir l'événement */
+            /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
         UpdateCalendarEventBody: {
             /**
-             * @description Titre de l'événement
+             * @description Title of the event
              * @example Scan event
              */
             title?: string;
             /**
-             * @description Date de début (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @description Start date (YYYY-MM-DD or DD-MM-YYYY)
              * @example 2030-06-15
              */
             date?: string;
             /**
-             * @description Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)
+             * @description End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)
              * @example 2030-06-15
              */
             endDate?: string;
             /**
-             * @description Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)
+             * @description Category: meeting, activity, ceremony or other
              * @enum {string}
              */
             category?: "meeting" | "activity" | "ceremony" | "other";
             /**
-             * @description Service ou département organisateur
+             * @description Organising department
              * @example direction
              */
             service?: string;
             /**
-             * @description Heure de début au format HH:mm
+             * @description Start time as HH:mm
              * @example 09:00
              */
             startTime?: string;
@@ -1454,39 +1454,39 @@ export interface components {
              */
             endTime?: string;
             /**
-             * @description Lieu de l'événement
+             * @description Location of the event
              * @example Town hall
              */
             location?: string;
-            /** @description Description détaillée */
+            /** @description Detailed description */
             description?: string;
-            /** @description Liste des identifiants des personnes assignées */
+            /** @description Ids of the assigned people */
             assigneeIds?: (string | number)[];
             /** @description Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it. */
             assignees?: components["schemas"]["CalendarAssignee"][];
             recurrence?: components["schemas"]["CalendarRecurrence"];
             /**
-             * @description Statut d'approbation de l'événement
+             * @description Approval status of the event
              * @enum {string}
              */
             approvalStatus?: "pending" | "approved" | "rejected";
             /**
-             * @description Identifiant de l'utilisateur ayant créé l'événement
+             * @description Id of the user who created the event
              * @example 1
              */
             createdById?: string | number;
-            /** @description Indique si l’utilisateur courant peut valider ou refuser cet événement */
+            /** @description Whether the current user can approve or reject this event */
             canValidate?: boolean;
-            /** @description Indique si l’utilisateur courant peut modifier cet événement */
+            /** @description Whether the current user can edit this event */
             canEdit?: boolean;
-            /** @description Indique si l’utilisateur courant peut supprimer cet événement */
+            /** @description Whether the current user can delete this event */
             canDelete?: boolean;
-            /** @description Liste des rôles pouvant voir l'événement */
+            /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
         UpdateCalendarEventApprovalBody: {
             /**
-             * @description Nouveau statut d'approbation de l'événement
+             * @description New approval status of the event
              * @enum {string}
              */
             approvalStatus: "pending" | "approved" | "rejected";

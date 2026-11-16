@@ -29,12 +29,12 @@
               "weekly",
               "monthly"
             ],
-            "description": "Fréquence de récurrence"
+            "description": "Frequency of the recurrence"
           },
           "interval": {
             "type": "integer",
             "minimum": 1,
-            "description": "Intervalle de récurrence (par défaut 1)",
+            "description": "Interval of the recurrence (1 by default)",
             "example": 1
           },
           "daysOfWeek": {
@@ -45,7 +45,7 @@
               "maximum": 6,
               "example": 1
             },
-            "description": "Jours de la semaine (0=dimanche, 6=samedi). Utilisé pour les récurrences hebdomadaires"
+            "description": "Days of the week (0=Sunday, 6=Saturday). Used by weekly recurrences"
           },
           "endsOn": {
             "type": "string",
@@ -71,7 +71,7 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant unique de la personne",
+            "description": "Unique id of the person",
             "example": 1
           },
           "name": {
@@ -87,7 +87,7 @@
           },
           "role": {
             "type": "string",
-            "description": "Fonction ou rôle métier",
+            "description": "Job or business role",
             "example": "Admin"
           },
           "avatarUrl": {
@@ -114,24 +114,24 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant stable. Optionnel en création, obligatoire en lecture."
+            "description": "Stable id. Optional on creation, always present on reads."
           },
           "title": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Titre de l'événement",
+            "description": "Title of the event",
             "example": "Scan event"
           },
           "date": {
             "type": "string",
             "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "description": "Start date (YYYY-MM-DD or DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
             "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "description": "End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "category": {
@@ -142,18 +142,18 @@
               "ceremony",
               "other"
             ],
-            "description": "Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)"
+            "description": "Category: meeting, activity, ceremony or other"
           },
           "service": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Service ou département organisateur",
+            "description": "Organising department",
             "example": "direction"
           },
           "startTime": {
             "type": "string",
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-            "description": "Heure de début au format HH:mm",
+            "description": "Start time as HH:mm",
             "example": "09:00"
           },
           "endTime": {
@@ -165,13 +165,13 @@
           "location": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Lieu de l'événement",
+            "description": "Location of the event",
             "example": "Town hall"
           },
           "description": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Description détaillée"
+            "description": "Detailed description"
           },
           "assigneeIds": {
             "type": "array",
@@ -186,7 +186,7 @@
               ],
               "example": 1
             },
-            "description": "Liste des identifiants des personnes assignées"
+            "description": "Ids of the assigned people"
           },
           "assignees": {
             "type": "array",
@@ -205,7 +205,7 @@
               "approved",
               "rejected"
             ],
-            "description": "Statut d'approbation de l'événement"
+            "description": "Approval status of the event"
           },
           "createdById": {
             "anyOf": [
@@ -216,20 +216,20 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'utilisateur ayant créé l'événement",
+            "description": "Id of the user who created the event",
             "example": 1
           },
           "canValidate": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut valider ou refuser cet événement"
+            "description": "Whether the current user can approve or reject this event"
           },
           "canEdit": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut modifier cet événement"
+            "description": "Whether the current user can edit this event"
           },
           "canDelete": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut supprimer cet événement"
+            "description": "Whether the current user can delete this event"
           },
           "visibleToRoles": {
             "type": "array",
@@ -241,7 +241,7 @@
                 "mayor"
               ]
             },
-            "description": "Liste des rôles pouvant voir l'événement"
+            "description": "Roles allowed to see the event"
           }
         },
         "required": [
@@ -254,7 +254,7 @@
         "properties": {
           "label": {
             "type": "string",
-            "description": "Libellé affiché (ex: Réunion)"
+            "description": "Displayed label (e.g. Réunion)"
           },
           "value": {
             "type": "string",
@@ -271,7 +271,7 @@
         "properties": {
           "label": {
             "type": "string",
-            "description": "Libellé affiché (ex: Direction générale)"
+            "description": "Displayed label (e.g. Direction générale)"
           },
           "value": {
             "type": "string",
@@ -291,7 +291,7 @@
             "items": {
               "$ref": "#/components/schemas/CalendarEvent"
             },
-            "description": "Liste des événements de la période"
+            "description": "Events of the period"
           },
           "users": {
             "$ref": "#/components/schemas/CalendarUsers"
@@ -301,21 +301,21 @@
             "items": {
               "$ref": "#/components/schemas/CalendarAssignee"
             },
-            "description": "Référentiel des personnes assignables"
+            "description": "Assignable people"
           },
           "categories": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CalendarCategory"
             },
-            "description": "Référentiel des catégories"
+            "description": "Categories"
           },
           "services": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CalendarService"
             },
-            "description": "Référentiel des services calendrier"
+            "description": "Calendar departments"
           },
           "currentUser": {
             "type": "object",
@@ -353,7 +353,7 @@
               "email",
               "groupIds"
             ],
-            "description": "Utilisateur actuellement authentifié (optionnel)"
+            "description": "Currently authenticated user (optional)"
           },
           "assigneeScope": {
             "type": "string",
@@ -362,7 +362,7 @@
               "groups",
               "self"
             ],
-            "description": "Périmètre du référentiel des personnes assignables"
+            "description": "Scope of the assignable people"
           }
         },
         "required": [
@@ -397,24 +397,24 @@
                       "type": "number"
                     }
                   ],
-                  "description": "Identifiant stable. Optionnel en création, obligatoire en lecture."
+                  "description": "Stable id. Optional on creation, always present on reads."
                 },
                 "title": {
                   "type": "string",
                   "pattern": "^[^<>]*$",
-                  "description": "Titre de l'événement",
+                  "description": "Title of the event",
                   "example": "Scan event"
                 },
                 "date": {
                   "type": "string",
                   "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-                  "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+                  "description": "Start date (YYYY-MM-DD or DD-MM-YYYY)",
                   "example": "2030-06-15"
                 },
                 "endDate": {
                   "type": "string",
                   "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-                  "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+                  "description": "End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)",
                   "example": "2030-06-15"
                 },
                 "category": {
@@ -425,18 +425,18 @@
                     "ceremony",
                     "other"
                   ],
-                  "description": "Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)"
+                  "description": "Category: meeting, activity, ceremony or other"
                 },
                 "service": {
                   "type": "string",
                   "pattern": "^[^<>]*$",
-                  "description": "Service ou département organisateur",
+                  "description": "Organising department",
                   "example": "direction"
                 },
                 "startTime": {
                   "type": "string",
                   "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-                  "description": "Heure de début au format HH:mm",
+                  "description": "Start time as HH:mm",
                   "example": "09:00"
                 },
                 "endTime": {
@@ -448,13 +448,13 @@
                 "location": {
                   "type": "string",
                   "pattern": "^[^<>]*$",
-                  "description": "Lieu de l'événement",
+                  "description": "Location of the event",
                   "example": "Town hall"
                 },
                 "description": {
                   "type": "string",
                   "pattern": "^[^<>]*$",
-                  "description": "Description détaillée"
+                  "description": "Detailed description"
                 },
                 "assigneeIds": {
                   "type": "array",
@@ -469,7 +469,7 @@
                     ],
                     "example": 1
                   },
-                  "description": "Liste des identifiants des personnes assignées"
+                  "description": "Ids of the assigned people"
                 },
                 "recurrence": {
                   "$ref": "#/components/schemas/CalendarRecurrence"
@@ -481,7 +481,7 @@
                     "approved",
                     "rejected"
                   ],
-                  "description": "Statut d'approbation de l'événement"
+                  "description": "Approval status of the event"
                 },
                 "createdById": {
                   "anyOf": [
@@ -492,20 +492,20 @@
                       "type": "number"
                     }
                   ],
-                  "description": "Identifiant de l'utilisateur ayant créé l'événement",
+                  "description": "Id of the user who created the event",
                   "example": 1
                 },
                 "canValidate": {
                   "type": "boolean",
-                  "description": "Indique si l’utilisateur courant peut valider ou refuser cet événement"
+                  "description": "Whether the current user can approve or reject this event"
                 },
                 "canEdit": {
                   "type": "boolean",
-                  "description": "Indique si l’utilisateur courant peut modifier cet événement"
+                  "description": "Whether the current user can edit this event"
                 },
                 "canDelete": {
                   "type": "boolean",
-                  "description": "Indique si l’utilisateur courant peut supprimer cet événement"
+                  "description": "Whether the current user can delete this event"
                 },
                 "visibleToRoles": {
                   "type": "array",
@@ -517,7 +517,7 @@
                       "mayor"
                     ]
                   },
-                  "description": "Liste des rôles pouvant voir l'événement"
+                  "description": "Roles allowed to see the event"
                 }
               },
               "required": [
@@ -542,17 +542,17 @@
           "monthCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "Nombre d'événements ce mois"
+            "description": "Number of events this month"
           },
           "weekCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "Nombre d'événements cette semaine"
+            "description": "Number of events this week"
           },
           "todayCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "Nombre d'événements aujourd'hui"
+            "description": "Number of events today"
           }
         },
         "required": [
@@ -573,7 +573,7 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'événement",
+            "description": "Id of the event",
             "example": "123"
           }
         },
@@ -586,7 +586,7 @@
         "properties": {
           "startDate": {
             "type": "string",
-            "description": "Date de début (YYYY-MM-DD)"
+            "description": "Start date (YYYY-MM-DD)"
           },
           "endDate": {
             "type": "string",
@@ -594,11 +594,11 @@
           },
           "assigneeId": {
             "type": "string",
-            "description": "Filtre sur une personne assignée"
+            "description": "Filter on an assigned person"
           },
           "category": {
             "type": "string",
-            "description": "Filtre sur une catégorie"
+            "description": "Filter on a category"
           }
         }
       },
@@ -608,19 +608,19 @@
           "title": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Titre de l'événement",
+            "description": "Title of the event",
             "example": "Scan event"
           },
           "date": {
             "type": "string",
             "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "description": "Start date (YYYY-MM-DD or DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
             "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "description": "End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "category": {
@@ -631,18 +631,18 @@
               "ceremony",
               "other"
             ],
-            "description": "Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)"
+            "description": "Category: meeting, activity, ceremony or other"
           },
           "service": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Service ou département organisateur",
+            "description": "Organising department",
             "example": "direction"
           },
           "startTime": {
             "type": "string",
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-            "description": "Heure de début au format HH:mm",
+            "description": "Start time as HH:mm",
             "example": "09:00"
           },
           "endTime": {
@@ -654,13 +654,13 @@
           "location": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Lieu de l'événement",
+            "description": "Location of the event",
             "example": "Town hall"
           },
           "description": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Description détaillée"
+            "description": "Detailed description"
           },
           "assigneeIds": {
             "type": "array",
@@ -675,7 +675,7 @@
               ],
               "example": 1
             },
-            "description": "Liste des identifiants des personnes assignées"
+            "description": "Ids of the assigned people"
           },
           "assignees": {
             "type": "array",
@@ -694,7 +694,7 @@
               "approved",
               "rejected"
             ],
-            "description": "Statut d'approbation de l'événement"
+            "description": "Approval status of the event"
           },
           "createdById": {
             "anyOf": [
@@ -705,20 +705,20 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'utilisateur ayant créé l'événement",
+            "description": "Id of the user who created the event",
             "example": 1
           },
           "canValidate": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut valider ou refuser cet événement"
+            "description": "Whether the current user can approve or reject this event"
           },
           "canEdit": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut modifier cet événement"
+            "description": "Whether the current user can edit this event"
           },
           "canDelete": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut supprimer cet événement"
+            "description": "Whether the current user can delete this event"
           },
           "visibleToRoles": {
             "type": "array",
@@ -730,7 +730,7 @@
                 "mayor"
               ]
             },
-            "description": "Liste des rôles pouvant voir l'événement"
+            "description": "Roles allowed to see the event"
           }
         },
         "required": [
@@ -744,19 +744,19 @@
           "title": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Titre de l'événement",
+            "description": "Title of the event",
             "example": "Scan event"
           },
           "date": {
             "type": "string",
             "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-            "description": "Date de début (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "description": "Start date (YYYY-MM-DD or DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "endDate": {
             "type": "string",
             "pattern": "^(?:(\\d{4})-(\\d{2})-(\\d{2})|(\\d{2})[-/](\\d{2})[-/](\\d{4}))$",
-            "description": "Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)",
+            "description": "End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)",
             "example": "2030-06-15"
           },
           "category": {
@@ -767,18 +767,18 @@
               "ceremony",
               "other"
             ],
-            "description": "Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)"
+            "description": "Category: meeting, activity, ceremony or other"
           },
           "service": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Service ou département organisateur",
+            "description": "Organising department",
             "example": "direction"
           },
           "startTime": {
             "type": "string",
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-            "description": "Heure de début au format HH:mm",
+            "description": "Start time as HH:mm",
             "example": "09:00"
           },
           "endTime": {
@@ -790,13 +790,13 @@
           "location": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Lieu de l'événement",
+            "description": "Location of the event",
             "example": "Town hall"
           },
           "description": {
             "type": "string",
             "pattern": "^[^<>]*$",
-            "description": "Description détaillée"
+            "description": "Detailed description"
           },
           "assigneeIds": {
             "type": "array",
@@ -811,7 +811,7 @@
               ],
               "example": 1
             },
-            "description": "Liste des identifiants des personnes assignées"
+            "description": "Ids of the assigned people"
           },
           "assignees": {
             "type": "array",
@@ -830,7 +830,7 @@
               "approved",
               "rejected"
             ],
-            "description": "Statut d'approbation de l'événement"
+            "description": "Approval status of the event"
           },
           "createdById": {
             "anyOf": [
@@ -841,20 +841,20 @@
                 "type": "number"
               }
             ],
-            "description": "Identifiant de l'utilisateur ayant créé l'événement",
+            "description": "Id of the user who created the event",
             "example": 1
           },
           "canValidate": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut valider ou refuser cet événement"
+            "description": "Whether the current user can approve or reject this event"
           },
           "canEdit": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut modifier cet événement"
+            "description": "Whether the current user can edit this event"
           },
           "canDelete": {
             "type": "boolean",
-            "description": "Indique si l’utilisateur courant peut supprimer cet événement"
+            "description": "Whether the current user can delete this event"
           },
           "visibleToRoles": {
             "type": "array",
@@ -866,7 +866,7 @@
                 "mayor"
               ]
             },
-            "description": "Liste des rôles pouvant voir l'événement"
+            "description": "Roles allowed to see the event"
           }
         }
       },
@@ -880,7 +880,7 @@
               "approved",
               "rejected"
             ],
-            "description": "Nouveau statut d'approbation de l'événement"
+            "description": "New approval status of the event"
           }
         },
         "required": [
@@ -983,7 +983,7 @@
         "tags": [
           "Connectivity"
         ],
-        "summary": "Vérifie la santé du BFF",
+        "summary": "Check the health of the BFF",
         "responses": {
           "200": {
             "description": "OK"
@@ -1027,8 +1027,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Charge les données initiales du calendrier",
-        "description": "Charge en une fois les événements de la période, les personnes assignables, les catégories et l'utilisateur courant",
+        "summary": "Load the initial data of the calendar",
+        "description": "Loads at once the events of the period, the assignable people, the categories and the current user",
         "parameters": [
           {
             "name": "from",
@@ -1039,7 +1039,7 @@
               "format": "date",
               "example": "2030-06-01"
             },
-            "description": "Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant)"
+            "description": "Start date as YYYY-MM-DD (default: first day of the current month)"
           },
           {
             "name": "to",
@@ -1050,12 +1050,12 @@
               "format": "date",
               "example": "2030-06-30"
             },
-            "description": "Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant)"
+            "description": "End date as YYYY-MM-DD (default: last day of the current month)"
           }
         ],
         "responses": {
           "200": {
-            "description": "Données bootstrap chargées avec succès",
+            "description": "Bootstrap data loaded",
             "content": {
               "application/json": {
                 "schema": {
@@ -1132,8 +1132,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Récupère les événements sur une plage de dates",
-        "description": "Charge les événements utiles à la vue mois/semaine/jour",
+        "summary": "Get the events of a date range",
+        "description": "Loads the events of the month, week or day view",
         "parameters": [
           {
             "name": "from",
@@ -1144,7 +1144,7 @@
               "format": "date",
               "example": "2030-06-01"
             },
-            "description": "Date de début au format YYYY-MM-DD"
+            "description": "Start date as YYYY-MM-DD"
           },
           {
             "name": "to",
@@ -1160,7 +1160,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Liste des événements",
+            "description": "Events",
             "content": {
               "application/json": {
                 "schema": {
@@ -1238,8 +1238,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Crée un nouvel événement",
-        "description": "Crée un événement calendrier et retourne l'objet enrichi avec son ID serveur",
+        "summary": "Create a new event",
+        "description": "Creates a calendar event and returns it with its server id",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1251,7 +1251,7 @@
         },
         "responses": {
           "201": {
-            "description": "Événement créé avec succès",
+            "description": "Event created",
             "content": {
               "application/json": {
                 "schema": {
@@ -1350,7 +1350,7 @@
               "pattern": "^[0-9]+$",
               "example": "101"
             },
-            "description": "Identifiant unique de l'événement"
+            "description": "Unique id of the event"
           }
         ],
         "responses": {
@@ -1450,8 +1450,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Modifie un événement existant",
-        "description": "Met à jour un événement identifié par son ID",
+        "summary": "Update an existing event",
+        "description": "Updates an event identified by its id",
         "parameters": [
           {
             "name": "id",
@@ -1462,7 +1462,7 @@
               "pattern": "^[0-9]+$",
               "example": "101"
             },
-            "description": "Identifiant unique de l'événement"
+            "description": "Unique id of the event"
           }
         ],
         "requestBody": {
@@ -1476,7 +1476,7 @@
         },
         "responses": {
           "200": {
-            "description": "Événement modifié avec succès",
+            "description": "Event updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -1571,8 +1571,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Supprime un événement",
-        "description": "Supprime un événement identifié par son ID",
+        "summary": "Delete an event",
+        "description": "Deletes an event identified by its id",
         "parameters": [
           {
             "name": "id",
@@ -1583,12 +1583,12 @@
               "pattern": "^[0-9]+$",
               "example": "102"
             },
-            "description": "Identifiant unique de l'événement"
+            "description": "Unique id of the event"
           }
         ],
         "responses": {
           "204": {
-            "description": "Événement supprimé avec succès"
+            "description": "Event deleted"
           },
           "400": {
             "description": "Invalid id",
@@ -1678,8 +1678,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Met à jour le statut d’approbation d’un événement",
-        "description": "Valide, refuse ou remet en attente un événement identifié par son ID",
+        "summary": "Update the approval status of an event",
+        "description": "Approves, rejects or puts back on hold an event identified by its id",
         "parameters": [
           {
             "name": "id",
@@ -1690,7 +1690,7 @@
               "pattern": "^[0-9]+$",
               "example": "101"
             },
-            "description": "Identifiant unique de l'événement"
+            "description": "Unique id of the event"
           }
         ],
         "requestBody": {
@@ -1704,7 +1704,7 @@
         },
         "responses": {
           "200": {
-            "description": "Statut d’approbation mis à jour",
+            "description": "Approval status updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -1906,8 +1906,8 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Récupère le référentiel des personnes assignables",
-        "description": "Charge la liste complète des personnes pouvant être assignées à un événement",
+        "summary": "Get the assignable people",
+        "description": "Loads every person who can be assigned to an event",
         "parameters": [
           {
             "name": "from",
@@ -1918,7 +1918,7 @@
               "format": "date",
               "example": "2030-06-01"
             },
-            "description": "Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant)"
+            "description": "Start date as YYYY-MM-DD (default: first day of the current month)"
           },
           {
             "name": "to",
@@ -1929,12 +1929,12 @@
               "format": "date",
               "example": "2030-06-30"
             },
-            "description": "Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant)"
+            "description": "End date as YYYY-MM-DD (default: last day of the current month)"
           }
         ],
         "responses": {
           "200": {
-            "description": "Liste des personnes assignables",
+            "description": "Assignable people",
             "content": {
               "application/json": {
                 "schema": {
@@ -2015,11 +2015,11 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Récupère le référentiel des catégories",
-        "description": "Charge la liste des catégories d'événements disponibles",
+        "summary": "Get the categories",
+        "description": "Loads the available event categories",
         "responses": {
           "200": {
-            "description": "Liste des catégories",
+            "description": "Categories",
             "content": {
               "application/json": {
                 "schema": {
@@ -2050,11 +2050,11 @@
         "tags": [
           "Calendar"
         ],
-        "summary": "Récupère le référentiel des services calendrier",
-        "description": "Charge la liste des services municipaux utilisables pour qualifier les événements",
+        "summary": "Get the calendar departments",
+        "description": "Loads the municipal departments that can qualify an event",
         "responses": {
           "200": {
-            "description": "Liste des services calendrier",
+            "description": "Calendar departments",
             "content": {
               "application/json": {
                 "schema": {

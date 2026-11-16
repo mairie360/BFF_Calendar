@@ -33,15 +33,15 @@ registry.registerPath({
   method: 'get',
   path: '/calendar/events',
   tags: ['Calendar'],
-  summary: 'Récupère les événements sur une plage de dates',
-  description: 'Charge les événements utiles à la vue mois/semaine/jour',
+  summary: 'Get the events of a date range',
+  description: 'Loads the events of the month, week or day view',
   parameters: [
-    dateQueryParameter('from', true, 'Date de début au format YYYY-MM-DD'),
+    dateQueryParameter('from', true, 'Start date as YYYY-MM-DD'),
     dateQueryParameter('to', true, 'Date de fin au format YYYY-MM-DD'),
   ],
   responses: {
     200: {
-      description: 'Liste des événements',
+      description: 'Events',
       content: {
         'application/json': {
           schema: {
@@ -65,8 +65,8 @@ registry.registerPath({
   method: 'post',
   path: '/calendar/events',
   tags: ['Calendar'],
-  summary: 'Crée un nouvel événement',
-  description: 'Crée un événement calendrier et retourne l\'objet enrichi avec son ID serveur',
+  summary: 'Create a new event',
+  description: 'Creates a calendar event and returns it with its server id',
   request: {
     body: {
       content: {
@@ -78,7 +78,7 @@ registry.registerPath({
   },
   responses: {
     201: {
-      description: 'Événement créé avec succès',
+      description: 'Event created',
       content: {
         'application/json': {
           schema: { $ref: '#/components/schemas/CalendarEvent' },
@@ -130,8 +130,8 @@ registry.registerPath({
   method: 'patch',
   path: '/calendar/events/{id}',
   tags: ['Calendar'],
-  summary: 'Modifie un événement existant',
-  description: 'Met à jour un événement identifié par son ID',
+  summary: 'Update an existing event',
+  description: 'Updates an event identified by its id',
   parameters: [
     eventIdPathParameter,
   ],
@@ -146,7 +146,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: 'Événement modifié avec succès',
+      description: 'Event updated',
       content: {
         'application/json': {
           schema: { $ref: '#/components/schemas/CalendarEvent' },
@@ -169,14 +169,14 @@ registry.registerPath({
   method: 'delete',
   path: '/calendar/events/{id}',
   tags: ['Calendar'],
-  summary: 'Supprime un événement',
-  description: 'Supprime un événement identifié par son ID',
+  summary: 'Delete an event',
+  description: 'Deletes an event identified by its id',
   parameters: [
     deletedEventIdPathParameter,
   ],
   responses: {
     204: {
-      description: 'Événement supprimé avec succès',
+      description: 'Event deleted',
     },
     400: apiErrorResponse('Invalid id'),
     401: apiErrorResponse('Missing or invalid session'),
@@ -194,8 +194,8 @@ registry.registerPath({
   method: 'patch',
   path: '/calendar/events/{id}/approval',
   tags: ['Calendar'],
-  summary: 'Met à jour le statut d’approbation d’un événement',
-  description: 'Valide, refuse ou remet en attente un événement identifié par son ID',
+  summary: 'Update the approval status of an event',
+  description: 'Approves, rejects or puts back on hold an event identified by its id',
   parameters: [
     eventIdPathParameter,
   ],
@@ -210,7 +210,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: 'Statut d’approbation mis à jour',
+      description: 'Approval status updated',
       content: {
         'application/json': {
           schema: { $ref: '#/components/schemas/CalendarEvent' },
@@ -229,7 +229,7 @@ registry.registerPath({
 });
 
 // ========================================
-// Implémentation
+// Implementation
 // ========================================
 
 /** Event id of the path: a positive integer, otherwise a 400 before any upstream call. */
