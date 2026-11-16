@@ -45,7 +45,7 @@ export const CalendarRecurrenceSchema = z.object({
   daysOfWeek: z.array(z.number().int().min(0).max(6).openapi({ example: 1 })).optional()
     .openapi({ description: 'Days of the week (0=Sunday, 6=Saturday). Used by weekly recurrences' }),
   endsOn: CalendarDate.optional()
-    .openapi({ description: 'Date de fin inclusive (format YYYY-MM-DD)', example: '2030-12-31' }),
+    .openapi({ description: 'Inclusive end date (YYYY-MM-DD)', example: '2030-12-31' }),
 }).openapi('CalendarRecurrence', { description: 'Recurrence rule of the event' });
 
 // ========================================
@@ -56,13 +56,13 @@ export const CalendarAssigneeSchema = z.object({
   id: z.string().or(z.number())
     .openapi({ description: 'Unique id of the person', example: 1 }),
   name: z.string()
-    .openapi({ description: 'Nom complet affichable', example: 'Security Admin' }),
+    .openapi({ description: 'Displayable full name', example: 'Security Admin' }),
   email: z.string().email().optional()
-    .openapi({ description: 'Adresse email', example: 'security-admin@mairie360.fr' }),
+    .openapi({ description: 'Email address', example: 'security-admin@mairie360.fr' }),
   role: z.string().optional()
     .openapi({ description: 'Job or business role', example: 'Admin' }),
   avatarUrl: z.string().url().optional()
-    .openapi({ description: 'URL de l\'image de profil', example: 'https://mairie360.fr/avatar.png' }),
+    .openapi({ description: 'Profile picture URL', example: 'https://mairie360.fr/avatar.png' }),
 }).openapi('CalendarAssignee');
 
 // ========================================
@@ -87,7 +87,7 @@ export const CalendarEventSchema = z.object({
   startTime: ClockTime.optional()
     .openapi({ description: 'Start time as HH:mm', example: '09:00' }),
   endTime: ClockTime.optional()
-    .openapi({ description: 'Heure de fin au format HH:mm', example: '10:00' }),
+    .openapi({ description: 'End time (HH:mm)', example: '10:00' }),
   location: noMarkup(z.string()).optional()
     .openapi({ description: 'Location of the event', example: 'Town hall' }),
   description: noMarkup(z.string()).optional()
@@ -221,7 +221,7 @@ export const CalendarEventsQuerySchema = z.object({
   }),
 
   endDate: z.string().optional().openapi({
-    description: 'Date de fin (YYYY-MM-DD)',
+    description: 'End date (YYYY-MM-DD)',
   }),
 
   assigneeId: z.string().optional().openapi({

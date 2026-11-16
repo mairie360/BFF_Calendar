@@ -37,7 +37,7 @@ registry.registerPath({
   description: 'Loads the events of the month, week or day view',
   parameters: [
     dateQueryParameter('from', true, 'Start date as YYYY-MM-DD'),
-    dateQueryParameter('to', true, 'Date de fin au format YYYY-MM-DD'),
+    dateQueryParameter('to', true, 'End date (YYYY-MM-DD)'),
   ],
   responses: {
     200: {

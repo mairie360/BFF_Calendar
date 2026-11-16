@@ -197,7 +197,7 @@ export interface paths {
                 query: {
                     /** @description Start date as YYYY-MM-DD */
                     from: string;
-                    /** @description Date de fin au format YYYY-MM-DD */
+                    /** @description End date (YYYY-MM-DD) */
                     to: string;
                 };
                 header?: never;
@@ -1110,7 +1110,7 @@ export interface components {
             /** @description Days of the week (0=Sunday, 6=Saturday). Used by weekly recurrences */
             daysOfWeek?: number[];
             /**
-             * @description Date de fin inclusive (format YYYY-MM-DD)
+             * @description Inclusive end date (YYYY-MM-DD)
              * @example 2030-12-31
              */
             endsOn?: string;
@@ -1122,13 +1122,13 @@ export interface components {
              */
             id: string | number;
             /**
-             * @description Nom complet affichable
+             * @description Displayable full name
              * @example Security Admin
              */
             name: string;
             /**
              * Format: email
-             * @description Adresse email
+             * @description Email address
              * @example security-admin@mairie360.fr
              */
             email?: string;
@@ -1139,7 +1139,7 @@ export interface components {
             role?: string;
             /**
              * Format: uri
-             * @description URL de l'image de profil
+             * @description Profile picture URL
              * @example https://mairie360.fr/avatar.png
              */
             avatarUrl?: string;
@@ -1178,7 +1178,7 @@ export interface components {
              */
             startTime?: string;
             /**
-             * @description Heure de fin au format HH:mm
+             * @description End time (HH:mm)
              * @example 10:00
              */
             endTime?: string;
@@ -1290,7 +1290,7 @@ export interface components {
                  */
                 startTime?: string;
                 /**
-                 * @description Heure de fin au format HH:mm
+                 * @description End time (HH:mm)
                  * @example 10:00
                  */
                 endTime?: string;
@@ -1343,7 +1343,7 @@ export interface components {
         CalendarEventsQuery: {
             /** @description Start date (YYYY-MM-DD) */
             startDate?: string;
-            /** @description Date de fin (YYYY-MM-DD) */
+            /** @description End date (YYYY-MM-DD) */
             endDate?: string;
             /** @description Filter on an assigned person */
             assigneeId?: string;
@@ -1382,7 +1382,7 @@ export interface components {
              */
             startTime?: string;
             /**
-             * @description Heure de fin au format HH:mm
+             * @description End time (HH:mm)
              * @example 10:00
              */
             endTime?: string;
@@ -1449,7 +1449,7 @@ export interface components {
              */
             startTime?: string;
             /**
-             * @description Heure de fin au format HH:mm
+             * @description End time (HH:mm)
              * @example 10:00
              */
             endTime?: string;
