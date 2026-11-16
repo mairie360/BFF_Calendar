@@ -32,6 +32,8 @@ CORE_API_URL=localhost
 CORE_API_PORT=3000
 CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
+# Core's Ed25519 public key (MAIR-680), required: paste the public key of the Core you run against.
+JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n<base64 of Core's public key>\n-----END PUBLIC KEY-----"
 ```
 
 `CALENDAR_API_URL` and `CORE_API_URL` are required (scheme optional, `http` by default; the `_PORT` is used only when the URL has none). These variables and any secrets listed below still need to be supplied; the HTTP example prepares no data.

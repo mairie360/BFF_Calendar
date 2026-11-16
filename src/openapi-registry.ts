@@ -2,7 +2,7 @@ import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-op
 import { ErrorResponseSchema as LibErrorResponseSchema } from '@mairie360/bffs-lib';
 import { z } from 'zod';
 
-// On ajoute les méthodes .openapi() à Zod
+// Adds the .openapi() methods to Zod
 extendZodWithOpenApi(z);
 
 export const registry = new OpenAPIRegistry();
@@ -18,7 +18,7 @@ export const bearerAuth = registry.registerComponent('securitySchemes', 'bearerA
 });
 
 // ========================================
-// Schémas - Récurrence
+// Schemas - Recurrence
 // ========================================
 
 // A real calendar day, `YYYY-MM-DD` or `DD-MM-YYYY` / `DD/MM/YYYY` (MAIR-474): an unchecked value used to
@@ -39,34 +39,34 @@ const ClockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 export const CalendarRecurrenceSchema = z.object({
   frequency: z.enum(['none', 'daily', 'weekly', 'monthly'])
-    .openapi({ description: 'Fréquence de récurrence' }),
+    .openapi({ description: 'Frequency of the recurrence' }),
   interval: z.number().int().min(1).optional()
-    .openapi({ description: 'Intervalle de récurrence (par défaut 1)', example: 1 }),
+    .openapi({ description: 'Interval of the recurrence (1 by default)', example: 1 }),
   daysOfWeek: z.array(z.number().int().min(0).max(6).openapi({ example: 1 })).optional()
-    .openapi({ description: 'Jours de la semaine (0=dimanche, 6=samedi). Utilisé pour les récurrences hebdomadaires' }),
+    .openapi({ description: 'Days of the week (0=Sunday, 6=Saturday). Used by weekly recurrences' }),
   endsOn: CalendarDate.optional()
-    .openapi({ description: 'Date de fin inclusive (format YYYY-MM-DD)', example: '2030-12-31' }),
+    .openapi({ description: 'Inclusive end date (YYYY-MM-DD)', example: '2030-12-31' }),
 }).openapi('CalendarRecurrence', { description: 'Recurrence rule of the event' });
 
 // ========================================
-// Schémas - Assignee
+// Schemas - Assignee
 // ========================================
 
 export const CalendarAssigneeSchema = z.object({
   id: z.string().or(z.number())
-    .openapi({ description: 'Identifiant unique de la personne', example: 1 }),
+    .openapi({ description: 'Unique id of the person', example: 1 }),
   name: z.string()
-    .openapi({ description: 'Nom complet affichable', example: 'Security Admin' }),
+    .openapi({ description: 'Displayable full name', example: 'Security Admin' }),
   email: z.string().email().optional()
-    .openapi({ description: 'Adresse email', example: 'security-admin@mairie360.fr' }),
+    .openapi({ description: 'Email address', example: 'security-admin@mairie360.fr' }),
   role: z.string().optional()
-    .openapi({ description: 'Fonction ou rôle métier', example: 'Admin' }),
+    .openapi({ description: 'Job or business role', example: 'Admin' }),
   avatarUrl: z.string().url().optional()
-    .openapi({ description: 'URL de l\'image de profil', example: 'https://mairie360.fr/avatar.png' }),
+    .openapi({ description: 'Profile picture URL', example: 'https://mairie360.fr/avatar.png' }),
 }).openapi('CalendarAssignee');
 
 // ========================================
-// Schémas - Événement Calendrier
+// Schemas - Calendar event
 // ========================================
 
 // Stored texts are rendered by the fronts: `<` and `>` are refused.
@@ -74,67 +74,67 @@ const noMarkup = (schema: z.ZodString) => schema.regex(/^[^<>]*$/, 'Must not con
 
 export const CalendarEventSchema = z.object({
   id: z.string().or(z.number()).optional()
-    .openapi({ description: 'Identifiant stable. Optionnel en création, obligatoire en lecture.' }),
+    .openapi({ description: 'Stable id. Optional on creation, always present on reads.' }),
   title: noMarkup(z.string())
-    .openapi({ description: 'Titre de l\'événement', example: 'Scan event' }),
+    .openapi({ description: 'Title of the event', example: 'Scan event' }),
   date: CalendarDate
-    .openapi({ description: 'Date de début (format YYYY-MM-DD ou DD-MM-YYYY)', example: '2030-06-15' }),
+    .openapi({ description: 'Start date (YYYY-MM-DD or DD-MM-YYYY)', example: '2030-06-15' }),
   endDate: CalendarDate.optional()
-    .openapi({ description: 'Date de fin pour les événements multi-jours (format YYYY-MM-DD ou DD-MM-YYYY)', example: '2030-06-15' }),
+    .openapi({ description: 'End date of a multi-day event (YYYY-MM-DD or DD-MM-YYYY)', example: '2030-06-15' }),
   category: z.enum(['meeting', 'activity', 'ceremony', 'other']).optional()
-    .openapi({ description: 'Catégorie: meeting (Réunion), activity (Animation), ceremony (Cérémonie), other (Autre)' }),
-  service: noMarkup(z.string()).optional().openapi({ description: 'Service ou département organisateur', example: 'direction' }),
+    .openapi({ description: 'Category: meeting, activity, ceremony or other' }),
+  service: noMarkup(z.string()).optional().openapi({ description: 'Organising department', example: 'direction' }),
   startTime: ClockTime.optional()
-    .openapi({ description: 'Heure de début au format HH:mm', example: '09:00' }),
+    .openapi({ description: 'Start time as HH:mm', example: '09:00' }),
   endTime: ClockTime.optional()
-    .openapi({ description: 'Heure de fin au format HH:mm', example: '10:00' }),
+    .openapi({ description: 'End time (HH:mm)', example: '10:00' }),
   location: noMarkup(z.string()).optional()
-    .openapi({ description: 'Lieu de l\'événement', example: 'Town hall' }),
+    .openapi({ description: 'Location of the event', example: 'Town hall' }),
   description: noMarkup(z.string()).optional()
-    .openapi({ description: 'Description détaillée' }),
+    .openapi({ description: 'Detailed description' }),
   assigneeIds: z.array(z.string().or(z.number()).openapi({ example: 1 })).optional()
-    .openapi({ description: 'Liste des identifiants des personnes assignées' }),
+    .openapi({ description: 'Ids of the assigned people' }),
   assignees: z.array(CalendarAssigneeSchema).optional()
     .openapi({ description: 'Deprecated (MAIR-525): the people assigned, repeated in every event. Read `assigneeIds` and the `users` index of the answer instead; `/calendar/period` no longer sends it.' }),
   // No field-level description: it would publish an allOf, which generated requests (ZAP) fill as a string.
   recurrence: CalendarRecurrenceSchema.optional(),
-  approvalStatus: z.enum(['pending', 'approved', 'rejected']).optional().openapi({ description: 'Statut d\'approbation de l\'événement' }),
+  approvalStatus: z.enum(['pending', 'approved', 'rejected']).optional().openapi({ description: 'Approval status of the event' }),
   createdById: z.string().or(z.number()).optional()
-    .openapi({ description: 'Identifiant de l\'utilisateur ayant créé l\'événement', example: 1 }),
+    .openapi({ description: 'Id of the user who created the event', example: 1 }),
   canValidate: z.boolean().optional()
-    .openapi({ description: 'Indique si l’utilisateur courant peut valider ou refuser cet événement' }),
+    .openapi({ description: 'Whether the current user can approve or reject this event' }),
   canEdit: z.boolean().optional()
-    .openapi({ description: 'Indique si l’utilisateur courant peut modifier cet événement' }),
+    .openapi({ description: 'Whether the current user can edit this event' }),
   canDelete: z.boolean().optional()
-    .openapi({ description: 'Indique si l’utilisateur courant peut supprimer cet événement' }),
+    .openapi({ description: 'Whether the current user can delete this event' }),
   visibleToRoles: z.array(z.enum(['user', 'responsable', 'mayor'])).optional()
-    .openapi({ description: 'Liste des rôles pouvant voir l\'événement' }),
+    .openapi({ description: 'Roles allowed to see the event' }),
 }).openapi('CalendarEvent');
 
 // ========================================
-// Schémas - Catégorie
+// Schemas - Category
 // ========================================
 
 export const CalendarCategorySchema = z.object({
   label: z.string()
-    .openapi({ description: 'Libellé affiché (ex: Réunion)' }),
+    .openapi({ description: 'Displayed label (e.g. Réunion)' }),
   value: z.string()
     .openapi({ description: 'Valeur interne (ex: meeting)' }),
 }).openapi('CalendarCategory');
 
 // ========================================
-// Schémas - Service calendrier
+// Schemas - Calendar department
 // ========================================
 
 export const CalendarServiceSchema = z.object({
   label: z.string()
-    .openapi({ description: 'Libellé affiché (ex: Direction générale)' }),
+    .openapi({ description: 'Displayed label (e.g. Direction générale)' }),
   value: z.string()
     .openapi({ description: 'Valeur interne (ex: direction)' }),
 }).openapi('CalendarService');
 
 // ========================================
-// Schémas - Bootstrap Response
+// Schemas - Bootstrap response
 // ========================================
 
 /** People referenced by an answer, indexed by their public id (`user-<id>`), MAIR-525. */
@@ -143,14 +143,14 @@ export const CalendarUsersSchema = z.record(z.string(), CalendarAssigneeSchema)
 
 export const CalendarBootstrapResponseSchema = z.object({
   events: z.array(CalendarEventSchema)
-    .openapi({ description: 'Liste des événements de la période' }),
+    .openapi({ description: 'Events of the period' }),
   users: CalendarUsersSchema,
   assignees: z.array(CalendarAssigneeSchema)
-    .openapi({ description: 'Référentiel des personnes assignables' }),
+    .openapi({ description: 'Assignable people' }),
   categories: z.array(CalendarCategorySchema)
-    .openapi({ description: 'Référentiel des catégories' }),
+    .openapi({ description: 'Categories' }),
   services: z.array(CalendarServiceSchema)
-    .openapi({ description: 'Référentiel des services calendrier' }),
+    .openapi({ description: 'Calendar departments' }),
   currentUser: z.object({
     id: z.string().or(z.number()),
     name: z.string(),
@@ -158,9 +158,9 @@ export const CalendarBootstrapResponseSchema = z.object({
     role: z.string().optional(),
     groupIds: z.array(z.number().int()),
   }).optional()
-    .openapi({ description: 'Utilisateur actuellement authentifié (optionnel)' }),
+    .openapi({ description: 'Currently authenticated user (optional)' }),
   assigneeScope: z.enum(['all', 'groups', 'self']).optional()
-    .openapi({ description: 'Périmètre du référentiel des personnes assignables' }),
+    .openapi({ description: 'Scope of the assignable people' }),
 }).openapi('CalendarBootstrapResponse');
 
 export const CalendarPeriodResponseSchema = z.object({
@@ -170,7 +170,7 @@ export const CalendarPeriodResponseSchema = z.object({
 }).openapi('CalendarPeriodResponse');
 
 // ========================================
-// Enregistrement des schémas dans le registre
+// Registration of the schemas in the registry
 // ========================================
 
 registry.register('CalendarRecurrence', CalendarRecurrenceSchema);
@@ -183,28 +183,28 @@ registry.register('CalendarUsers', CalendarUsersSchema);
 registry.register('CalendarPeriodResponse', CalendarPeriodResponseSchema);
 
 // ========================================
-// Schémas - Statistics
+// Schemas - Statistics
 // ========================================
 
 export const CalendarStatisticsSchema = z.object({
   monthCount: z.number().int().min(0)
-    .openapi({ description: 'Nombre d\'événements ce mois' }),
+    .openapi({ description: 'Number of events this month' }),
   weekCount: z.number().int().min(0)
-    .openapi({ description: 'Nombre d\'événements cette semaine' }),
+    .openapi({ description: 'Number of events this week' }),
   todayCount: z.number().int().min(0)
-    .openapi({ description: 'Nombre d\'événements aujourd\'hui' }),
+    .openapi({ description: 'Number of events today' }),
 }).openapi('CalendarStatistics');
 
 registry.register('CalendarStatistics', CalendarStatisticsSchema);
 
 // ========================================
-// Schémas - Params
+// Schemas - Params
 // ========================================
 
 export const CalendarEventParamsSchema = z.object({
   eventId: z.string().or(z.number())
     .openapi({
-      description: "Identifiant de l'événement",
+      description: "Id of the event",
       example: "123",
     }),
 }).openapi('CalendarEventParams');
@@ -212,31 +212,31 @@ export const CalendarEventParamsSchema = z.object({
 registry.register('CalendarEventParams', CalendarEventParamsSchema);
 
 // ========================================
-// Schémas - Query
+// Schemas - Query
 // ========================================
 
 export const CalendarEventsQuerySchema = z.object({
   startDate: z.string().optional().openapi({
-    description: 'Date de début (YYYY-MM-DD)',
+    description: 'Start date (YYYY-MM-DD)',
   }),
 
   endDate: z.string().optional().openapi({
-    description: 'Date de fin (YYYY-MM-DD)',
+    description: 'End date (YYYY-MM-DD)',
   }),
 
   assigneeId: z.string().optional().openapi({
-    description: 'Filtre sur une personne assignée',
+    description: 'Filter on an assigned person',
   }),
 
   category: z.string().optional().openapi({
-    description: 'Filtre sur une catégorie',
+    description: 'Filter on a category',
   }),
 }).openapi('CalendarEventsQuery');
 
 registry.register('CalendarEventsQuery', CalendarEventsQuerySchema);
 
 // ========================================
-// Schémas - Création d'événement
+// Schemas - Event creation
 // ========================================
 
 export const CreateCalendarEventBodySchema = CalendarEventSchema.omit({
@@ -249,7 +249,7 @@ registry.register(
 );
 
 // ========================================
-// Schémas - Modification d'événement
+// Schemas - Event update
 // ========================================
 
 export const UpdateCalendarEventBodySchema =
@@ -263,12 +263,12 @@ registry.register(
 );
 
 // ========================================
-// Schémas - Approbation d'événement
+// Schemas - Event approval
 // ========================================
 
 export const UpdateCalendarEventApprovalBodySchema = z.object({
   approvalStatus: z.enum(['pending', 'approved', 'rejected'])
-    .openapi({ description: 'Nouveau statut d\'approbation de l\'événement' }),
+    .openapi({ description: 'New approval status of the event' }),
 }).openapi('UpdateCalendarEventApprovalBody');
 
 registry.register(
@@ -286,7 +286,7 @@ registry.register(
 export const ErrorResponseSchema = registry.register('ErrorResponse', LibErrorResponseSchema.clone());
 
 // ========================================
-// Fragments OpenAPI partagés par les routes
+// OpenAPI fragments shared by the routes
 // ========================================
 
 /** Error response documented with the shared ErrorResponse body. */
@@ -297,14 +297,14 @@ export function apiErrorResponse(description: string) {
   };
 }
 
-/** Paramètre de requête date au format YYYY-MM-DD. */
+/** Date query parameter, as YYYY-MM-DD. */
 export function dateQueryParameter(name: 'from' | 'to', required: boolean, description: string) {
   // The examples frame the events seeded by init-test.sql.
   const example = name === 'from' ? '2030-06-01' : '2030-06-30';
   return { name, in: 'query' as const, required, schema: { type: 'string' as const, format: 'date', example }, description };
 }
 
-/** Paramètre de chemin identifiant un événement (entier positif). */
+/** Path parameter identifying an event (positive integer). */
 // Event ids of the examples (101, 102) differ from every user id, so a scan reusing the path segment as
 // an assignee id does not mistake a user for the event.
 export const eventIdPathParameter = {
@@ -312,7 +312,7 @@ export const eventIdPathParameter = {
   in: 'path' as const,
   required: true,
   schema: { type: 'string' as const, pattern: '^[0-9]+$', example: '101' },
-  description: 'Identifiant unique de l\'événement',
+  description: 'Unique id of the event',
 };
 
 /** Same parameter for DELETE, with another seeded event: a replayed scan must not delete event 101. */

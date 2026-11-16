@@ -12,15 +12,15 @@ registry.registerPath({
   method: 'get',
   path: '/calendar/assignees',
   tags: ['Calendar'],
-  summary: 'Récupère le référentiel des personnes assignables',
-  description: 'Charge la liste complète des personnes pouvant être assignées à un événement',
+  summary: 'Get the assignable people',
+  description: 'Loads every person who can be assigned to an event',
   parameters: [
-    dateQueryParameter('from', false, 'Date de début au format YYYY-MM-DD (défaut : premier jour du mois courant)'),
-    dateQueryParameter('to', false, 'Date de fin au format YYYY-MM-DD (défaut : dernier jour du mois courant)'),
+    dateQueryParameter('from', false, 'Start date as YYYY-MM-DD (default: first day of the current month)'),
+    dateQueryParameter('to', false, 'End date as YYYY-MM-DD (default: last day of the current month)'),
   ],
   responses: {
     200: {
-      description: 'Liste des personnes assignables',
+      description: 'Assignable people',
       content: {
         'application/json': {
           schema: {
@@ -40,7 +40,7 @@ registry.registerPath({
 });
 
 // ========================================
-// Implémentation
+// Implementation
 // ========================================
 
 router.get('/', async (req: Request, res: Response) => {
