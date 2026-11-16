@@ -1,20 +1,22 @@
 # Journal des releases — BFF_Calendar
 
-<!-- release-journal-state {"dev": "a644750e17fcd52e456f1c6e70d065c535a79440", "prod": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod_tag": "v1.2.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-13 09:54 UTC", "prod": "2026-11-13 00:44 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
+<!-- release-journal-state {"dev": "bbaac539881c8863ffb401a4980628ebae8ab223", "prod": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod_tag": "v1.2.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-16 14:17 UTC", "prod": "2026-11-13 00:44 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `61375a9` | 2026-11-13 00:44 UTC |
 | staging | — | `61375a9` | 2026-11-13 00:29 UTC |
-| dev | — | `a644750` | 2026-11-13 09:54 UTC |
+| dev | — | `bbaac53` | 2026-11-16 14:17 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
 
+- test: MAIR-241 Test the BFF_user admin routes and raise the BFFs coverage thresholds (#251) ([#251](https://github.com/mairie360/BFF_Calendar/pull/251))
 - chore(deps): update mairie360 database schema to v3.4.0 (#254) ([#254](https://github.com/mairie360/BFF_Calendar/pull/254))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- test: MAIR-241 Test the BFF_user admin routes and raise the BFFs coverage thresholds (#251) ([#251](https://github.com/mairie360/BFF_Calendar/pull/251))
 - chore(deps): update mairie360 database schema to v3.4.0 (#254) ([#254](https://github.com/mairie360/BFF_Calendar/pull/254))
 
 ## Différence staging → prod (en staging, pas encore en prod)
@@ -28,6 +30,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-16 14:17 UTC | dev | — | `bbaac53` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43883495800) |
 | 2026-11-13 09:54 UTC | dev | — | `a644750` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43404618681) |
 | 2026-11-13 00:44 UTC | prod | v1.2.0 | `61375a9` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43337511282) |
 | 2026-11-13 00:29 UTC | staging | — | `61375a9` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43336532406) |
