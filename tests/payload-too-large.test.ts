@@ -37,12 +37,14 @@ describe('MAIR-538 body above the JSON limit', () => {
     expect(stdout.mock.calls.map(([chunk]) => String(chunk)).join('')).not.toContain('request failed');
   });
 
-  it('keeps accepting a body under the limit (parsed, then refused by the route as usual)', async () => {
+  it('keeps accepting a body under the limit (parsed, then answered by the route as usual)', async () => {
     const response = await request(app)
       .post('/calendar/events')
       .set('Authorization', `Bearer ${eddsaToken(1)}`)
       .send({ blob: 'x'.repeat(1024) });
 
-    expect(response.status).not.toBe(413);
+    // Past the body parser: the answer is the route's own (400 BAD_REQUEST), neither the 413 nor a server error.
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('BAD_REQUEST');
   });
 });
