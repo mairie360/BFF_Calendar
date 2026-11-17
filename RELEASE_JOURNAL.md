@@ -1,16 +1,17 @@
 # Journal des releases — BFF_Calendar
 
-<!-- release-journal-state {"dev": "1c5fce268e9ed20cd1b8b051d871248ea9aa01b2", "prod": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod_tag": "v1.2.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-17 11:50 UTC", "prod": "2026-11-13 00:44 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
+<!-- release-journal-state {"dev": "c7b5c63f6062573709b6609b06dde26acf6e959e", "prod": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod_tag": "v1.2.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-17 11:56 UTC", "prod": "2026-11-13 00:44 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `61375a9` | 2026-11-13 00:44 UTC |
 | staging | — | `61375a9` | 2026-11-13 00:29 UTC |
-| dev | — | `1c5fce2` | 2026-11-17 11:50 UTC |
+| dev | — | `c7b5c63` | 2026-11-17 11:56 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
 
+- feat: MAIR-998 Test stacks follow the moving upstream tag of the stage (#261) ([#261](https://github.com/mairie360/BFF_Calendar/pull/261))
 - chore(deps): pin actions/checkout action to 3d3c42e (#262) ([#262](https://github.com/mairie360/BFF_Calendar/pull/262))
 - ci: MAIR-1008 Nightly rehearsal of the promotion gates (#259) ([#259](https://github.com/mairie360/BFF_Calendar/pull/259))
 - fix(deps): update typescript dependencies (#239) ([#239](https://github.com/mairie360/BFF_Calendar/pull/239))
@@ -21,6 +22,7 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- feat: MAIR-998 Test stacks follow the moving upstream tag of the stage (#261) ([#261](https://github.com/mairie360/BFF_Calendar/pull/261))
 - chore(deps): pin actions/checkout action to 3d3c42e (#262) ([#262](https://github.com/mairie360/BFF_Calendar/pull/262))
 - ci: MAIR-1008 Nightly rehearsal of the promotion gates (#259) ([#259](https://github.com/mairie360/BFF_Calendar/pull/259))
 - fix(deps): update typescript dependencies (#239) ([#239](https://github.com/mairie360/BFF_Calendar/pull/239))
@@ -40,6 +42,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-17 11:56 UTC | dev | — | `c7b5c63` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/44076507680) |
 | 2026-11-17 11:50 UTC | dev | — | `1c5fce2` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/44076067137) |
 | 2026-11-17 11:05 UTC | dev | — | `2dbe409` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/44069184304) |
 | 2026-11-16 19:29 UTC | dev | — | `bf82f70` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43937513309) |
