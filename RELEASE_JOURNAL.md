@@ -1,16 +1,17 @@
 # Journal des releases — BFF_Calendar
 
-<!-- release-journal-state {"dev": "bf82f70e5f4d086a5f97fc4b98cf4d56b24a76a1", "prod": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod_tag": "v1.2.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-16 19:29 UTC", "prod": "2026-11-13 00:44 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
+<!-- release-journal-state {"dev": "2dbe409d1e1f09fb4fb4a0668356c9d15e29c2f3", "prod": "61375a9360c583434a2d17f096296ddd5cc53bda", "prod_tag": "v1.2.0", "staging": "61375a9360c583434a2d17f096296ddd5cc53bda", "updated": {"dev": "2026-11-17 11:05 UTC", "prod": "2026-11-13 00:44 UTC", "staging": "2026-11-13 00:29 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `61375a9` | 2026-11-13 00:44 UTC |
 | staging | — | `61375a9` | 2026-11-13 00:29 UTC |
-| dev | — | `bf82f70` | 2026-11-16 19:29 UTC |
+| dev | — | `2dbe409` | 2026-11-17 11:05 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
 
+- ci: MAIR-1008 Nightly rehearsal of the promotion gates (#259) ([#259](https://github.com/mairie360/BFF_Calendar/pull/259))
 - fix(deps): update typescript dependencies (#239) ([#239](https://github.com/mairie360/BFF_Calendar/pull/239))
 - test: MAIR-248 Translate the BFFs' messages and the ansible documentation into English (#257) ([#257](https://github.com/mairie360/BFF_Calendar/pull/257))
 - fix: MAIR-248 Translate the BFFs' messages and the ansible documentation into English (#256) ([#256](https://github.com/mairie360/BFF_Calendar/pull/256))
@@ -19,6 +20,7 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- ci: MAIR-1008 Nightly rehearsal of the promotion gates (#259) ([#259](https://github.com/mairie360/BFF_Calendar/pull/259))
 - fix(deps): update typescript dependencies (#239) ([#239](https://github.com/mairie360/BFF_Calendar/pull/239))
 - test: MAIR-248 Translate the BFFs' messages and the ansible documentation into English (#257) ([#257](https://github.com/mairie360/BFF_Calendar/pull/257))
 - fix: MAIR-248 Translate the BFFs' messages and the ansible documentation into English (#256) ([#256](https://github.com/mairie360/BFF_Calendar/pull/256))
@@ -36,6 +38,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-17 11:05 UTC | dev | — | `2dbe409` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/44069184304) |
 | 2026-11-16 19:29 UTC | dev | — | `bf82f70` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43937513309) |
 | 2026-11-16 17:57 UTC | dev | — | `570464b` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43922913232) |
 | 2026-11-16 16:20 UTC | dev | — | `1b115ee` | [run](https://github.com/mairie360/BFF_Calendar/actions/runs/43905571637) |
