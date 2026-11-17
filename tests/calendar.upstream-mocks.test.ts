@@ -692,6 +692,55 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(upstreamSequence()).toEqual([called('GET', calendarApiUrls.getGetEventUrl(8)), called('PATCH', calendarApiUrls.getUpdateEventValidationUrl(8)), called('GET', calendarApiUrls.getGetEventUrl(8))]);
     });
 
+    // MAIR-537
+    test('MAIR-537 PATCH /calendar/events/:id/approval forbids a caller who is not an assigned manager, without calling Calendar API to validate', async () => {
+      mockCalendarApi({ details: [eventDetails(8, {
+        created_by: alice.id,
+        members: [{ id: alice.id, validation_status: 'pending' }, { id: marie.id, validation_status: 'pending' }],
+        approval_status: 'pending',
+        permissions: { can_edit: true, can_delete: false, can_validate: false },
+      })] });
+
+      const response = await request(app).patch('/calendar/events/8/approval').set('Authorization', authorizationFor(alice.id)).send({ approvalStatus: 'approved' });
+
+      expect(response.status).toBe(403);
+      expectBffContract('patch', '/calendar/events/8/approval', response);
+      expect(response.body).toEqual({ error: { code: 'FORBIDDEN', message: 'Only an assigned manager of the group can approve this event.', details: [] } });
+      expect(calendarApi.calls(CALENDAR.validation, 'PATCH')).toHaveLength(0);
+    });
+
+    test('MAIR-537 PATCH /calendar/events/:id/approval returns 404 for an event unknown to Calendar API', async () => {
+      mockCalendarApi();
+
+      const response = await request(app).patch('/calendar/events/404/approval').set('Authorization', authorizationFor(admin.id)).send({ approvalStatus: 'approved' });
+
+      expect(response.status).toBe(404);
+      expectBffContract('patch', '/calendar/events/404/approval', response);
+      expect(calendarApi.calls(CALENDAR.validation, 'PATCH')).toHaveLength(0);
+    });
+
+    test.each([
+      [500, 502, 'BAD_GATEWAY'],
+      [403, 403, 'FORBIDDEN'],
+      [404, 404, 'NOT_FOUND'],
+      [409, 502, 'BAD_GATEWAY'],
+    ])('MAIR-537 PATCH /calendar/events/:id/approval maps a Calendar API %i on the validation to %i, once and without its body', async (calendarStatus, status, code) => {
+      mockCalendarApi({ details: [eventDetails(8, {
+        created_by: alice.id,
+        members: [{ id: alice.id, validation_status: 'pending' }, { id: marie.id, validation_status: 'pending' }],
+        approval_status: 'pending',
+        permissions: { can_edit: true, can_delete: false, can_validate: true },
+      })] });
+      calendarApi.on('patch', CALENDAR.validation, { status: calendarStatus, raw: 'internal detail event_members', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).patch('/calendar/events/8/approval').set('Authorization', authorizationFor(marie.id)).send({ approvalStatus: 'approved' });
+
+      expect(response.status).toBe(status);
+      expect(response.body.error.code).toBe(code);
+      expect(JSON.stringify(response.body)).not.toContain('event_members');
+      expect(calendarApi.calls(CALENDAR.validation, 'PATCH')).toHaveLength(1);
+    });
+
     test('DELETE /calendar/events/:id lets the creator delete after Calendar API validated the session', async () => {
       mockCalendarApi({ details: [eventDetails(5)] });
 
