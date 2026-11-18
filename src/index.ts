@@ -2,7 +2,7 @@
 import 'dotenv/config';
 // Before the app: OpenTelemetry must hook Express before it is loaded (MAIR-504).
 import './telemetry';
-import { assertConfigured, sessionKeysFromEnv } from '@mairie360/bffs-lib';
+import { assertConfigured, gracefulShutdown, sessionKeysFromEnv } from '@mairie360/bffs-lib';
 import app from './app';
 import { logger } from './logger';
 
@@ -31,7 +31,10 @@ export function assertStartupConfiguration(): void {
 if (require.main === module) {
   assertStartupConfiguration();
   const port = Number(process.env.PORT ?? 4002);
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     logger.info('server listening', { port, docs: '/docs' });
   });
+  // SIGTERM (rollout, scale-down) drains the requests in flight, ends the SSE streams and flushes the telemetry
+  // before exiting, instead of dropping them (bffs-lib gracefulShutdown; tini forwards the signal in the image).
+  gracefulShutdown(server);
 }
