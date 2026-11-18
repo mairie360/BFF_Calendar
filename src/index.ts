@@ -1,8 +1,9 @@
 // First: load .env before any module can read the environment.
 import 'dotenv/config';
+import type { Server } from 'node:http';
 // Before the app: OpenTelemetry must hook Express before it is loaded (MAIR-504).
 import './telemetry';
-import { assertConfigured, sessionKeysFromEnv } from '@mairie360/bffs-lib';
+import { assertConfigured, gracefulShutdown, type GracefulShutdown, sessionKeysFromEnv } from '@mairie360/bffs-lib';
 import app from './app';
 import { logger } from './logger';
 
@@ -28,10 +29,16 @@ export function assertStartupConfiguration(): void {
   }
 }
 
+/** Listens and drains on SIGTERM instead of dropping the requests in flight (bffs-lib gracefulShutdown). */
+export function serve(port: number): { server: Server; shutdown: GracefulShutdown } {
+  const server = app.listen(port, () => {
+    logger.info('server listening', { port, docs: '/docs' });
+  });
+  return { server, shutdown: gracefulShutdown(server) };
+}
+
 if (require.main === module) {
   assertStartupConfiguration();
   const port = Number(process.env.PORT ?? 4002);
-  app.listen(port, () => {
-    logger.info('server listening', { port, docs: '/docs' });
-  });
+  serve(port);
 }
