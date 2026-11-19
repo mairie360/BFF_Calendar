@@ -1,4 +1,6 @@
-import { HttpError, MemoryCache, callerKey, sessionUserId } from '@mairie360/bffs-lib';
+import {
+  HttpError, MemoryCache, callerKey, canonicalRole, canonicalRoles, hasRole, isAdminRole, sessionUserId,
+} from '@mairie360/bffs-lib';
 import type { CallContext } from '../clients/callContext';
 import {
   CalendarDirectoryUser,
@@ -20,18 +22,14 @@ export type CalendarEventAccess = {
   permissions: { canEdit: boolean; canDelete: boolean; canValidate: boolean };
 };
 
-function normalizedRole(role: string): string {
-  return role.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
+/** True when one of the user's roles is one of `roles`, compared with the lib's role rule (case, accents, `role_`). */
 export function hasCalendarRole(user: CalendarDirectoryUser, ...roles: string[]): boolean {
-  const acceptedRoles = new Set(roles.map(normalizedRole));
-  return user.roles.some((role) => acceptedRoles.has(normalizedRole(role)));
+  return hasRole(user.roles, ...roles);
 }
 
+/** The highest Core role of the user (Admin to Guest), else their first role, else `Guest`. */
 export function primaryCalendarRole(user: CalendarDirectoryUser): string {
-  const priority = ['Admin', 'Maire', 'Responsable', 'User', 'Guest'];
-  return priority.find((role) => hasCalendarRole(user, role)) ?? user.roles[0] ?? 'Guest';
+  return canonicalRoles(user.roles)[0] ?? user.roles[0] ?? 'Guest';
 }
 
 /**
@@ -74,7 +72,7 @@ export async function getCurrentCalendarUser(context: CallContext, { fresh = fal
 }
 
 export function calendarAssigneeScope(user: CalendarDirectoryUser): 'all' | 'groups' | 'self' {
-  if (hasCalendarRole(user, 'Admin', 'Maire')) {
+  if (user.roles.some((role) => isAdminRole(role) || canonicalRole(role) === 'Maire')) {
     return 'all';
   }
 

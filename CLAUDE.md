@@ -98,7 +98,7 @@ unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpE
   `withoutSession('<SERVICE>', 5_000)`; answer `{ status, core_api, calendar_api }` (`CheckApisResponse`).
 - **`src/services/calendarAccessPolicy.ts`** — reads the caller id `requireSession` verified (the lib's
   `sessionUserId`, 401 when the route skipped the check) to select its directory entry, resolves the current user, computes `assigneeScope` (`all` for
-  Admin/Maire, else `groups` or `self`) and relays the rights Calendar API returns with an event
+  Admin/Maire, else `groups` or `self`; role names are recognised by the lib's `canonicalRole` / `isAdminRole` / `hasRole`, never by a local comparison) and relays the rights Calendar API returns with an event
   (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
   Its refusals are thrown as the lib's `HttpError(status, message)`. MAIR-525: the caller's directory entry and the
   assignable people are cached 30 s per caller (lib `MemoryCache` + `callerKey`); writes read them `fresh` before
