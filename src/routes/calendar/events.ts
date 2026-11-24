@@ -8,6 +8,7 @@ import {
   registry,
   CreateCalendarEventBodySchema,
   UpdateCalendarEventApprovalBodySchema,
+  UpdateCalendarEventParticipationBodySchema,
   UpdateCalendarEventBodySchema,
 } from '../../openapi-registry';
 import {
@@ -20,6 +21,7 @@ import {
   parseEventIdParam,
   patchCalendarEvent,
   updateCalendarEventApproval,
+  updateCalendarEventParticipation,
 } from './calendar_helpers';
 
 const router = Router();
@@ -228,6 +230,45 @@ registry.registerPath({
   },
 });
 
+// PUT /calendar/events/{id}/participation
+registry.registerPath({
+  method: 'put',
+  path: '/calendar/events/{id}/participation',
+  tags: ['Calendar'],
+  summary: 'Answer the invitation to an event',
+  description: 'Records the current user\'s own answer to an event they are assigned to: accepted or declined. The answer can be changed at any time and never touches the approval. Returns the event read again, with `myParticipation` updated.',
+  parameters: [
+    eventIdPathParameter,
+  ],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/UpdateCalendarEventParticipationBody' },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Answer recorded',
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/CalendarEvent' },
+        },
+      },
+    },
+    400: apiErrorResponse('Invalid data: unknown status or field, or an event id that is not a positive integer'),
+    401: apiErrorResponse('Missing or invalid session'),
+    403: apiErrorResponse('The current user is not assigned to this event'),
+    404: apiErrorResponse('Event not found'),
+    500: apiErrorResponse('Unexpected server error'),
+    429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
+    502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+  },
+});
+
 // ========================================
 // Implementation
 // ========================================
@@ -281,6 +322,14 @@ router.patch('/:id/approval', async (req: Request, res: Response) => {
   const eventId = eventIdOf(req);
   const { approvalStatus } = parseRequest(UpdateCalendarEventApprovalBodySchema, req.body, 'body');
   const event = await updateCalendarEventApproval(eventId, approvalStatus, { req, declared: [400, 401, 403, 404] });
+  return res.status(200).json(event);
+});
+
+// PUT /calendar/events/:id/participation
+router.put('/:id/participation', async (req: Request, res: Response) => {
+  const eventId = eventIdOf(req);
+  const { status } = parseRequest(UpdateCalendarEventParticipationBodySchema, req.body, 'body');
+  const event = await updateCalendarEventParticipation(eventId, status, { req, declared: [400, 401, 403, 404] });
   return res.status(200).json(event);
 });
 

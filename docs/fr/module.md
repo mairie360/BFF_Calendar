@@ -21,6 +21,7 @@ Domaine fonctionnel: Calendrier.
 1. Charger le calendrier sur une période avec `/calendar/bootstrap`, puis seulement les événements d’une autre période avec `/calendar/period`.
 2. Créer ou modifier un événement et choisir les personnes autorisées.
 3. Consulter l’état de validation et recharger la période après une mutation.
+4. Répondre à une invitation (`PUT /calendar/events/{id}/participation`, accepted ou declined) ; chaque événement porte la réponse de l’utilisateur courant dans `myParticipation`.
 
 ## Place dans Mairie360
 

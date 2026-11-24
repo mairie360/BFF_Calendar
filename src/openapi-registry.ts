@@ -107,6 +107,10 @@ export const CalendarEventSchema = z.object({
     .openapi({ description: 'Whether the current user can edit this event' }),
   canDelete: z.boolean().optional()
     .openapi({ description: 'Whether the current user can delete this event' }),
+  myParticipation: z.enum(['accepted', 'pending', 'declined']).optional()
+    .openapi({ description: 'Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event.' }),
+  canRespond: z.boolean().optional()
+    .openapi({ description: 'Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes.' }),
   visibleToRoles: z.array(z.enum(['user', 'responsable', 'mayor'])).optional()
     .openapi({ description: 'Roles allowed to see the event' }),
 }).openapi('CalendarEvent');
@@ -274,6 +278,20 @@ export const UpdateCalendarEventApprovalBodySchema = z.object({
 registry.register(
   'UpdateCalendarEventApprovalBody',
   UpdateCalendarEventApprovalBodySchema,
+);
+
+// ========================================
+// Schemas - Answer to an invitation
+// ========================================
+
+export const UpdateCalendarEventParticipationBodySchema = z.object({
+  status: z.enum(['accepted', 'declined'])
+    .openapi({ description: 'Answer of the current user: accepted (they take part) or declined', example: 'accepted' }),
+}).strict().openapi('UpdateCalendarEventParticipationBody');
+
+registry.register(
+  'UpdateCalendarEventParticipationBody',
+  UpdateCalendarEventParticipationBodySchema,
 );
 
 // ========================================

@@ -799,6 +799,124 @@ export interface paths {
         };
         trace?: never;
     };
+    "/calendar/events/{id}/participation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Answer the invitation to an event
+         * @description Records the current user's own answer to an event they are assigned to: accepted or declined. The answer can be changed at any time and never touches the approval. Returns the event read again, with `myParticipation` updated.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Unique id of the event */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateCalendarEventParticipationBody"];
+                };
+            };
+            responses: {
+                /** @description Answer recorded */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarEvent"];
+                    };
+                };
+                /** @description Invalid data: unknown status or field, or an event id that is not a positive integer */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description The current user is not assigned to this event */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Event not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API rate limit reached: retry after the Retry-After header (seconds) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unexpected server error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API or Core API is unavailable or failed */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calendar/period": {
         parameters: {
             query?: never;
@@ -1210,6 +1328,13 @@ export interface components {
             canEdit?: boolean;
             /** @description Whether the current user can delete this event */
             canDelete?: boolean;
+            /**
+             * @description Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event.
+             * @enum {string}
+             */
+            myParticipation?: "accepted" | "pending" | "declined";
+            /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
+            canRespond?: boolean;
             /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
@@ -1320,6 +1445,13 @@ export interface components {
                 canEdit?: boolean;
                 /** @description Whether the current user can delete this event */
                 canDelete?: boolean;
+                /**
+                 * @description Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event.
+                 * @enum {string}
+                 */
+                myParticipation?: "accepted" | "pending" | "declined";
+                /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
+                canRespond?: boolean;
                 /** @description Roles allowed to see the event */
                 visibleToRoles?: ("user" | "responsable" | "mayor")[];
             }[];
@@ -1414,6 +1546,13 @@ export interface components {
             canEdit?: boolean;
             /** @description Whether the current user can delete this event */
             canDelete?: boolean;
+            /**
+             * @description Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event.
+             * @enum {string}
+             */
+            myParticipation?: "accepted" | "pending" | "declined";
+            /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
+            canRespond?: boolean;
             /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
@@ -1481,6 +1620,13 @@ export interface components {
             canEdit?: boolean;
             /** @description Whether the current user can delete this event */
             canDelete?: boolean;
+            /**
+             * @description Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event.
+             * @enum {string}
+             */
+            myParticipation?: "accepted" | "pending" | "declined";
+            /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
+            canRespond?: boolean;
             /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
@@ -1490,6 +1636,14 @@ export interface components {
              * @enum {string}
              */
             approvalStatus: "pending" | "approved" | "rejected";
+        };
+        UpdateCalendarEventParticipationBody: {
+            /**
+             * @description Answer of the current user: accepted (they take part) or declined
+             * @example accepted
+             * @enum {string}
+             */
+            status: "accepted" | "declined";
         };
         ErrorResponse: {
             error: {

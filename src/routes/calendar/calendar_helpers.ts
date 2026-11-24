@@ -15,6 +15,7 @@ import type {
   PatchEventView,
   PostEventView,
   UpdateEventValidationView,
+  UpdateParticipationView,
 } from '@mairie360/calendar-api-openapi/model';
 import type { z } from 'zod';
 import calendarApi from '../../clients/calendarClient';
@@ -141,6 +142,7 @@ function mapEventListItemToBff(event: EventView): BffCalendarEvent {
     recurrence: mapRecurrenceToBff(event.recurrence),
     startTime: start.time,
     endTime: end.time,
+    ...(event.my_participation ? { myParticipation: event.my_participation } : {}),
   };
 }
 
@@ -160,6 +162,8 @@ function mapEventDetailsToBff(event: GetEventResultView): BffCalendarEvent {
     startTime: start.time,
     endTime: end.time,
     description: event.description ?? undefined,
+    ...(event.my_participation ? { myParticipation: event.my_participation } : {}),
+    canRespond: event.permissions.can_respond,
   };
 }
 
@@ -504,6 +508,20 @@ export async function updateCalendarEventApproval(
     clearDirectoryCache();
   }
 
+  return fetchCalendarEvent(eventId, context);
+}
+
+/**
+ * Records the caller's answer to the invitation of `eventId` and returns the event read again. Calendar API refuses
+ * (403) a caller who is not assigned; the BFF relays it without a call of its own.
+ */
+export async function updateCalendarEventParticipation(
+  eventId: number,
+  status: UpdateParticipationView['status'],
+  context: CallContext,
+): Promise<BffCalendarEvent> {
+  const body: UpdateParticipationView = { status };
+  await calendarCall(context, (options) => calendarApi.updateParticipation(eventId, body, options));
   return fetchCalendarEvent(eventId, context);
 }
 

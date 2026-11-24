@@ -86,6 +86,7 @@ Inventaire extrait de `contracts/openapi.json`. Les paramètres entre accolades 
 | PATCH | `/calendar/events/{id}` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | DELETE | `/calendar/events/{id}` | — | 204, 400, 401, 403, 404, 500, 502, 503 |
 | PATCH | `/calendar/events/{id}/approval` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
+| PUT | `/calendar/events/{id}/participation` | application/json | 200, 400, 401, 403, 404, 500, 502, 503 |
 | GET | `/calendar/assignees` | `from`, `to` (optionnels) | 200, 400, 401, 500, 502, 503 |
 | GET | `/calendar/categories` | — | 200, 500 |
 | GET | `/calendar/services` | — | 200, 500 |

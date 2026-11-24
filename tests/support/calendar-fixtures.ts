@@ -13,6 +13,7 @@ import {
   type GetMembersResultView,
   type Member,
   type PostEventResultView,
+  type Participation,
   RecurrenceFrequency,
 } from '@mairie360/calendar-api-openapi/model';
 import { getCoreAPIMairie360 } from '@mairie360/core-api-openapi/endpoints/coreAPIMairie360';
@@ -53,7 +54,11 @@ export function recurrence(overrides: Partial<EventRecurrence> = {}): EventRecur
   return { frequency: RecurrenceFrequency.weekly, interval: 1, ...overrides };
 }
 
-export const member = (id: number, validation_status: EventValidationStatus = EventValidationStatus.validated): Member => ({ id, validation_status });
+export const member = (
+  id: number,
+  validation_status: EventValidationStatus = EventValidationStatus.validated,
+  participation: Participation = 'accepted',
+): Member => ({ id, validation_status, participation });
 
 export const membersResult = (members: Member[]): GetMembersResultView => ({ members });
 
@@ -76,7 +81,8 @@ export function eventDetails(id: number, overrides: Partial<GetEventResultView> 
     created_by: 1,
     members: [member(1)],
     approval_status: ApprovalStatus.approved,
-    permissions: { can_edit: true, can_delete: true, can_validate: false },
+    my_participation: 'accepted',
+    permissions: { can_edit: true, can_delete: true, can_validate: false, can_respond: true },
     ...overrides,
   };
 }

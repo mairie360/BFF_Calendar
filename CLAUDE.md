@@ -99,7 +99,7 @@ unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpE
 - **`src/services/calendarAccessPolicy.ts`** — reads the caller id `requireSession` verified (the lib's
   `sessionUserId`, 401 when the route skipped the check) to select its directory entry, resolves the current user, computes `assigneeScope` (`all` for
   Admin/Maire, else `groups` or `self`; role names are recognised by the lib's `canonicalRole` / `isAdminRole` / `hasRole`, never by a local comparison) and relays the rights Calendar API returns with an event
-  (`canEdit` / `canDelete` / `canValidate`, `approvalStatus`), which it also enforces server-side.
+  (`canEdit` / `canDelete` / `canValidate` / `canRespond`, `approvalStatus`), which it also enforces server-side.
   Its refusals are thrown as the lib's `HttpError(status, message)`. MAIR-525: the caller's directory entry and the
   assignable people are cached 30 s per caller (lib `MemoryCache` + `callerKey`); writes read them `fresh` before
   authorizing and call `clearDirectoryCache()` afterwards; the tests clear it in `beforeEach`.
@@ -112,6 +112,13 @@ unavailable.`, declared 4xx relayed, anything else → 502). Routes throw `HttpE
 
 Every write goes through Calendar API (the BFF has no database). All authorization checks — edit rights,
 assignee scope — run before the first upstream write, so a refused request modifies nothing.
+
+### Participation
+
+Each member answers their own invitation (Calendar API `participation`): events carry the current user's
+`myParticipation` (`accepted` / `pending` / `declined`, absent when not assigned), the detail `canRespond`, and
+`PUT /calendar/events/{id}/participation` (`{ status: accepted | declined }`) relays the answer then reads the
+event again. It never touches the approval.
 
 ### Approval model
 
