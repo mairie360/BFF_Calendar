@@ -91,7 +91,7 @@ describe('upstream fixtures conform to the upstream contracts', () => {
 
 describe('contract validator', () => {
   test('reports missing required properties, wrong enums, wrong types and minimum', () => {
-    const invalid = { ...eventDetails(12), owner: -1, members: [{ id: 1, validation_status: 'Validated' }] } as Record<string, unknown>;
+    const invalid = { ...eventDetails(12), owner: -1, members: [{ id: 1, validation_status: 'Validated', participation: 'pending' }] } as Record<string, unknown>;
     delete invalid.events_start_time;
     expect(calendarApi.validate(responseSchema(calendarApi, 'get', calendarApiUrls.getGetEventUrl(12), 200), invalid)).toEqual(expect.arrayContaining([
       expect.stringContaining('$.events_start_time: propriété requise manquante'),

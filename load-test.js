@@ -202,6 +202,11 @@ const handlers = {
     check(request({ path: { id: need(state.eventId, 'created event') }, body: { approvalStatus: 'approved' }, headers: data.responsable }), {
       'approve event 200': (r) => r.status === 200 && (json(r) || {}).approvalStatus === 'approved',
     }),
+  // The Responsable is assigned to the kept event: they answer its invitation.
+  'PUT /calendar/events/{id}/participation': ({ request, data }) =>
+    check(request({ path: { id: need(state.eventId, 'created event') }, body: { status: 'accepted' }, headers: data.responsable }), {
+      'answer invitation 200': (r) => r.status === 200 && (json(r) || {}).myParticipation === 'accepted',
+    }),
 };
 
 const coverage = createCoverage(handlers);
