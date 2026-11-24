@@ -134,10 +134,10 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expectBffContract('get', '/calendar/events', response);
       // Calendar API instants are UTC; the BFF answers wall-clock times in Europe/Paris (UTC+2 in September).
       expect(response.body).toEqual([
-        { id: 1, title: 'Événement 1', date: '2026-09-16', category: 'meeting', location: 'Salle 1', startTime: '11:00', endTime: '12:30' },
+        { id: 1, title: 'Événement 1', date: '2026-09-16', category: 'meeting', location: 'Salle 1', startTime: '11:00', endTime: '12:30', visibility: 'private' },
         {
           id: 3, title: 'Permanence', date: '2026-09-20', endDate: '2026-09-21', category: 'other',
-          startTime: '20:00', endTime: '03:00',
+          startTime: '20:00', endTime: '03:00', visibility: 'private',
           recurrence: { frequency: 'weekly', interval: 1, daysOfWeek: [1], endsOn: '2026-12-31' },
         },
       ]);
@@ -227,7 +227,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       // The rights, the creator and the description are only in GET /calendar/events/{id}, read when an event is opened.
       expect(response.body.events[0]).toEqual({
         id: 5, title: 'Conseil municipal', date: '2026-09-16', category: 'ceremony', service: 'direction', location: 'Salle du conseil',
-        startTime: '11:00', endTime: '12:00',
+        startTime: '11:00', endTime: '12:00', visibility: 'private',
         assigneeIds: ['user-1', 'user-7'],
         assignees: [
           { id: 'user-1', name: 'Admin Mairie', email: 'admin@mairie.test', role: 'Admin' },
@@ -461,6 +461,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
         events_start_time: '2026-09-20T12:00:00Z', events_end_time: '2026-09-20T14:00:00Z',
         category: 'activity', service: null, location: 'Salle 2',
         recurrence: { frequency: 'weekly', interval: 2, ends_on: '2026-12-31' },
+        visibility: 'Public',
       });
       expect([...members].sort((a, b) => a - b)).toEqual([alice.id, marie.id].sort((a, b) => a - b));
       expect(calendarApi.calls(CALENDAR.members, 'POST')).toHaveLength(0);
@@ -772,6 +773,108 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(detail.body).toMatchObject({ myParticipation: 'pending', canRespond: true });
       expect(list.status).toBe(200);
       expect(list.body.find((event: { id: number }) => event.id === 5)).toMatchObject({ myParticipation: 'pending' });
+    });
+
+    test('mair_1179 POST /calendar/events without visibility creates a public event', async () => {
+      mockCalendarApi({ createdId: 42, details: [eventDetails(42, { visibility: 'Public' })] });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id))
+        .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00' });
+
+      expect(response.status).toBe(201);
+      expectBffContract('post', '/calendar/events', response);
+      expect(calendarApi.calls(CALENDAR.events, 'POST')[0].body).toMatchObject({ visibility: 'Public' });
+      expect(response.body.visibility).toBe('public');
+    });
+
+    test('mair_1179 POST /calendar/events with visibility private sends Private and answers the event private', async () => {
+      mockCalendarApi({ createdId: 42, details: [eventDetails(42, { visibility: 'Private' })] });
+
+      const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id))
+        .send({ title: 'Atelier', date: '2026-09-20', startTime: '14:00', endTime: '16:00', visibility: 'private' });
+
+      expect(response.status).toBe(201);
+      expectBffContract('post', '/calendar/events', response);
+      expect(calendarApi.calls(CALENDAR.events, 'POST')[0].body).toMatchObject({ visibility: 'Private' });
+      expect(response.body.visibility).toBe('private');
+    });
+
+    test.each([
+      ['private', 'Public', 'Private'],
+      ['public', 'Private', 'Public'],
+    ] as const)('mair_1179 PATCH /calendar/events/:id switches the visibility to %s', async (visibility, current, sent) => {
+      mockCalendarApi({ details: [eventDetails(5, { visibility: current })] });
+
+      const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(admin.id)).send({ visibility });
+
+      expect(response.status).toBe(200);
+      expectBffContract('patch', '/calendar/events/5', response);
+      expect(calendarApi.calls(CALENDAR.event, 'PATCH')[0].body).toMatchObject({ visibility: sent });
+    });
+
+    test('mair_1179 PATCH /calendar/events/:id without visibility keeps the current one', async () => {
+      mockCalendarApi({ details: [eventDetails(5, { visibility: 'Private' })] });
+
+      const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(admin.id)).send({ title: 'Renommé' });
+
+      expect(response.status).toBe(200);
+      // Absent, Calendar API keeps the stored visibility: the value read before the write is never sent back.
+      const body = calendarApi.calls(CALENDAR.event, 'PATCH')[0].body as Record<string, unknown>;
+      expect(body).toMatchObject({ name: 'Renommé' });
+      expect(body).not.toHaveProperty('visibility');
+      expect(response.body.visibility).toBe('private');
+    });
+
+    test.each([['secret'], ['Private'], [null]])('mair_1179 POST and PATCH /calendar/events refuse the visibility %p with a 400 before any upstream call', async (visibility) => {
+      mockCalendarApi();
+
+      const created = await request(app).post('/calendar/events').set('Authorization', authorizationFor(admin.id))
+        .send({ title: 'Atelier', date: '2026-09-20', visibility });
+      const patched = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(admin.id)).send({ visibility });
+
+      expect([created.status, patched.status]).toEqual([400, 400]);
+      expectBffContract('post', '/calendar/events', created);
+      expect(calendarApi.requests).toHaveLength(0);
+    });
+
+    test('mair_1179 the detail, the list, the period and the bootstrap carry the visibility of each event', async () => {
+      mockCalendarApi({
+        details: [eventDetails(5, { visibility: 'Private' })],
+        list: [eventView(5, { visibility: 'Private', members: [member(admin.id)] }), eventView(6, { visibility: 'Public', members: [member(admin.id)] })],
+      });
+      const auth = authorizationFor(admin.id);
+
+      const detail = await request(app).get('/calendar/events/5').set('Authorization', auth);
+      const list = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', auth);
+      const period = await request(app).get('/calendar/period?from=2026-09-01&to=2026-09-30').set('Authorization', auth);
+      const bootstrap = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', auth);
+
+      expect(detail.body.visibility).toBe('private');
+      const visibilities = (events: { id: number; visibility: string }[]) => events.map((event) => [event.id, event.visibility]);
+      expect(visibilities(list.body)).toEqual([[5, 'private'], [6, 'public']]);
+      expect(visibilities(period.body.events)).toEqual([[5, 'private'], [6, 'public']]);
+      expect(visibilities(bootstrap.body.events)).toEqual([[5, 'private'], [6, 'public']]);
+    });
+
+    test('mair_1179 GET /calendar/events/:id relays the 403 Calendar API answers for a private event of someone else', async () => {
+      mockCalendarApi();
+      calendarApi.on('get', CALENDAR.event, { status: 403, raw: 'Forbidden.', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).get('/calendar/events/5').set('Authorization', authorizationFor(alice.id));
+
+      expect(response.status).toBe(403);
+      expectBffContract('get', '/calendar/events/{id}', response);
+      expect(response.body.error.code).toBe('FORBIDDEN');
+    });
+
+    test('mair_1179 the BFF contract publishes visibility as public or private on events and write bodies', () => {
+      const schemas = bffContract.document.components?.schemas ?? {};
+      for (const name of ['CalendarEvent', 'CreateCalendarEventBody', 'UpdateCalendarEventBody']) {
+        const { properties, required = [] } = schemas[name] as { properties: Record<string, { enum?: string[] }>; required?: string[] };
+        expect(properties.visibility.enum).toEqual(['public', 'private']);
+        // Optional on writes: public on creation, unchanged on update.
+        expect(required).not.toContain('visibility');
+      }
     });
 
     test.each([

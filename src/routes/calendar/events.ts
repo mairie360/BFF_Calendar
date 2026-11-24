@@ -118,7 +118,7 @@ registry.registerPath({
     },
     400: apiErrorResponse('Invalid id'),
     401: apiErrorResponse('Missing or invalid session'),
-    403: apiErrorResponse('The caller is not assigned to this event'),
+    403: apiErrorResponse('The event is private and the caller is neither its creator nor one of its members'),
     404: apiErrorResponse('Event not found'),
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),

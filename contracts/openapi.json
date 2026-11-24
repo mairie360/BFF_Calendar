@@ -244,6 +244,15 @@
             "type": "boolean",
             "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
           },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "description": "Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.",
+            "example": "public"
+          },
           "visibleToRoles": {
             "type": "array",
             "items": {
@@ -533,6 +542,15 @@
                   "type": "boolean",
                   "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
                 },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "public",
+                    "private"
+                  ],
+                  "description": "Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.",
+                  "example": "public"
+                },
                 "visibleToRoles": {
                   "type": "array",
                   "items": {
@@ -759,6 +777,15 @@
             "type": "boolean",
             "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
           },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "description": "Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.",
+            "example": "public"
+          },
           "visibleToRoles": {
             "type": "array",
             "items": {
@@ -907,6 +934,15 @@
           "canRespond": {
             "type": "boolean",
             "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "description": "Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.",
+            "example": "public"
           },
           "visibleToRoles": {
             "type": "array",
@@ -1455,7 +1491,7 @@
             }
           },
           "403": {
-            "description": "The caller is not assigned to this event",
+            "description": "The event is private and the caller is neither its creator nor one of its members",
             "content": {
               "application/json": {
                 "schema": {

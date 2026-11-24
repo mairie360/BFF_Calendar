@@ -72,6 +72,9 @@ export const CalendarAssigneeSchema = z.object({
 // Stored texts are rendered by the fronts: `<` and `>` are refused.
 const noMarkup = (schema: z.ZodString) => schema.regex(/^[^<>]*$/, 'Must not contain < or >');
 
+/** Visibility of an event: Calendar API's `Public` / `Private`, in the lower case of the other BFF enums. */
+export const CalendarEventVisibilitySchema = z.enum(['public', 'private']);
+
 export const CalendarEventSchema = z.object({
   id: z.string().or(z.number()).optional()
     .openapi({ description: 'Stable id. Optional on creation, always present on reads.' }),
@@ -111,6 +114,8 @@ export const CalendarEventSchema = z.object({
     .openapi({ description: 'Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event.' }),
   canRespond: z.boolean().optional()
     .openapi({ description: 'Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes.' }),
+  visibility: CalendarEventVisibilitySchema.optional()
+    .openapi({ description: 'Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.', example: 'public' }),
   visibleToRoles: z.array(z.enum(['user', 'responsable', 'mayor'])).optional()
     .openapi({ description: 'Roles allowed to see the event' }),
 }).openapi('CalendarEvent');
