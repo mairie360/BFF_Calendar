@@ -22,6 +22,7 @@ Domaine fonctionnel: Calendrier.
 2. Créer ou modifier un événement et choisir les personnes autorisées.
 3. Consulter l’état de validation et recharger la période après une mutation.
 4. Répondre à une invitation (`PUT /calendar/events/{id}/participation`, accepted ou declined) ; chaque événement porte la réponse de l’utilisateur courant dans `myParticipation`.
+5. Choisir si un événement est `public` (par défaut : tout utilisateur connecté peut l’ouvrir) ou `private` (seuls son créateur et les personnes qui y sont affectées) ; chaque événement lu porte sa `visibility`.
 
 ## Place dans Mairie360
 

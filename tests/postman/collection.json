@@ -871,6 +871,7 @@
                   "    pm.expect(body.canEdit).to.eql(true);",
                   "    pm.expect(body.canDelete).to.eql(true);",
                   "    pm.expect(body.canValidate).to.eql(false);",
+                  "    pm.expect(body.visibility, 'public by default').to.eql('public');",
                   "});"
                 ]
               }
@@ -2361,6 +2362,451 @@
         }
       ],
       "description": "Only the creator deletes the event; the collection leaves nothing behind."
+    },
+    {
+      "name": "MAIR-1179 Private and public events",
+      "item": [
+        {
+          "name": "MAIR-1179 The agent creates a private event without inviting anybody",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Newman private event {{run_id}}\",\n  \"date\": \"2030-07-20\",\n  \"startTime\": \"14:00\",\n  \"endTime\": \"15:00\",\n  \"category\": \"meeting\",\n  \"visibility\": \"private\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"The event is created private, the agent its only member\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id, 'id').to.exist;",
+                  "    pm.environment.set('private_event_id', String(body.id));",
+                  "    pm.expect(body.title).to.eql(`Newman private event ${pm.environment.get('run_id')}`);",
+                  "    pm.expect(body.visibility).to.eql('private');",
+                  "    pm.expect(body.assigneeIds).to.eql([`user-${pm.environment.get('agent_user_id')}`]);",
+                  "    pm.expect(body.createdById).to.eql(`user-${pm.environment.get('agent_user_id')}`);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The agent reads the private event back",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events/{{private_event_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events",
+                "{{private_event_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The visibility is kept when the event is opened again\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(String(body.id)).to.eql(pm.environment.get('private_event_id'));",
+                  "    pm.expect(body.visibility).to.eql('private');",
+                  "    pm.expect(body.canEdit).to.eql(true);",
+                  "    pm.expect(body.canDelete).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The agent's calendar shows the event as private",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/period?from=2030-07-01&to=2030-07-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "period"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2030-07-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-07-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The period view lists the event with its visibility\", function () {",
+                  "    const body = pm.response.json();",
+                  "    const event = body.events.find((candidate) => String(candidate.id) === pm.environment.get('private_event_id'));",
+                  "    pm.expect(event, 'private event').to.exist;",
+                  "    pm.expect(event.visibility).to.eql('private');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The Responsable, not invited, cannot open the private event",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_responsable}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events/{{private_event_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events",
+                "{{private_event_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test(\"Body is the forbidden error envelope\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error, 'error').to.be.an('object');",
+                  "    pm.expect(body.error.code).to.eql('FORBIDDEN');",
+                  "    pm.expect(body.error.message).to.be.a('string');",
+                  "    pm.expect(body).to.not.have.property('title');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The administrator, not invited, cannot open the private event either",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events/{{private_event_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events",
+                "{{private_event_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test(\"Body is the forbidden error envelope\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error, 'error').to.be.an('object');",
+                  "    pm.expect(body.error.code).to.eql('FORBIDDEN');",
+                  "    pm.expect(body.error.message).to.be.a('string');",
+                  "    pm.expect(body).to.not.have.property('title');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The private event is not in the Responsable's calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_responsable}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/period?from=2030-07-01&to=2030-07-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "period"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2030-07-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-07-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The private event is not listed\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.events.map((event) => String(event.id))).to.not.include(pm.environment.get('private_event_id'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The agent makes the event public",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events/{{private_event_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events",
+                "{{private_event_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visibility\": \"public\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The event is now public, nothing else changed\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.visibility).to.eql('public');",
+                  "    pm.expect(body.title).to.eql(`Newman private event ${pm.environment.get('run_id')}`);",
+                  "    pm.expect(body.startTime).to.eql('14:00');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The Responsable, not invited, now opens the public event",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_responsable}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events/{{private_event_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events",
+                "{{private_event_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The public event is readable, without any right on it\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(String(body.id)).to.eql(pm.environment.get('private_event_id'));",
+                  "    pm.expect(body.visibility).to.eql('public');",
+                  "    pm.expect(body.canEdit).to.eql(false);",
+                  "    pm.expect(body.canDelete).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The agent deletes the event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events/{{private_event_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events",
+                "{{private_event_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
     },
     {
       "name": "MAIR-772 A session closed in Core is refused",

@@ -12,6 +12,8 @@ Serveur Express 5.2.1 écrit en TypeScript. Les schémas Zod et leur registre Op
 
 Calendar API fournit toutes les opérations sur les événements : l’événement, ses métadonnées (catégorie, service, lieu) et sa règle de répétition, ses membres et leur statut de validation, ainsi que les droits de l’appelant. Core API fournit l’annuaire (identité, rôles, groupes). Le BFF n’accède plus à la base. Les catégories et services comprennent des référentiels définis dans les helpers.
 
+La visibilité d’un événement est relayée dans `visibility`, `public` ou `private` (`Public` / `Private` de Calendar API) : `public` quand une création ne la donne pas, conservée quand une modification ne la donne pas, présente sur chaque événement lu (détail, liste, période, bootstrap). Calendar API l’applique : un événement privé ouvert par une personne qui n’est ni son créateur ni l’un de ses membres répond 403, que le BFF relaie, et il ne lui est jamais listé.
+
 Le fonctionnement dépend d’identifiants utilisateurs cohérents entre Core et Calendar. Le BFF n’écrit dans aucune base : toutes les écritures passent par Calendar API. Les dates et heures échangées avec l’interface sont des heures locales du fuseau de l’instance (`CALENDAR_TIME_ZONE`, Europe/Paris par défaut) ; le BFF les convertit vers et depuis les instants UTC que stocke Calendar API.
 
 ## Installation et lancement local

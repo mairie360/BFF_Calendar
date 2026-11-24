@@ -77,7 +77,7 @@ describe('newman integration collection (MAIR-262)', () => {
     const byKey = Object.fromEntries(environment.values.map(({ key, value }) => [key, value]));
     expect(byKey.baseUrl).toMatch(/^http:\/\/localhost:\d+$/);
     expect(byKey).not.toHaveProperty('jwt_secret');
-    for (const key of ['jwt_admin', 'jwt_agent', 'jwt_responsable', 'run_id', 'event_id']) {
+    for (const key of ['jwt_admin', 'jwt_agent', 'jwt_responsable', 'run_id', 'event_id', 'private_event_id']) {
       expect(byKey[key]).toBe('');
     }
   });
@@ -110,5 +110,26 @@ describe('newman integration collection (MAIR-262)', () => {
     const byKey = Object.fromEntries(environment.values.map(({ key, value }) => [key, value]));
     expect(byKey.jwt_session).toBe('');
     expect(byKey.refresh_token_session).toBe('');
+  });
+
+  it('MAIR-1179: replays a private event refused to the people not invited, then made public', () => {
+    const journey = requests.filter(({ folder }) => folder === 'MAIR-1179 Private and public events');
+    expect(journey.map(({ request }) => `${request.method} ${normalize(request.url.raw)}`)).toEqual([
+      'POST /calendar/events',
+      'GET /calendar/events/{}',
+      'GET /calendar/period',
+      'GET /calendar/events/{}',
+      'GET /calendar/events/{}',
+      'GET /calendar/period',
+      'PATCH /calendar/events/{}',
+      'GET /calendar/events/{}',
+      'DELETE /calendar/events/{}',
+    ]);
+    const tests = journey.map((request) => request.tests.join('\n'));
+    expect(tests[0]).toContain("to.eql('private')");
+    expect(tests[3]).toContain('have.status(403)');
+    expect(tests[4]).toContain('have.status(403)');
+    expect(tests[6]).toContain("to.eql('public')");
+    expect(tests[7]).toContain('have.status(200)');
   });
 });

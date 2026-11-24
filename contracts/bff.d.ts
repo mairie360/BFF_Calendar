@@ -419,7 +419,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description The caller is not assigned to this event */
+                /** @description The event is private and the caller is neither its creator nor one of its members */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -1335,6 +1335,12 @@ export interface components {
             myParticipation?: "accepted" | "pending" | "declined";
             /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
             canRespond?: boolean;
+            /**
+             * @description Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.
+             * @example public
+             * @enum {string}
+             */
+            visibility?: "public" | "private";
             /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
@@ -1452,6 +1458,12 @@ export interface components {
                 myParticipation?: "accepted" | "pending" | "declined";
                 /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
                 canRespond?: boolean;
+                /**
+                 * @description Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.
+                 * @example public
+                 * @enum {string}
+                 */
+                visibility?: "public" | "private";
                 /** @description Roles allowed to see the event */
                 visibleToRoles?: ("user" | "responsable" | "mayor")[];
             }[];
@@ -1553,6 +1565,12 @@ export interface components {
             myParticipation?: "accepted" | "pending" | "declined";
             /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
             canRespond?: boolean;
+            /**
+             * @description Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.
+             * @example public
+             * @enum {string}
+             */
+            visibility?: "public" | "private";
             /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };
@@ -1627,6 +1645,12 @@ export interface components {
             myParticipation?: "accepted" | "pending" | "declined";
             /** @description Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes. */
             canRespond?: boolean;
+            /**
+             * @description Who can read the event: `public` (every authenticated user can open it) or `private` (only its creator and the people assigned to it). `public` when omitted on creation, kept when omitted on update, always present on reads.
+             * @example public
+             * @enum {string}
+             */
+            visibility?: "public" | "private";
             /** @description Roles allowed to see the event */
             visibleToRoles?: ("user" | "responsable" | "mayor")[];
         };

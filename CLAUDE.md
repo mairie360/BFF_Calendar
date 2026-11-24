@@ -120,6 +120,13 @@ Each member answers their own invitation (Calendar API `participation`): events 
 `PUT /calendar/events/{id}/participation` (`{ status: accepted | declined }`) relays the answer then reads the
 event again. It never touches the approval.
 
+### Visibility
+
+Events carry `visibility` (`public` | `private`), mapped to Calendar API's `Public` / `Private`: a creation without it
+sends `Public`, an update without it sends the current value back (the PATCH body is the merged event), every read
+carries it. Calendar API enforces it (a private event answers 403 to anyone but its creator and members); the BFF
+only relays.
+
 ### Approval model
 
 `validation_status` per event-member is `pending | validated | refused` in Calendar API; the event's

@@ -22,6 +22,7 @@ Business domain: Calendar.
 2. Create or update an event and choose authorized assignees.
 3. Inspect approval status and reload the date range after a mutation.
 4. Answer an invitation (`PUT /calendar/events/{id}/participation`, accepted or declined); every event carries the current user's answer as `myParticipation`.
+5. Choose whether an event is `public` (the default: every authenticated user can open it) or `private` (only its creator and the people assigned to it); every event read carries its `visibility`.
 
 ## Role within Mairie360
 
