@@ -554,7 +554,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(patch.body).toEqual({
         name: 'Conseil municipal', description: 'Description 5',
         events_start_time: '2026-09-16T16:30:00Z', events_end_time: '2026-09-16T18:00:00Z',
-        category: 'other', service: null, location: null, recurrence: null, visibility: 'Public',
+        category: 'other', service: null, location: null, recurrence: null,
       });
       expect(calendarApi.calls(CALENDAR.member, 'DELETE').map((call) => call.url.pathname))
         .toEqual([calendarApiUrls.getRemoveEventMemberUrl(5, alice.id)]);
