@@ -118,7 +118,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('GET /calendar/events maps Calendar API events, member of them or not, and carries their metadata', async () => {
       mockCalendarApi({ list: [
         eventView(1, { start: '2026-09-16T09:00:00Z', end: '2026-09-16T10:30:00Z', category: 'meeting', location: 'Salle 1' }),
-        // Owned but not assigned: Calendar API returns it with is_member false, and the caller may see it (MAIR-1179).
+        // Owned but not assigned: Calendar API returns it with is_member false, and the caller may see it.
         eventView(2, { name: 'Non assigné', is_member: false }),
         eventView(3, {
           name: 'Permanence',
