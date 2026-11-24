@@ -34,6 +34,7 @@ const CALENDAR = {
   events: '/api/v1/events/',
   event: '/api/v1/events/{eventId}/',
   validation: '/api/v1/events/{eventId}/validation',
+  participation: '/api/v1/events/{eventId}/participation',
   members: '/api/v1/events/{eventId}/members/',
   member: '/api/v1/events/{eventId}/members/{memberId}/',
   health: '/health',
@@ -93,6 +94,7 @@ function mockCalendarApi({ list = [], details = [], createdId = 42 }: { list?: E
   calendarApi.on('post', CALENDAR.events, { status: 201, body: postEventResult(createdId) });
   calendarApi.on('patch', CALENDAR.event, { status: 204 });
   calendarApi.on('patch', CALENDAR.validation, { status: 204 });
+  calendarApi.on('put', CALENDAR.participation, { status: 204 });
   calendarApi.on('delete', CALENDAR.event, { status: 204 });
   calendarApi.on('post', CALENDAR.members, ({ body }) => ({ body: { user_id: (body as { user_id: number }).user_id } }));
   calendarApi.on('delete', CALENDAR.member, { status: 204 });
@@ -354,7 +356,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     });
 
     test('MAIR-525: a write authorizes its assignees on fresh directory data, not on the cache', async () => {
-      mockCalendarApi({ details: [eventDetails(42, { members: [{ id: alice.id, validation_status: 'pending' }] })] });
+      mockCalendarApi({ details: [eventDetails(42, { members: [{ id: alice.id, validation_status: 'pending', participation: 'pending' }] })] });
       await request(app).get('/calendar/assignees').set('Authorization', authorizationFor(alice.id));
       const before = coreApi.calls(CORE.directory).length;
 
@@ -438,9 +440,9 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
         location: 'Salle 2',
         recurrence: { frequency: 'weekly', interval: 2, ends_on: '2026-12-31' },
         created_by: alice.id,
-        members: [{ id: alice.id, validation_status: 'pending' }, { id: marie.id, validation_status: 'pending' }],
+        members: [{ id: alice.id, validation_status: 'pending', participation: 'pending' }, { id: marie.id, validation_status: 'pending', participation: 'pending' }],
         approval_status: 'pending',
-        permissions: { can_edit: true, can_delete: true, can_validate: false },
+        permissions: { can_edit: true, can_delete: true, can_validate: false, can_respond: true },
       })] });
 
       const response = await request(app).post('/calendar/events').set('Authorization', authorizationFor(alice.id)).send({
@@ -539,7 +541,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     });
 
     test('PATCH /calendar/events/:id patches Calendar API then synchronizes members', async () => {
-      mockCalendarApi({ details: [eventDetails(5, { members: [{ id: admin.id, validation_status: 'validated' }, { id: alice.id, validation_status: 'validated' }] })] });
+      mockCalendarApi({ details: [eventDetails(5, { members: [{ id: admin.id, validation_status: 'validated', participation: 'pending' }, { id: alice.id, validation_status: 'validated', participation: 'pending' }] })] });
 
       const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(admin.id))
         .send({ title: 'Conseil municipal', startTime: '18:30', endTime: '20:00', assigneeIds: ['user-3'] });
@@ -561,8 +563,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('PATCH /calendar/events/:id forbids a user Calendar API does not allow to edit', async () => {
       mockCalendarApi({ details: [eventDetails(5, {
         created_by: admin.id,
-        members: [{ id: admin.id, validation_status: 'validated' }, { id: alice.id, validation_status: 'validated' }],
-        permissions: { can_edit: false, can_delete: false, can_validate: false },
+        members: [{ id: admin.id, validation_status: 'validated', participation: 'pending' }, { id: alice.id, validation_status: 'validated', participation: 'pending' }],
+        permissions: { can_edit: false, can_delete: false, can_validate: false, can_respond: true },
       })] });
 
       const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(alice.id)).send({ title: 'Renommé' });
@@ -576,8 +578,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('PATCH /calendar/events/:id refuses an assignee outside the user scope without modifying the event', async () => {
       mockCalendarApi({ details: [eventDetails(5, {
         created_by: alice.id,
-        members: [{ id: alice.id, validation_status: 'validated' }],
-        permissions: { can_edit: true, can_delete: true, can_validate: false },
+        members: [{ id: alice.id, validation_status: 'validated', participation: 'pending' }],
+        permissions: { can_edit: true, can_delete: true, can_validate: false, can_respond: true },
       })] });
 
       const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(alice.id))
@@ -679,9 +681,9 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('PATCH /calendar/events/:id/approval lets the assigned responsible approve a pending event', async () => {
       mockCalendarApi({ details: [eventDetails(8, {
         created_by: alice.id,
-        members: [{ id: alice.id, validation_status: 'pending' }, { id: marie.id, validation_status: 'pending' }],
+        members: [{ id: alice.id, validation_status: 'pending', participation: 'pending' }, { id: marie.id, validation_status: 'pending', participation: 'pending' }],
         approval_status: 'pending',
-        permissions: { can_edit: true, can_delete: false, can_validate: true },
+        permissions: { can_edit: true, can_delete: false, can_validate: true, can_respond: true },
       })] });
 
       const response = await request(app).patch('/calendar/events/8/approval').set('Authorization', authorizationFor(marie.id)).send({ approvalStatus: 'approved' });
@@ -696,9 +698,9 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('MAIR-537 PATCH /calendar/events/:id/approval forbids a caller who is not an assigned manager, without calling Calendar API to validate', async () => {
       mockCalendarApi({ details: [eventDetails(8, {
         created_by: alice.id,
-        members: [{ id: alice.id, validation_status: 'pending' }, { id: marie.id, validation_status: 'pending' }],
+        members: [{ id: alice.id, validation_status: 'pending', participation: 'pending' }, { id: marie.id, validation_status: 'pending', participation: 'pending' }],
         approval_status: 'pending',
-        permissions: { can_edit: true, can_delete: false, can_validate: false },
+        permissions: { can_edit: true, can_delete: false, can_validate: false, can_respond: true },
       })] });
 
       const response = await request(app).patch('/calendar/events/8/approval').set('Authorization', authorizationFor(alice.id)).send({ approvalStatus: 'approved' });
@@ -727,9 +729,9 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     ])('MAIR-537 PATCH /calendar/events/:id/approval maps a Calendar API %i on the validation to %i, once and without its body', async (calendarStatus, status, code) => {
       mockCalendarApi({ details: [eventDetails(8, {
         created_by: alice.id,
-        members: [{ id: alice.id, validation_status: 'pending' }, { id: marie.id, validation_status: 'pending' }],
+        members: [{ id: alice.id, validation_status: 'pending', participation: 'pending' }, { id: marie.id, validation_status: 'pending', participation: 'pending' }],
         approval_status: 'pending',
-        permissions: { can_edit: true, can_delete: false, can_validate: true },
+        permissions: { can_edit: true, can_delete: false, can_validate: true, can_respond: true },
       })] });
       calendarApi.on('patch', CALENDAR.validation, { status: calendarStatus, raw: 'internal detail event_members', contentType: 'text/plain', outOfContract: true });
 
@@ -739,6 +741,69 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(response.body.error.code).toBe(code);
       expect(JSON.stringify(response.body)).not.toContain('event_members');
       expect(calendarApi.calls(CALENDAR.validation, 'PATCH')).toHaveLength(1);
+    });
+
+    test('MAIR-1122 PUT /calendar/events/:id/participation records the answer and returns the event read again', async () => {
+      mockCalendarApi({ details: [eventDetails(8, {
+        created_by: alice.id,
+        members: [member(alice.id, 'validated', 'accepted'), member(marie.id, 'validated', 'declined')],
+        my_participation: 'declined',
+      })] });
+
+      const response = await request(app).put('/calendar/events/8/participation').set('Authorization', authorizationFor(marie.id)).send({ status: 'declined' });
+
+      expect(response.status).toBe(200);
+      expectBffContract('put', '/calendar/events/{id}/participation', response);
+      expect(calendarApi.calls(CALENDAR.participation, 'PUT')[0].body).toEqual({ status: 'declined' });
+      expect(calendarApi.calls(CALENDAR.participation, 'PUT')[0].headers.authorization).toBe(authorizationFor(marie.id));
+      expect(upstreamSequence()).toEqual([called('PUT', calendarApiUrls.getUpdateParticipationUrl(8)), called('GET', calendarApiUrls.getGetEventUrl(8))]);
+      expect(response.body).toMatchObject({ id: 8, myParticipation: 'declined', canRespond: true });
+    });
+
+    test('MAIR-1122 GET /calendar/events/:id and the period list carry the answer of the current user', async () => {
+      mockCalendarApi({
+        details: [eventDetails(5, { my_participation: 'pending' })],
+        list: [eventView(5, { members: [member(admin.id, 'validated', 'pending')], my_participation: 'pending' }), eventView(6, { members: [] })],
+      });
+
+      const detail = await request(app).get('/calendar/events/5').set('Authorization', authorizationFor(admin.id));
+      const list = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', authorizationFor(admin.id));
+
+      expect(detail.body).toMatchObject({ myParticipation: 'pending', canRespond: true });
+      expect(list.status).toBe(200);
+      expect(list.body.find((event: { id: number }) => event.id === 5)).toMatchObject({ myParticipation: 'pending' });
+    });
+
+    test.each([
+      [{ status: 'maybe' }],
+      [{ status: 'pending' }],
+      [{ status: 'accepted', extra: true }],
+      [{}],
+    ])('MAIR-1122 PUT /calendar/events/:id/participation refuses %j without any upstream call', async (body) => {
+      mockCalendarApi();
+
+      const response = await request(app).put('/calendar/events/8/participation').set('Authorization', authorizationFor(marie.id)).send(body);
+
+      expect(response.status).toBe(400);
+      expectBffContract('put', '/calendar/events/{id}/participation', response);
+      expect(calendarApi.requests).toHaveLength(0);
+    });
+
+    test.each([
+      [403, 403, 'FORBIDDEN'],
+      [404, 404, 'NOT_FOUND'],
+      [500, 502, 'BAD_GATEWAY'],
+    ])('MAIR-1122 PUT /calendar/events/:id/participation maps a Calendar API %i to %i without its body', async (calendarStatus, status, code) => {
+      mockCalendarApi({ details: [eventDetails(8)] });
+      calendarApi.on('put', CALENDAR.participation, { status: calendarStatus, raw: 'internal detail event_members', contentType: 'text/plain', outOfContract: true });
+
+      const response = await request(app).put('/calendar/events/8/participation').set('Authorization', authorizationFor(alice.id)).send({ status: 'accepted' });
+
+      expect(response.status).toBe(status);
+      expect(response.body.error.code).toBe(code);
+      expect(JSON.stringify(response.body)).not.toContain('event_members');
+      expect(calendarApi.calls(CALENDAR.participation, 'PUT')).toHaveLength(1);
+      expect(calendarApi.calls(CALENDAR.event, 'GET')).toHaveLength(0);
     });
 
     test('DELETE /calendar/events/:id lets the creator delete after Calendar API validated the session', async () => {
@@ -755,8 +820,8 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
     test('DELETE /calendar/events/:id forbids an assigned responsible who did not create the event', async () => {
       mockCalendarApi({ details: [eventDetails(5, {
         created_by: alice.id,
-        members: [{ id: alice.id, validation_status: 'validated' }, { id: marie.id, validation_status: 'validated' }],
-        permissions: { can_edit: true, can_delete: false, can_validate: false },
+        members: [{ id: alice.id, validation_status: 'validated', participation: 'pending' }, { id: marie.id, validation_status: 'validated', participation: 'pending' }],
+        permissions: { can_edit: true, can_delete: false, can_validate: false, can_respond: true },
       })] });
 
       const response = await request(app).delete('/calendar/events/5').set('Authorization', authorizationFor(marie.id));

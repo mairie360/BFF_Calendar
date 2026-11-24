@@ -231,6 +231,19 @@
             "type": "boolean",
             "description": "Whether the current user can delete this event"
           },
+          "myParticipation": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "pending",
+              "declined"
+            ],
+            "description": "Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event."
+          },
+          "canRespond": {
+            "type": "boolean",
+            "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
+          },
           "visibleToRoles": {
             "type": "array",
             "items": {
@@ -507,6 +520,19 @@
                   "type": "boolean",
                   "description": "Whether the current user can delete this event"
                 },
+                "myParticipation": {
+                  "type": "string",
+                  "enum": [
+                    "accepted",
+                    "pending",
+                    "declined"
+                  ],
+                  "description": "Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event."
+                },
+                "canRespond": {
+                  "type": "boolean",
+                  "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
+                },
                 "visibleToRoles": {
                   "type": "array",
                   "items": {
@@ -720,6 +746,19 @@
             "type": "boolean",
             "description": "Whether the current user can delete this event"
           },
+          "myParticipation": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "pending",
+              "declined"
+            ],
+            "description": "Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event."
+          },
+          "canRespond": {
+            "type": "boolean",
+            "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
+          },
           "visibleToRoles": {
             "type": "array",
             "items": {
@@ -856,6 +895,19 @@
             "type": "boolean",
             "description": "Whether the current user can delete this event"
           },
+          "myParticipation": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "pending",
+              "declined"
+            ],
+            "description": "Answer of the current user to the invitation: pending until they answer, then accepted or declined. Absent when they are not assigned to the event."
+          },
+          "canRespond": {
+            "type": "boolean",
+            "description": "Whether the current user can answer the invitation (they are assigned). Only on `GET /calendar/events/{id}` and the writes."
+          },
           "visibleToRoles": {
             "type": "array",
             "items": {
@@ -886,6 +938,23 @@
         "required": [
           "approvalStatus"
         ]
+      },
+      "UpdateCalendarEventParticipationBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "declined"
+            ],
+            "description": "Answer of the current user: accepted (they take part) or declined"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
       },
       "ErrorResponse": {
         "type": "object",
@@ -1735,6 +1804,129 @@
           },
           "403": {
             "description": "Action not allowed on this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Calendar API rate limit reached: retry after the Retry-After header (seconds)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Calendar API or Core API is unavailable or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calendar/events/{id}/participation": {
+      "put": {
+        "tags": [
+          "Calendar"
+        ],
+        "summary": "Answer the invitation to an event",
+        "description": "Records the current user's own answer to an event they are assigned to: accepted or declined. The answer can be changed at any time and never touches the approval. Returns the event read again, with `myParticipation` updated.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "example": "101"
+            },
+            "description": "Unique id of the event"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCalendarEventParticipationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answer recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data: unknown status or field, or an event id that is not a positive integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The current user is not assigned to this event",
             "content": {
               "application/json": {
                 "schema": {

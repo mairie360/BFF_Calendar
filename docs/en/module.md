@@ -21,6 +21,7 @@ Business domain: Calendar.
 1. Load a date range through `/calendar/bootstrap`, then only the events of another period through `/calendar/period`.
 2. Create or update an event and choose authorized assignees.
 3. Inspect approval status and reload the date range after a mutation.
+4. Answer an invitation (`PUT /calendar/events/{id}/participation`, accepted or declined); every event carries the current user's answer as `myParticipation`.
 
 ## Role within Mairie360
 
