@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "9.1.0",
-    "@mairie360/bffs-lib": "2.8.0",
+    "@mairie360/bffs-lib": "3.0.0",
     "@mairie360/calendar-api-openapi": "0.0.0-dev-ffbfee2",
     "@mairie360/core-api-openapi": "2.3.0",
     "axios": "1.21.1",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.10",
     "express": "5.3.0",
     "swagger-ui-express": "5.0.1",
     "zod": "4.6.7"
@@ -38,7 +38,7 @@
     "ts-jest": "29.4.15",
     "ts-node": "10.9.2",
     "tsx": "4.23.15",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.73.0"
   }
 }

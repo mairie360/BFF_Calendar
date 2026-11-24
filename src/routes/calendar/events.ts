@@ -58,7 +58,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
@@ -93,7 +93,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
@@ -123,7 +123,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
@@ -162,7 +162,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
@@ -187,7 +187,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
@@ -226,7 +226,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
@@ -265,7 +265,7 @@ registry.registerPath({
     500: apiErrorResponse('Unexpected server error'),
     429: apiErrorResponse('Calendar API rate limit reached: retry after the Retry-After header (seconds)'),
     502: apiErrorResponse('Calendar API or Core API is unavailable or failed'),
-    503: apiErrorResponse('Calendar API, Core API or JWT_SECRET is not configured'),
+    503: apiErrorResponse('Calendar API, Core API or JWT_PUBLIC_KEY is not configured'),
   },
 });
 
