@@ -818,7 +818,10 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       const response = await request(app).patch('/calendar/events/5').set('Authorization', authorizationFor(admin.id)).send({ title: 'Renommé' });
 
       expect(response.status).toBe(200);
-      expect(calendarApi.calls(CALENDAR.event, 'PATCH')[0].body).toMatchObject({ name: 'Renommé', visibility: 'Private' });
+      // Absent, Calendar API keeps the stored visibility: the value read before the write is never sent back.
+      const body = calendarApi.calls(CALENDAR.event, 'PATCH')[0].body as Record<string, unknown>;
+      expect(body).toMatchObject({ name: 'Renommé' });
+      expect(body).not.toHaveProperty('visibility');
       expect(response.body.visibility).toBe('private');
     });
 

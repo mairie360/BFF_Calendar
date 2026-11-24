@@ -123,7 +123,8 @@ event again. It never touches the approval.
 ### Visibility
 
 Events carry `visibility` (`public` | `private`), mapped to Calendar API's `Public` / `Private`: a creation without it
-sends `Public`, an update without it sends the current value back (the PATCH body is the merged event), every read
+sends `Public`, an update without it leaves `visibility` out of the PATCH body (Calendar API keeps the stored one, so a concurrent
+change is not overwritten), every read
 carries it. Calendar API enforces it (a private event answers 403 to anyone but its creator and members); the BFF
 only relays.
 

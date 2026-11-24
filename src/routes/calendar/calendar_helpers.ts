@@ -288,8 +288,12 @@ function mapEventToCreateBody(event: BffCalendarEvent, members: number[]): PostE
   };
 }
 
-/** Update body for Calendar API (same date field names as creation and reads). */
-function mapEventToPatchBody(event: BffCalendarEvent): PatchEventView {
+/**
+ * Update body for Calendar API (same date field names as creation and reads). `visibility` is the caller's own
+ * value, never the one read before the write: absent, Calendar API keeps the stored visibility, so a concurrent
+ * change to it is not overwritten.
+ */
+function mapEventToPatchBody(event: BffCalendarEvent, visibility: BffCalendarEventPatch['visibility']): PatchEventView {
   return {
     name: event.title,
     description: event.description ?? null,
@@ -299,7 +303,7 @@ function mapEventToPatchBody(event: BffCalendarEvent): PatchEventView {
     service: event.service ?? null,
     location: event.location ?? null,
     recurrence: mapRecurrenceToApi(event.recurrence),
-    visibility: mapVisibilityToApi(event.visibility),
+    ...(visibility === undefined ? {} : { visibility: mapVisibilityToApi(visibility) }),
   };
 }
 
@@ -473,7 +477,7 @@ export async function patchCalendarEvent(
 
   const mergedEvent = { ...mapEventDetailsToBff(current), ...event };
   try {
-    await calendarCall(context, (options) => calendarApi.patchEvent(eventId, mapEventToPatchBody(mergedEvent), options));
+    await calendarCall(context, (options) => calendarApi.patchEvent(eventId, mapEventToPatchBody(mergedEvent, event.visibility), options));
 
     if (assigneeIds) {
       await syncEventMembers(
