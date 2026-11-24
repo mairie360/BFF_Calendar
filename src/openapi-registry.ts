@@ -286,7 +286,7 @@ registry.register(
 
 export const UpdateCalendarEventParticipationBodySchema = z.object({
   status: z.enum(['accepted', 'declined'])
-    .openapi({ description: 'Answer of the current user: accepted (they take part) or declined' }),
+    .openapi({ description: 'Answer of the current user: accepted (they take part) or declined', example: 'accepted' }),
 }).strict().openapi('UpdateCalendarEventParticipationBody');
 
 registry.register(

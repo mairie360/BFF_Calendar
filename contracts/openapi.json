@@ -948,7 +948,8 @@
               "accepted",
               "declined"
             ],
-            "description": "Answer of the current user: accepted (they take part) or declined"
+            "description": "Answer of the current user: accepted (they take part) or declined",
+            "example": "accepted"
           }
         },
         "required": [

@@ -1640,6 +1640,7 @@ export interface components {
         UpdateCalendarEventParticipationBody: {
             /**
              * @description Answer of the current user: accepted (they take part) or declined
+             * @example accepted
              * @enum {string}
              */
             status: "accepted" | "declined";
