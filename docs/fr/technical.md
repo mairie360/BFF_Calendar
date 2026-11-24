@@ -33,6 +33,7 @@ CORE_API_PORT=3000
 CALENDAR_API_URL=localhost
 CALENDAR_API_PORT=3002
 # Clé publique Ed25519 de Core (MAIR-680), obligatoire : coller la clé publique du Core utilisé.
+# JWT_SECRET est ignoré : bffs-lib >= 3 refuse les jetons HS256.
 JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n<base64 de la clé publique de Core>\n-----END PUBLIC KEY-----"
 ```
 

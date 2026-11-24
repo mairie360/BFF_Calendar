@@ -1115,7 +1115,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1223,7 +1223,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1321,7 +1321,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1435,7 +1435,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1556,7 +1556,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1661,7 +1661,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1784,7 +1784,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1889,7 +1889,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -1997,7 +1997,7 @@
             }
           },
           "503": {
-            "description": "Calendar API, Core API or JWT_SECRET is not configured",
+            "description": "Calendar API, Core API or JWT_PUBLIC_KEY is not configured",
             "content": {
               "application/json": {
                 "schema": {

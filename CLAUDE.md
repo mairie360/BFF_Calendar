@@ -53,7 +53,7 @@ when `CALENDAR_API_URL` or `CORE_API_URL` is missing or invalid) then `listen` o
 `noStore` + `requireSession` (bffs-lib >= 1.2.0, MAIR-474): `Cache-Control: no-store`, and a 401 before any
 upstream call unless the request carries `Authorization: Bearer <token>` (the only credential; cookies are
 ignored) **verified** with Core's public key `JWT_PUBLIC_KEY` (EdDSA under Core's `kid`, `iss`, `aud`, `exp`, positive
-integer `sub`; MAIR-680, bffs-lib >= 2.7.0; HS256 only while `JWT_SECRET` is still set, transition).
+integer `sub`; MAIR-680; bffs-lib >= 3 refuses HS256 and ignores `JWT_SECRET`).
 `assertStartupConfiguration()` (`src/index.ts`) refuses to start without a key or with a malformed one. Helpers take a
 `CallContext` (`src/clients/callContext.ts`: the request + the upstream 4xx the route declares) and run every
 upstream call through the lib's `callUpstream(service, () => api.op(..., asCaller(service, req)), { declared })`
@@ -164,7 +164,7 @@ registrations) and generates the document with `@asteasolutions/zod-to-openapi`.
 Auth is an EdDSA JWT signed like Core (`tests/support/session-keys.ts`, whose public key `useSessionPublicKey()`
 sets; `sessionToken` / `authorizationFor(userId)` in `tests/support/calendar-fixtures.ts`).
 `tests/mair-680-eddsa-session.test.ts` pins MAIR-680: startup checks, EdDSA accepted, HS256 and another key refused
-without any upstream call, HS256 accepted only while `JWT_SECRET` is set. `tests/token-refusals.test.ts` walks `contracts/openapi.json`: every
+without any upstream call, even while `JWT_SECRET` is set (bffs-lib 3), 503 when only `JWT_SECRET` is configured. `tests/token-refusals.test.ts` walks `contracts/openapi.json`: every
 operation that inherits `bearerAuth` must answer 401 to a missing or forged token (other scheme, garbage,
 HS256 with the historical secret, another Ed25519 key, no `aud`, expired, `alg: none`, swapped payload, RS256, non-numeric `sub`) without any upstream call, and
 get past the check with a genuine one; the public operations (`/health`, `/check_apis`, `/calendar/categories`,

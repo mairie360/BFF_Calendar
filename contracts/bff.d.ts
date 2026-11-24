@@ -162,7 +162,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -260,7 +260,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -352,7 +352,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -464,7 +464,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -563,7 +563,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -668,7 +668,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -786,7 +786,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -878,7 +878,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -976,7 +976,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Calendar API, Core API or JWT_SECRET is not configured */
+                /** @description Calendar API, Core API or JWT_PUBLIC_KEY is not configured */
                 503: {
                     headers: {
                         [name: string]: unknown;

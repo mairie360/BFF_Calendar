@@ -106,7 +106,7 @@ export const JWT_SECRET = 'calendar-contract-test-secret';
 
 /**
  * Session token valid one hour (or expired when `expiresIn` is negative): EdDSA signed like Core (MAIR-680), or
- * HS256 signed with `secret` when one is given (a historical token, refused once JWT_SECRET is gone).
+ * HS256 signed with `secret` when one is given (a historical token, always refused since bffs-lib 3).
  */
 export function sessionToken(userId: number | string, secret?: string, expiresIn = 3_600): string {
   if (secret === undefined) return eddsaToken(userId, { expiresIn });
