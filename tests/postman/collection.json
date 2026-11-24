@@ -1311,7 +1311,7 @@
           "response": []
         },
         {
-          "name": "The Responsable no longer sees the event",
+          "name": "MAIR-1179 The Responsable, no longer invited, still sees the public event",
           "request": {
             "method": "GET",
             "header": [
@@ -1351,10 +1351,12 @@
                   "pm.test(\"Status is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test(\"The event is out of its calendar\", function () {",
+                  "pm.test(\"The public event stays in its calendar, without any participation\", function () {",
                   "    const events = pm.response.json();",
                   "    const event = events.find((e) => String(e.id) === pm.environment.get('event_id'));",
-                  "    pm.expect(event).to.be.undefined;",
+                  "    pm.expect(event, 'public event listed to an agent who is not invited').to.be.an('object');",
+                  "    pm.expect(event.visibility).to.eql('public');",
+                  "    pm.expect(event.myParticipation, 'no longer invited').to.be.undefined;",
                   "});"
                 ]
               }
@@ -2761,6 +2763,113 @@
                   "    pm.expect(body.visibility).to.eql('public');",
                   "    pm.expect(body.canEdit).to.eql(false);",
                   "    pm.expect(body.canDelete).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The public event is listed to the Responsable, not invited",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_responsable}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/events?from=2030-07-01&to=2030-07-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2030-07-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-07-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The public event is listed, public, without any participation\", function () {",
+                  "    const events = pm.response.json();",
+                  "    const event = events.find((e) => String(e.id) === pm.environment.get('private_event_id'));",
+                  "    pm.expect(event, 'public event of the agent').to.be.an('object');",
+                  "    pm.expect(event.visibility).to.eql('public');",
+                  "    pm.expect(event.myParticipation).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "MAIR-1179 The public event is in the Responsable's calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_responsable}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/period?from=2030-07-01&to=2030-07-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "period"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2030-07-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2030-07-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The calendar of the Responsable shows the public event\", function () {",
+                  "    const body = pm.response.json();",
+                  "    const event = body.events.find((e) => String(e.id) === pm.environment.get('private_event_id'));",
+                  "    pm.expect(event, 'public event of the agent').to.be.an('object');",
+                  "    pm.expect(event.visibility).to.eql('public');",
                   "});"
                 ]
               }

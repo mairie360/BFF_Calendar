@@ -115,10 +115,10 @@ const calendarListed = called('GET', CALENDAR.calendar);
 
 describe('Calendar BFF with contract-driven Calendar API and Core API mocks', () => {
   describe('reads', () => {
-    test('GET /calendar/events maps Calendar API events, keeps assigned ones only and carries their metadata', async () => {
+    test('GET /calendar/events maps Calendar API events, member of them or not, and carries their metadata', async () => {
       mockCalendarApi({ list: [
         eventView(1, { start: '2026-09-16T09:00:00Z', end: '2026-09-16T10:30:00Z', category: 'meeting', location: 'Salle 1' }),
-        // Possédé mais non assigné : Calendar API le renvoie avec is_member à faux, le BFF l'écarte.
+        // Owned but not assigned: Calendar API returns it with is_member false, and the caller may see it (MAIR-1179).
         eventView(2, { name: 'Non assigné', is_member: false }),
         eventView(3, {
           name: 'Permanence',
@@ -135,6 +135,7 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       // Calendar API instants are UTC; the BFF answers wall-clock times in Europe/Paris (UTC+2 in September).
       expect(response.body).toEqual([
         { id: 1, title: 'Événement 1', date: '2026-09-16', category: 'meeting', location: 'Salle 1', startTime: '11:00', endTime: '12:30', visibility: 'private' },
+        { id: 2, title: 'Non assigné', date: '2026-09-16', category: 'other', startTime: '11:00', endTime: '12:00', visibility: 'private' },
         {
           id: 3, title: 'Permanence', date: '2026-09-20', endDate: '2026-09-21', category: 'other',
           startTime: '20:00', endTime: '03:00', visibility: 'private',
@@ -854,6 +855,29 @@ describe('Calendar BFF with contract-driven Calendar API and Core API mocks', ()
       expect(visibilities(list.body)).toEqual([[5, 'private'], [6, 'public']]);
       expect(visibilities(period.body.events)).toEqual([[5, 'private'], [6, 'public']]);
       expect(visibilities(bootstrap.body.events)).toEqual([[5, 'private'], [6, 'public']]);
+    });
+
+    test('mair_1179 a public event lists in the calendar of an agent who is not invited, without any participation', async () => {
+      // Calendar API answers the public events of the others with is_member false: they are visible to every agent.
+      mockCalendarApi({ list: [
+        eventView(7, { name: 'Cérémonie publique', visibility: 'Public', is_member: false, members: [member(admin.id)] }),
+        eventView(8, { name: 'Ma réunion', visibility: 'Private', members: [member(alice.id)] }),
+      ] });
+      const auth = authorizationFor(alice.id);
+
+      const list = await request(app).get('/calendar/events?from=2026-09-01&to=2026-09-30').set('Authorization', auth);
+      const period = await request(app).get('/calendar/period?from=2026-09-01&to=2026-09-30').set('Authorization', auth);
+      const bootstrap = await request(app).get('/calendar/bootstrap?from=2026-09-01&to=2026-09-30').set('Authorization', auth);
+
+      for (const [response, route] of [[list, '/calendar/events'], [period, '/calendar/period'], [bootstrap, '/calendar/bootstrap']] as const) {
+        expect(response.status).toBe(200);
+        expectBffContract('get', route, response);
+      }
+      const listed = (events: { id: number; visibility: string; myParticipation?: string }[]) =>
+        events.map((event) => [event.id, event.visibility, event.myParticipation ?? null]);
+      expect(listed(list.body)).toEqual([[7, 'public', null], [8, 'private', null]]);
+      expect(listed(period.body.events)).toEqual([[7, 'public', null], [8, 'private', null]]);
+      expect(listed(bootstrap.body.events)).toEqual([[7, 'public', null], [8, 'private', null]]);
     });
 
     test('mair_1179 GET /calendar/events/:id relays the 403 Calendar API answers for a private event of someone else', async () => {

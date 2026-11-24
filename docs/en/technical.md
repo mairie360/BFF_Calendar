@@ -12,7 +12,7 @@ Express 5.2.1 server written in TypeScript. Zod schemas and their OpenAPI regist
 
 Calendar API supplies every event operation: the events themselves, their metadata (category, service, location) and their recurrence rule, their members and their validation status, plus the rights of the caller. Core API supplies the directory (identity, roles, groups). The BFF has no database access. Categories and services include reference lists defined in the helpers.
 
-Event visibility is relayed as `visibility`, `public` or `private` (Calendar API's `Public` / `Private`): `public` when a creation omits it, kept when an update omits it, present on every event read (detail, list, period, bootstrap). Calendar API enforces it: a private event opened by someone who is neither its creator nor one of its members answers 403, which the BFF relays, and it is never listed for them.
+Event visibility is relayed as `visibility`, `public` or `private` (Calendar API's `Public` / `Private`): `public` when a creation omits it, kept when an update omits it, present on every event read (detail, list, period, bootstrap). Calendar API enforces it: a private event opened by someone who is neither its creator nor one of its members answers 403, which the BFF relays, and it is never listed for them. A public event is listed to every agent, invited or not (list, period, bootstrap); it then carries no `myParticipation`.
 
 Operation depends on consistent user identifiers between Core and Calendar. The BFF writes nothing to a database: every write goes through Calendar API. Dates and times exchanged with the interface are wall-clock values in the instance time zone (`CALENDAR_TIME_ZONE`, Europe/Paris by default); the BFF converts them to and from the UTC instants Calendar API stores.
 

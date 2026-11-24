@@ -396,9 +396,10 @@ export function splitDateRange(from: string, to: string): { from: string; to: st
 }
 
 async function listCalendarEventViews(from: string, to: string, context: CallContext): Promise<EventView[]> {
-  // Calendar API returns the public events and those owned by or assigned to the caller over the period,
-  // including those whose recurrence rule overlaps it, and tells whether the caller is a member. A range
-  // wider than one Calendar API window is read window by window; an event seen in several windows (long or
+  // Calendar API returns the events the caller may see over the period: every public event, and the private
+  // ones they created or are a member of, including those whose recurrence rule overlaps it. All of them are
+  // listed, whether or not the caller is a member (a public event is visible to every agent). A range wider
+  // than one Calendar API window is read window by window; an event seen in several windows (long or
   // recurring) is kept once.
   const pages = await mapWithConcurrency(splitDateRange(from, to), UPSTREAM_CONCURRENCY, async (window) => {
     const params: GetCalendarParams = { start: toApiDateTime(window.from, 'start'), end: toApiDateTime(window.to, 'end') };
@@ -407,7 +408,7 @@ async function listCalendarEventViews(from: string, to: string, context: CallCon
   });
   const seen = new Set<number>();
   return pages.flat().filter((event) => {
-    if (!event.is_member || seen.has(event.id)) return false;
+    if (seen.has(event.id)) return false;
     seen.add(event.id);
     return true;
   });
