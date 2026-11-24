@@ -126,7 +126,7 @@ Events carry `visibility` (`public` | `private`), mapped to Calendar API's `Publ
 sends `Public`, an update without it leaves `visibility` out of the PATCH body (Calendar API keeps the stored one, so a concurrent
 change is not overwritten), every read
 carries it. Calendar API enforces it (a private event answers 403 to anyone but its creator and members); the BFF
-only relays.
+only relays, and lists every event Calendar API returns: a public event shows in every agent's calendar, member or not.
 
 ### Approval model
 

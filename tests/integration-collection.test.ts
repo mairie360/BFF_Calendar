@@ -112,7 +112,7 @@ describe('newman integration collection (MAIR-262)', () => {
     expect(byKey.refresh_token_session).toBe('');
   });
 
-  it('MAIR-1179: replays a private event refused to the people not invited, then made public', () => {
+  it('MAIR-1179: replays a private event refused to the people not invited, then made public and listed to them', () => {
     const journey = requests.filter(({ folder }) => folder === 'MAIR-1179 Private and public events');
     expect(journey.map(({ request }) => `${request.method} ${normalize(request.url.raw)}`)).toEqual([
       'POST /calendar/events',
@@ -123,6 +123,8 @@ describe('newman integration collection (MAIR-262)', () => {
       'GET /calendar/period',
       'PATCH /calendar/events/{}',
       'GET /calendar/events/{}',
+      'GET /calendar/events',
+      'GET /calendar/period',
       'DELETE /calendar/events/{}',
     ]);
     const tests = journey.map((request) => request.tests.join('\n'));
@@ -131,5 +133,8 @@ describe('newman integration collection (MAIR-262)', () => {
     expect(tests[4]).toContain('have.status(403)');
     expect(tests[6]).toContain("to.eql('public')");
     expect(tests[7]).toContain('have.status(200)');
+    // A public event is listed to an agent who is not invited (list and calendar).
+    expect(tests[8]).toContain("to.eql('public')");
+    expect(tests[9]).toContain("to.eql('public')");
   });
 });
