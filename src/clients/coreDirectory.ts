@@ -32,24 +32,49 @@ function toDirectoryUser(user: DirectoryUser): CalendarDirectoryUser {
   };
 }
 
-/** Non-archived staff members, optionally restricted to some groups or ids. */
+/** Longest `ids` / `group_ids` value Core accepts (`GET /api/v1/user/`, 400 above it). */
+export const MAX_IDS_PARAMETER_LENGTH = 255;
+
+/** `ids` as comma-separated lists of at most `maxLength` characters each, in order, without duplicates. */
+export function idBatches(ids: number[], maxLength = MAX_IDS_PARAMETER_LENGTH): string[] {
+  const batches: string[] = [];
+  let current = '';
+  for (const id of new Set(ids)) {
+    const next = current ? `${current},${id}` : String(id);
+    if (next.length > maxLength && current) {
+      batches.push(current);
+      current = String(id);
+    } else {
+      current = next;
+    }
+  }
+  if (current) batches.push(current);
+  return batches;
+}
+
+/**
+ * Non-archived staff members, optionally restricted to some groups or ids. Many ids (the members of a busy
+ * month) are read in several calls run together, since Core caps `ids` at 255 characters.
+ */
 export async function listCalendarDirectoryUsers(
   filters: { groupIds?: number[]; ids?: number[] },
   context: CallContext,
 ): Promise<CalendarDirectoryUser[]> {
   if (filters.ids?.length === 0) return [];
 
-  const params = {
-    ...(filters.groupIds?.length ? { group_ids: filters.groupIds.join(',') } : {}),
-    ...(filters.ids?.length ? { ids: filters.ids.join(',') } : {}),
-  };
-  const response = await callUpstream(
-    'CORE_API',
-    () => coreApi.listDirectoryUsers(params, asCaller('CORE_API', context.req)),
-    { declared: context.declared, retry: true },
+  const groups = filters.groupIds?.length ? { group_ids: filters.groupIds.join(',') } : {};
+  const batches = filters.ids?.length ? idBatches(filters.ids).map((ids) => ({ ...groups, ids })) : [groups];
+  const responses = await Promise.all(
+    batches.map((params) =>
+      callUpstream(
+        'CORE_API',
+        () => coreApi.listDirectoryUsers(params, asCaller('CORE_API', context.req)),
+        { declared: context.declared, retry: true },
+      ),
+    ),
   );
 
-  return response.data.users.map(toDirectoryUser);
+  return responses.flatMap((response) => response.data.users.map(toDirectoryUser));
 }
 
 /** Staff member `userId`, or `null` when unknown or archived. */
