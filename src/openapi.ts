@@ -3,6 +3,7 @@ import { bearerAuth, registry } from './openapi-registry';
 import './routes/health';
 import './routes/check_apis';
 import './routes/calendar-routes';
+import './routes/search';
 
 // Runtime documentation and exported clients use the same mounted routes.
 export const openApiDocument = new OpenApiGeneratorV31(registry.definitions).generateDocument({
