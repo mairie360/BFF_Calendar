@@ -129,6 +129,17 @@ const handlers = {
   'GET /check_apis': ({ request }) =>
     check(request(), { 'check_apis 200': (r) => r.status === 200 }),
 
+  // --- Global search ---
+  // As a seeded agent: each module answers or is listed as unavailable, never an error.
+  'GET /search': ({ request }) =>
+    check(request({ query: { q: 'ag' }, headers: randomAgentMonth().headers }), {
+      'search 200': (r) => r.status === 200,
+      'search is the grouped answer': (r) => {
+        const body = json(r);
+        return Boolean(body) && Array.isArray(body.groups) && Array.isArray(body.unavailable);
+      },
+    }),
+
   // --- Calendar reads ---
   // As a random seeded agent, over the month of one of its events (MAIR-474): the event must be listed.
   'GET /calendar/bootstrap': ({ request }) => {

@@ -3223,8 +3223,10 @@
                   "pm.test(\"Status is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
-                  "pm.test(\"The event is gone\", function () {",
-                  "    const ids = pm.response.json().groups.flatMap((group) => group.items.map((item) => item.id));",
+                  "pm.test(\"The event is gone from a calendar search that answered\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.unavailable, 'the calendar API answered').to.not.include('calendar');",
+                  "    const ids = body.groups.flatMap((group) => group.items.map((item) => item.id));",
                   "    pm.expect(ids).to.not.include(Number(pm.environment.get('search_event_id')));",
                   "});"
                 ]
