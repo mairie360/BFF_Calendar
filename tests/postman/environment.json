@@ -103,6 +103,18 @@
       "value": "",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "search_term",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "search_event_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ]
 }

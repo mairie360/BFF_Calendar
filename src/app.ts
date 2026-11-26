@@ -7,6 +7,7 @@ import { logger } from './logger';
 import healthRouter from './routes/health';
 import checkApis from './routes/check_apis';
 import calendarRouter from './routes/calendar-routes';
+import searchRouter from './routes/search';
 
 export const app = express();
 
@@ -30,6 +31,8 @@ app.use('/health', healthRouter);
 app.use('/check_apis', checkApis);
 // Session-bound sub-routers (noStore + requireBearer) are mounted in src/routes/calendar/index.ts.
 app.use('/calendar', calendarRouter);
+// The header's global search, over every business API (noStore + requireSession in the router).
+app.use('/search', searchRouter);
 
 // Unknown routes and every error end in the shared envelope `{ error: { code, message, details } }`
 // (@mairie360/bffs-lib): the status of the error is kept (400 for an unparsable body, 401, 403, 404,
